@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="de.ovgu.featureide.core.composers">
+      <composer
+            class="de.ovgu.featureide.core.winvmj.WinVMJComposer"
+            description="Compose Web Backend with Delta-Oriented Programming approach"
+            id="de.ovgu.featureide.core.winvmj.composer"
+            name="WinVMJ"
+            nature="de.ovgu.featureide.core.winvmj.composer">
+      </composer>
+   </extension>
+   <extension
+         point="de.ovgu.featureide.fm.core.FMComposer">
+      <fmComposer
+            class="de.ovgu.featureide.core.winvmj.WinVMJFMComposer"
+            id="de.ovgu.featureide.core.winvmj.fmcomposer"
+            name="WinVMJ Feature Model Composer">
+      </fmComposer>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            allPopups="false"
+            locationURI="popup:de.ovgu.featureide.fm.ui.menus.popupMenu?before=de.ovgu.featureide.fm.ui.menus.popupMenu.submenus">
+         <menu
+               icon="src/main/resources/icons/FeatureIconSmall.ico"
+               id="de.ovgu.featureide.core.winvmj.ui.submenu"
+               label="WinVMJ"
+               tooltip="Compile the generated Product">
+            <visibleWhen
+                  checkEnabled="false">
+               <with
+                     variable="activeMenuSelection">
+                  <iterate
+                        ifEmpty="false"
+                        operator="or">
+                     <test
+                           args="de.ovgu.featureide.core.winvmj.composer"
+                           property="de.ovgu.featureide.fm.ui.properties.composer">
+                     </test>
+                  </iterate>
+               </with>
+            </visibleWhen>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.compilehandler"
+                  icon="src/main/resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.compilehandler"
+                  label="Compile"
+                  style="push">
+            </command>
+         </menu>
+      </menuContribution>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileHandler"
+            commandId="de.ovgu.featureide.core.winvmj.compilehandler">
+      </handler>
+   </extension>
+
+</plugin>
