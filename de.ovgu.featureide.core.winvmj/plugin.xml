@@ -15,6 +15,7 @@
          point="de.ovgu.featureide.fm.core.FMComposer">
       <fmComposer
             class="de.ovgu.featureide.core.winvmj.WinVMJFMComposer"
+            composer="de.ovgu.featureide.core.winvmj.composer"
             id="de.ovgu.featureide.core.winvmj.fmcomposer"
             name="WinVMJ Feature Model Composer">
       </fmComposer>

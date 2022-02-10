@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import com.google.gson.Gson;
@@ -34,26 +33,18 @@ public class CompileHandler extends AFeatureProjectHandler {
 			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
 				WinVMJConsole.println("Begin compiling...");
 				try {
-					getproductModule(project);
 					getFeatureModules(project);
 					SourceCompiler.compileSource(project);
 				} catch (CoreException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				WinVMJConsole.println("Compile process completed. Please Refresh the project now.");
+				WinVMJConsole.println("Compile process completed. Please Refresh the project "
+						+ "now and find your compiled product on src-gen.");
 				return true;
 			}
 		};
 		LongRunningWrapper.getRunner(job, "Compile JAR").schedule();
-	}
-	
-	private void getproductModule(IFeatureProject project) throws CoreException {
-		IResource productModule = Stream
-				.of(project.getBuildFolder().members())
-				.filter(module -> module.getName().contains(".product."))
-				.findFirst().get();
-		WinVMJConsole.println(productModule.getName());
 	}
 	
 	private void getFeatureModules(IFeatureProject project) throws CoreException {
@@ -67,8 +58,8 @@ public class CompileHandler extends AFeatureProjectHandler {
 			e.printStackTrace();
 		}
 		Gson gson = new Gson();
-		Map<String, String> mappings = gson.fromJson(mapReader, 
-				new TypeToken<LinkedHashMap<String, String>>() {}.getType());
+		Map<String, List<String>> mappings = gson.fromJson(mapReader, 
+				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
 		
 		List<String> sourceModules = Stream
 				.of(project.getBuildFolder().members())
@@ -76,7 +67,8 @@ public class CompileHandler extends AFeatureProjectHandler {
 				.map(module -> module.getName())
 				.collect(Collectors.toList());
 		
-		List<String> orderedSourceModules = mappings.keySet().stream()
+		List<String> orderedSourceModules = mappings.values().stream()
+				.flatMap(modules -> modules.stream())
 				.filter(module -> sourceModules.contains(module))
 				.collect(Collectors.toList());
 		

@@ -9,8 +9,11 @@ javaFiles.txt
 .vscode
 /*.product.*
 bin
+bin-comp
 src-gen
 **/libs
+de.ovgu.featureide.core.winvmj.updatesite/**/*.jar
+de.ovgu.featureide.core.winvmj.updatesite/*.jar
 
 ### Gradle ###
 .gradle

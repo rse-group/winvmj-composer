@@ -58,10 +58,15 @@ public class WinVMJProduct {
 			e.printStackTrace();
 		}
 		Gson gson = new Gson();
-		Map<String, String> mappings = gson.fromJson(mapReader, new TypeToken<LinkedHashMap<String, String>>() {}.getType());
-		for (Entry<String, String> mapping: mappings.entrySet()) {
+		Map<String, List<String>> mappings;
+		try {
+			mappings = gson.fromJson(mapReader, new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+		} catch (NullPointerException e) {
+			mappings = new LinkedHashMap<String, List<String>>();
+		}
+		for (Entry<String, List<String>> mapping: mappings.entrySet()) {
 			try {
-				if (this.evaluate(assignment, mapping.getValue())) selectedModules.add(mapping.getKey());
+				if (this.evaluate(assignment, mapping.getKey())) selectedModules.addAll(mapping.getValue());
 			} catch (ParserException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

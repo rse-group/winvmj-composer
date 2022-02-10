@@ -6,8 +6,8 @@ public class WinVMJFMComposer extends FMComposerExtension {
 	
 	private static String ORDER_PAGE_MESSAGE = 
 			"FeatureIDE projects based on WinVMJ do not need a total order\n" +
-			"as a partial order can be given directly in the delta modules\n" +
-			"using the keyword 'after'.";
+			"as a partial order can be given directly by ordering the mapping\n" +
+			"on `feature_to_module.json`.";
 
 	/*
 	 * (non-Javadoc)

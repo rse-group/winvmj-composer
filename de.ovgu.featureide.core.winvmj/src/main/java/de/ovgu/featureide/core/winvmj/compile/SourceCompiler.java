@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
@@ -25,12 +26,14 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
-import de.ovgu.featureide.fm.attributes.base.impl.ExtendedFeature;
 
 public class SourceCompiler {
 	public static void compileSource(IFeatureProject project) {
 		try {
+			
 			importWinVMJLibraries(project);
+			importWinVMJProductConfigs(project);
+			importExternalLibraries(project);
 			compileModules(project);
 			cleanBinaries(project);
 		} catch (CoreException | IOException | URISyntaxException e) {
@@ -43,14 +46,38 @@ public class SourceCompiler {
 		if (binModuleFolder.exists()) binModuleFolder.delete(true, null);
 	}
 	
+	private static void importWinVMJProductConfigs(IFeatureProject project) 
+			throws IOException, URISyntaxException, CoreException {
+		IFolder srcGen = project.getProject().getFolder("src-gen");
+		if (!srcGen.exists()) srcGen.create(false, true, null);
+		WinVMJConsole.println("Unpack WinVMJ Configs for product...");
+		InternalResourceManager.loadResourceDirectory("winvmj-configs", 
+				srcGen.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Configs unpacked");
+	}
+	
+	private static void importExternalLibraries(IFeatureProject project) 
+			throws IOException, URISyntaxException, CoreException {
+		IFolder externalModule = project.getProject().getFolder("external");
+		IFolder srcGen = project.getProject().getFolder("src-gen");
+		if (!srcGen.exists()) srcGen.create(false, true, null);
+		IFolder productModule = srcGen.getFolder(getProductModule(project));
+		if (!productModule.exists()) productModule.create(false, true, null);
+		WinVMJConsole.println("Importing additional Libraries for product in external...");
+		copy(externalModule, productModule);
+		WinVMJConsole.println("Additional Libraries imported");
+	}
+	
 	private static void importWinVMJLibraries(IFeatureProject project) 
 			throws IOException, URISyntaxException, CoreException {
 		IFolder srcGen = project.getProject().getFolder("src-gen");
 		if (!srcGen.exists()) srcGen.create(false, true, null);
 		IFolder productModule = srcGen.getFolder(getProductModule(project));
 		if (!productModule.exists()) productModule.create(false, true, null);
+		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
 		InternalResourceManager.loadResourceDirectory("winvmj-libraries", 
 				productModule.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
 	}
 	
 	private static String getProductModule(IFeatureProject project) throws CoreException {
@@ -73,8 +100,8 @@ public class SourceCompiler {
 			e.printStackTrace();
 		}
 		Gson gson = new Gson();
-		Map<String, String> mappings = gson.fromJson(mapReader, 
-				new TypeToken<LinkedHashMap<String, String>>() {}.getType());
+		Map<String,List<String>> mappings = gson.fromJson(mapReader, 
+				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
 		
 		List<String> sourceModules = Stream
 				.of(project.getBuildFolder().members())
@@ -82,7 +109,8 @@ public class SourceCompiler {
 				.map(module -> module.getName())
 				.collect(Collectors.toList());
 		
-		return mappings.keySet().stream()
+		return mappings.values().stream()
+				.flatMap(modules -> modules.stream())
 				.filter(module -> sourceModules.contains(module))
 				.collect(Collectors.toList());
 	}
@@ -92,21 +120,12 @@ public class SourceCompiler {
 		for (String module: getFeatureModules(project)) {
 			compileModuleForProduct(project, module, productModule);
 		}
-		// compileProductJar(project, productModule, getProductNameFromConfig(project));
+		compileProductJar(project, productModule, getProductNameFromConfig(project));
 	}
 	
 	private static String getProductNameFromConfig(IFeatureProject project) {
-		ExtendedFeature rootFeature = (ExtendedFeature) project.loadCurrentConfiguration().getRoot().getFeature();
-		if (hasProductName(rootFeature)) return rootFeature.getAttribute("productName").getValue().toString();
-		else {
-			return Files.getNameWithoutExtension(project
-					.getCurrentConfiguration().getFileName().toString());
-		}
-	}
-	
-	private static boolean hasProductName(ExtendedFeature rootFeature) {
-		return rootFeature.getAttribute("productName") != null && 
-				!rootFeature.getAttribute("productName").getValue().toString().equals("");
+		return StringUtils.capitalize(Files.getNameWithoutExtension(project
+				.getCurrentConfiguration().getFileName().toString()));
 	}
 	
 	public static void compileProductJar(IFeatureProject project, 
@@ -146,12 +165,13 @@ public class SourceCompiler {
 				compiledModuleFile.getLocation().toOSString() +
 				" --main-class " + productModuleName + "." + productName +
 				" -C " + binModuleFolder.getLocation().toOSString() + " .");
-		
+		WinVMJConsole.println("Compiling " + productModuleName + " product module...");
 		Process jarProcess = jarPb.start();
 		reader = new BufferedReader(new InputStreamReader(jarProcess.getInputStream()));
 		line = null;
 		while ( (line = reader.readLine()) != null) System.out.println(line);
 		reader.close();
+		WinVMJConsole.println(productModuleName + " product module packaged");
 	}
 	
 	private static void compileModuleForProduct(IFeatureProject project, String module, 
@@ -204,6 +224,27 @@ public class SourceCompiler {
 			if (resource instanceof IFolder) transverseModuleFilePaths((IFolder) resource, fileNames);
 			else if (resource instanceof IFile && resource.getName().endsWith(".java")) 
 				fileNames.add(quoteString(resource.getLocation().toOSString()));
+		}
+	}
+	
+	protected static void copy(IFolder featureFolder, IFolder buildFolder) throws CoreException {
+		if (!featureFolder.exists()) {
+			return;
+		}
+
+		for (final IResource res : featureFolder.members()) {
+			if (res instanceof IFolder) {
+				final IFolder folder = buildFolder.getFolder(res.getName());
+				if (!folder.exists()) {
+					folder.create(false, true, null);
+				}
+				copy((IFolder) res, folder);
+			} else if (res instanceof IFile) {
+				final IFile file = buildFolder.getFile(res.getName());
+				if (!file.exists()) {
+					res.copy(file.getFullPath(), true, null);
+				}
+			}
 		}
 	}
 	
