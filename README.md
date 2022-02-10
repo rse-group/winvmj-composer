@@ -17,7 +17,7 @@ Terdapat beberapa tools yang pelru anda install sebelum mencoba tools ini:
 
 To install this plugin:
 
-1. Download the zip releases and unzip it somehere.
+1. Download the zip releases and unzip it somehere. Check [Releases page](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases) to download the plugin zip. It's a package with pattern name: `de.ovgu.featureide.core.winvmj-vx.y.z`.
 2. On top toolbar, click on `Help`>`Install New Software`.
 2. Click on `Add`>`Archive`.
 4. Select the zip file you downloaded before.
@@ -27,7 +27,7 @@ To install this plugin:
 8. Congratulations! Now you can use FeatureIDE to develop software with WinVMJ.
 
 ### WinVMJ on FeatureIDE 101
-Coming soon. In the meantime, feel free to visit [FeatureIDE](https://featureide.github.io/) page and try WinVMJ-AISCO FeatureIDE Project to learn more about its usage.
+Coming soon. In the meantime, feel free to visit [FeatureIDE](https://featureide.github.io/) page and try [WinVMJ-AISCO FeatureIDE Project](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/v0.0.1) to learn more about its usage.
 
 ### Developer's Corner
 
