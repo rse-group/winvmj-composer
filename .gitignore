@@ -11,9 +11,9 @@ javaFiles.txt
 bin
 bin-comp
 src-gen
-**/libs
 de.ovgu.featureide.core.winvmj.updatesite/**/*.jar
 de.ovgu.featureide.core.winvmj.updatesite/*.jar
+debug.txt
 
 ### Gradle ###
 .gradle

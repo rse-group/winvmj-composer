@@ -68,7 +68,6 @@ public class WinVMJProduct {
 			try {
 				if (this.evaluate(assignment, mapping.getKey())) selectedModules.addAll(mapping.getValue());
 			} catch (ParserException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

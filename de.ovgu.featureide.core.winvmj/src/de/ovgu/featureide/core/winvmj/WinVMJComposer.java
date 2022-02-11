@@ -13,6 +13,8 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
 
 import com.google.common.io.Files;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
@@ -29,7 +31,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	public static String DB_AND_ROUTING_FILENAME = "db_and_routing.json";
-	private String FEATURE_MODULE_SPEC_FILENAME = "selected_features.txt";
 	private String EXTERNAL_LIB_FOLDERNAME = "external";
 	private String MODULE_FOLDERNAME = "modules";
 	private Path previousConfig = null;
@@ -38,7 +39,12 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	@Override
 	public boolean initialize(IFeatureProject project) {
 		super.initialize(project);
-		createUvlFeatureModel(project);
+		try {
+			createUvlFeatureModel(project);
+		} catch (CoreException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		initExtraConfigFiles(project);
 		return true;
 	}
@@ -60,10 +66,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 
 	@Override
 	public void performFullBuild(Path config) {
-		// TODO Auto-generated method stub
-		if (isSameConfig()) {
-			return;
-		}
+		if (isSameConfig()) return;
 		updatePreviousConfig();
 		IFile featureModuleMapper = featureProject.getProject().getFile(FEATURE_MODULE_MAPPER_FILENAME);
 		String splName = getSplName(featureProject);
@@ -71,31 +74,25 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		
 		WinVMJProduct product = new WinVMJProduct(productName, splName, featureProject.loadConfiguration(config)
 				.getSelectedFeatures(), featureModuleMapper);
-		IFolder moduleFolder = featureProject.getProject().getFolder(MODULE_FOLDERNAME);
 		
-		for (String module: product.getModules()) {
-			IFolder buildFolder = featureProject.getBuildFolder().getFolder(module);
-			try {
+		try {
+			IFolder moduleFolder = featureProject.getProject().getFolder(MODULE_FOLDERNAME);
+			for (String module: product.getModules()) {
+				IFolder buildFolder = featureProject.getBuildFolder().getFolder(module);
 				buildFolder.create(false, true, null);
 				copy(moduleFolder.getFolder(module), buildFolder);
-			} catch (CoreException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
-		}
-		
-		IFolder productModule = featureProject.getBuildFolder().getFolder(product.getProductQualifiedName());
-		try {
+			
+			IFolder productModule = featureProject.getBuildFolder().getFolder(product.getProductQualifiedName());
 			productModule.create(false, true, null);
 		} catch (CoreException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
 		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(featureProject);
 		TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
 		moduleInfoRenderer.render(product);
 		productClassRenderer.render(product);
-		createSpecFile(featureProject.loadConfiguration(config).getSelectedFeatureNames(), product);
 	}
 
 	@Override
@@ -115,7 +112,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return false;
 	}
 	
-	private boolean createUvlFeatureModel(IFeatureProject project) {
+	private boolean createUvlFeatureModel(IFeatureProject project) throws CoreException {
 		IFile uvlFile = project.getProject().getFile("model.uvl");
 //		if (uvlFile.exists()) uvlFile.create(null, isInitialized(), null);
 		if (!uvlFile.exists())
@@ -124,39 +121,25 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				new UVLFeatureModelFormat());
 		return true;
 	}
-
-	
-	private boolean createSpecFile(Set<String> features, WinVMJProduct product) {
-		IFile featureModuleSpec = featureProject.getBuildFolder()
-				.getFolder(product.getProductQualifiedName())
-				.getFile(FEATURE_MODULE_SPEC_FILENAME);
-		String featureString = "Features:\n" + String.join("\n", features);
-		String moduleString = "Modules:\n" + String.join("\n", product.getModules());
-		String specString = featureString + "\n\n" + moduleString;
-		InputStream specContentStream = new ByteArrayInputStream(specString.getBytes());
-		try {
-			if (featureModuleSpec.exists()) featureModuleSpec.setContents(specContentStream, false, false, null);
-			else featureModuleSpec.create(specContentStream, false, null);
-		} catch (CoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return true;
-	}
 	
 	private boolean initExtraConfigFiles(IFeatureProject project) {
-		InputStream emptyContentStream = new ByteArrayInputStream("{}".getBytes());
+		JsonObject jsonInitContent = new JsonObject();
+		InputStream emptyContentStream = new ByteArrayInputStream(jsonInitContent.toString().getBytes());
 		
 		try {
 			IFile featureModuleMapper = project.getProject().getFile(FEATURE_MODULE_MAPPER_FILENAME);
 			if (!featureModuleMapper.exists()) {
 				featureModuleMapper.create(emptyContentStream, false, null);
 				emptyContentStream.close();
-				emptyContentStream = new ByteArrayInputStream("{}".getBytes());
 			}
 			
 			IFile dbAndRoutingFile = project.getProject().getFile(DB_AND_ROUTING_FILENAME);
 			if (!dbAndRoutingFile.exists()) {
+				// prepare init content for db and routing
+				jsonInitContent.add("dataModel", new JsonArray());
+				jsonInitContent.add("methodRouting", new JsonArray());
+				emptyContentStream = new ByteArrayInputStream(jsonInitContent.toString().getBytes());
+				
 				dbAndRoutingFile.create(emptyContentStream, false, null);
 				emptyContentStream.close();
 			}

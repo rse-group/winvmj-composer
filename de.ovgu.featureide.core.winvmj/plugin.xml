@@ -26,7 +26,7 @@
             allPopups="false"
             locationURI="popup:de.ovgu.featureide.fm.ui.menus.popupMenu?before=de.ovgu.featureide.fm.ui.menus.popupMenu.submenus">
          <menu
-               icon="src/main/resources/icons/FeatureIconSmall.ico"
+               icon="resources/icons/FeatureIconSmall.ico"
                id="de.ovgu.featureide.core.winvmj.ui.submenu"
                label="WinVMJ"
                tooltip="Compile the generated Product">
@@ -46,7 +46,7 @@
             </visibleWhen>
             <command
                   commandId="de.ovgu.featureide.core.winvmj.compilehandler"
-                  icon="src/main/resources/icons/FeatureIconSmall.ico"
+                  icon="resources/icons/FeatureIconSmall.ico"
                   id="de.ovgu.featureide.core.winvmj.compilehandler"
                   label="Compile"
                   style="push">

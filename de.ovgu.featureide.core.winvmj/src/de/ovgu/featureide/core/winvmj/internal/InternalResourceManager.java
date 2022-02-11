@@ -22,7 +22,7 @@ public class InternalResourceManager {
 		if (file.isFile()) {
 			loadJarResource(file, resourceDirPath, outPath);
 		} else {
-			Path srcResource = Path.of(file.getAbsolutePath(), "src", "main", "resources", resourceDirPath);
+			Path srcResource = Path.of(file.getAbsolutePath(), "resources", resourceDirPath);
 			FileUtils.copyDirectory(srcResource.toFile(), new File(outPath));
 		}
 	}

@@ -29,6 +29,46 @@ To install this plugin:
 ### WinVMJ on FeatureIDE 101
 Coming soon. In the meantime, feel free to visit [FeatureIDE](https://featureide.github.io/) page and try [WinVMJ-AISCO FeatureIDE Project](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/v0.0.1) to learn more about its usage.
 
+#### WinVMJ FeatureIDE Structure
+```
+root
+├── [src]
+├── src-gen
+│   ├── pl.product.product1/
+│	├── pl.product.product2/
+│	├── ...
+│	└── pl.product.productn/
+├── [config]
+│   ├── config1.xml
+│	├── config2.xml
+│	├── ...
+│	└── confign.xml
+├── libs
+│   ├── lib1.jar
+│	├── lib2.jar
+│	├── ...
+│	└── libn.jar
+├── modules
+│   ├── pl.corefeature1.core/
+│	├── pl.corefeature1.delta1/
+│	├── pl.corefeature1.delta2/
+│	├── ...
+│	└── pl.corefeaturem.deltan/
+├── db_and_routing.json
+├── feature_to_module.json
+└── model.xml
+```
+Each component can be explained as:
+- `root`: project root
+- `[src]`: generated product directory. Its name can be defined by user when creating the project. Its content changes depending on selected configuration.
+- `src-gen`: compiled generated product directory. All compiled products will be preserved in this directory.
+- `[config]`: directory where product configurations are defined. Its name can be defined by user when creating the project.
+- `libs`: directory where additional libraries are stored. For now, all external library will be imported while compiling a product.
+- `modules`: directory where all implementation modules are stored.
+- `db_and_routing.json`: a file that defines the mapping between features and modules.
+- `feature_to_module.json`: a file that defines which modules require database and / or routing.
+- `model.xml`: a file that defines the feature model.
+
 ### Developer's Corner
 
 This section explains about how to develop this plugin.
