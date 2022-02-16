@@ -1,13 +1,16 @@
 module ${productPackage} {
     requires vmj.object.mapper;
     requires vmj.routing.route;
+    requires vmj.hibernate.integrator;
+    
+    requires net.bytebuddy;
+    requires java.xml.bind;
+    requires com.sun.xml.bind;
+    requires com.fasterxml.classmate;
+    requires jdk.unsupported;
 
     <#list requiredModules as module>
-    requires ${isReusable?then('transitive ', '')}${module};
-    </#list>
-    
-    <#list externalModules as module>
-    requires ${isReusable?then('transitive ', '')}${module};
+    requires ${module};
     </#list>
 	
 	requires prices.auth.vmj;

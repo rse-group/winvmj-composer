@@ -30,12 +30,12 @@ import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 public class SourceCompiler {
 	public static void compileSource(IFeatureProject project) {
 		try {
-			
 			importWinVMJLibraries(project);
+			importDatabaseMappers(project);
 			importWinVMJProductConfigs(project);
 			importExternalLibraries(project);
 			compileModules(project);
-			cleanBinaries(project);
+			//cleanBinaries(project);
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -54,6 +54,18 @@ public class SourceCompiler {
 		InternalResourceManager.loadResourceDirectory("winvmj-configs", 
 				srcGen.getLocation().toOSString());
 		WinVMJConsole.println("WinVMJ Configs unpacked");
+	}
+	
+	private static void importDatabaseMappers(IFeatureProject project) 
+			throws IOException, URISyntaxException, CoreException {
+		IFolder srcGen = project.getProject().getFolder("src-gen");
+		if (!srcGen.exists()) srcGen.create(false, true, null);
+		IFolder productModule = srcGen.getFolder(getProductModule(project));
+		if (!productModule.exists()) productModule.create(false, true, null);
+		WinVMJConsole.println("Importing database mappers for product...");
+		InternalResourceManager.loadResourceDirectory("mappers", 
+				productModule.getLocation().toOSString());
+		WinVMJConsole.println("Database Mappers imported");
 	}
 	
 	private static void importExternalLibraries(IFeatureProject project) 
@@ -187,6 +199,8 @@ public class SourceCompiler {
 		compileCommand.add("--module-path");
 		compileCommand.add(compiledProductFolder.getLocation().toOSString());
 		compileCommand.addAll(modulePaths);
+		
+		System.out.println(String.join(" ", compileCommand));
 
 		ProcessBuilder compilePb = new ProcessBuilder(compileCommand);
 		WinVMJConsole.println("Compiling " + module + " module...");
@@ -200,7 +214,9 @@ public class SourceCompiler {
 		
 		IFile compiledModuleFile = compiledProductFolder.getFile(module + ".jar");
 		System.out.println(compiledModuleFile.getLocation().toOSString());
-		
+		System.out.println("jar --create --file " + 
+				compiledModuleFile.getLocation().toOSString() + 
+				" -C " + binModuleFolder.getLocation().toOSString() + " .");
 		ProcessBuilder jarPb = new ProcessBuilder("jar", "--create", "--file", 
 				compiledModuleFile.getLocation().toOSString(), 
 				"-C", binModuleFolder.getLocation().toOSString(), ".");

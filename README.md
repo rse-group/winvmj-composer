@@ -35,25 +35,25 @@ root
 ├── [src]
 ├── src-gen
 │   ├── pl.product.product1/
-│	├── pl.product.product2/
-│	├── ...
-│	└── pl.product.productn/
+│   ├── pl.product.product2/
+│   ├── ...
+│   └── pl.product.productn/
 ├── [config]
 │   ├── config1.xml
-│	├── config2.xml
-│	├── ...
-│	└── confign.xml
+│   ├── config2.xml
+│   ├── ...
+│   └── confign.xml
 ├── libs
 │   ├── lib1.jar
-│	├── lib2.jar
-│	├── ...
-│	└── libn.jar
+│   ├── lib2.jar
+│   ├── ...
+│   └── libn.jar
 ├── modules
 │   ├── pl.corefeature1.core/
-│	├── pl.corefeature1.delta1/
-│	├── pl.corefeature1.delta2/
-│	├── ...
-│	└── pl.corefeaturem.deltan/
+│   ├── pl.corefeature1.delta1/
+│   ├── pl.corefeature1.delta2/
+│   ├── ...
+│   └── pl.corefeaturem.deltan/
 ├── db_and_routing.json
 ├── feature_to_module.json
 └── model.xml

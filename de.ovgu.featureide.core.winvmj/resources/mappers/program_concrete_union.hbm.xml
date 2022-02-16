@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC 
+ "-//Hibernate/Hibernate Mapping DTD//EN"
+ "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd"> 
+
+<hibernate-mapping>
+    <class name="aisco.program.core.ProgramComponent" abstract="true">
+        <!-- <id name="idProgram" column="idProgram" type="uuid-char"> -->
+        <id name="idProgram" column="idProgram">
+            <generator class="assigned"></generator>
+        </id>
+        <property name="name" column="name"></property>
+        <property name="description" column="description"></property>
+        <property name="target" column="target"></property>
+        <property name="partner" column="partner"></property>
+        <property name="logoUrl" column="logoUrl"></property>
+        <property name="executionDate" column="executionDate"></property>
+
+        <union-subclass name="aisco.program.activity.ProgramImpl" table = "program_activity" >
+        </union-subclass>
+    </class>
+</hibernate-mapping>

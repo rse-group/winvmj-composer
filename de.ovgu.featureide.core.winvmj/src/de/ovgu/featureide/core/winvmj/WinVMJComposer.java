@@ -10,6 +10,8 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import com.google.common.io.Files;
@@ -21,9 +23,12 @@ import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoHibernateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassHibernateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.io.EclipseFileSystem;
+import de.ovgu.featureide.fm.core.io.manager.ConfigurationManager;
 import de.ovgu.featureide.fm.core.io.manager.FeatureModelManager;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
 
@@ -68,6 +73,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	public void performFullBuild(Path config) {
 		if (isSameConfig()) return;
 		updatePreviousConfig();
+		
 		IFile featureModuleMapper = featureProject.getProject().getFile(FEATURE_MODULE_MAPPER_FILENAME);
 		String splName = getSplName(featureProject);
 		String productName = getProductNameFromConfig(featureProject);
@@ -76,6 +82,12 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				.getSelectedFeatures(), featureModuleMapper);
 		
 		try {
+			WinVMJConsole.println("Referenced Projects");
+			for (IProject refProj: featureProject.getProject().getReferencedProjects()) {
+				WinVMJConsole.println(refProj.getName());
+				WinVMJConsole.println(refProj.getLocation().toOSString());
+			}
+			
 			IFolder moduleFolder = featureProject.getProject().getFolder(MODULE_FOLDERNAME);
 			for (String module: product.getModules()) {
 				IFolder buildFolder = featureProject.getBuildFolder().getFolder(module);
@@ -89,8 +101,8 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			e.printStackTrace();
 		}
 		
-		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(featureProject);
-		TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
+		TemplateRenderer moduleInfoRenderer = new ModuleInfoHibernateRenderer(featureProject);
+		TemplateRenderer productClassRenderer = new ProductClassHibernateRenderer(featureProject);
 		moduleInfoRenderer.render(product);
 		productClassRenderer.render(product);
 	}
@@ -112,6 +124,23 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return false;
 	}
 	
+	private IFile getConfigFromReferencedProject(IProject refProject, String configName) throws CoreException {
+		return getConfigFromReferencedProject((IFolder) refProject, configName);
+	}
+	
+	private IFile getConfigFromReferencedProject(IFolder folder, String configName) throws CoreException {
+		for (IResource resource: folder.members()) {
+			if (resource instanceof IFolder) {
+				IFile configFile = getConfigFromReferencedProject((IFolder) resource,configName);
+				if (configFile != null) return configFile;
+			} else if (resource instanceof IFile && 
+					Files.getNameWithoutExtension(resource.getName()).equals(configName) &&
+					ConfigurationManager.isFileSupported(EclipseFileSystem.getPath(resource)))
+				return (IFile) resource;
+		}
+		return null;
+	}
+	
 	private boolean createUvlFeatureModel(IFeatureProject project) throws CoreException {
 		IFile uvlFile = project.getProject().getFile("model.uvl");
 //		if (uvlFile.exists()) uvlFile.create(null, isInitialized(), null);
@@ -126,7 +155,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		JsonObject jsonInitContent = new JsonObject();
 		InputStream emptyContentStream = new ByteArrayInputStream(jsonInitContent.toString().getBytes());
 		
-		try {
+		try {	
 			IFile featureModuleMapper = project.getProject().getFile(FEATURE_MODULE_MAPPER_FILENAME);
 			if (!featureModuleMapper.exists()) {
 				featureModuleMapper.create(emptyContentStream, false, null);
