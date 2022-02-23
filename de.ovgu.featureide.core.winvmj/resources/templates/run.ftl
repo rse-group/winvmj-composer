@@ -1,0 +1,1 @@
+java -cp ${product} --module-path ${product} -m ${product}

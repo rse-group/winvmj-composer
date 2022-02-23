@@ -23,6 +23,7 @@ import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.HibernateCfgRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoHibernateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassHibernateRenderer;
@@ -36,8 +37,9 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	public static String DB_AND_ROUTING_FILENAME = "db_and_routing.json";
-	private String EXTERNAL_LIB_FOLDERNAME = "external";
-	private String MODULE_FOLDERNAME = "modules";
+	public static String EXTERNAL_LIB_FOLDERNAME = "external";
+	public static String HIBERNATE_MAPPERS_FOLDERNAME = "mappers";
+	public static String MODULE_FOLDERNAME = "modules";
 	private Path previousConfig = null;
 	private Set<String> previousFeatures = null;
 
@@ -91,8 +93,10 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			IFolder moduleFolder = featureProject.getProject().getFolder(MODULE_FOLDERNAME);
 			for (String module: product.getModules()) {
 				IFolder buildFolder = featureProject.getBuildFolder().getFolder(module);
-				buildFolder.create(false, true, null);
-				copy(moduleFolder.getFolder(module), buildFolder);
+				if (!buildFolder.exists()) {
+					buildFolder.create(false, true, null);
+					copy(moduleFolder.getFolder(module), buildFolder);
+				}
 			}
 			
 			IFolder productModule = featureProject.getBuildFolder().getFolder(product.getProductQualifiedName());
@@ -103,8 +107,10 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		
 		TemplateRenderer moduleInfoRenderer = new ModuleInfoHibernateRenderer(featureProject);
 		TemplateRenderer productClassRenderer = new ProductClassHibernateRenderer(featureProject);
+		//TemplateRenderer hibernateCfgRenderer = new HibernateCfgRenderer(featureProject);
 		moduleInfoRenderer.render(product);
 		productClassRenderer.render(product);
+		//hibernateCfgRenderer.render(product);
 	}
 
 	@Override
@@ -173,13 +179,15 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				emptyContentStream.close();
 			}
 			
+			IFolder mapperFolder = project.getProject().getFolder(HIBERNATE_MAPPERS_FOLDERNAME);
+			if (!mapperFolder.exists()) mapperFolder.create(false, true, null);
+			
 			IFolder moduleFolder = project.getProject().getFolder(MODULE_FOLDERNAME);
 			if (!moduleFolder.exists()) moduleFolder.create(false, true, null);
 			
 			IFolder externalLibFolder = project.getProject().getFolder(EXTERNAL_LIB_FOLDERNAME);
 			if (!externalLibFolder.exists()) externalLibFolder.create(false, true, null);
 		} catch (CoreException | IOException e) {
-			// TODO Auto-generated catch block
 			WinVMJConsole.println(e.getMessage());
 			e.printStackTrace();
 		}

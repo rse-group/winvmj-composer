@@ -14,20 +14,16 @@
     <session-factory>
 
         <!-- Database connection settings -->
-        <!-- <property name="connection.driver_class">com.mysql.cj.jdbc.Driver</property> -->
         <property name="connection.driver_class">org.postgresql.Driver</property>
-        <!-- <property name="connection.url">jdbc:mysql://localhost:3306/hibernatedemo</property> -->
-        <property name="connection.url">jdbc:postgresql://localhost:5432/hibernatedemo</property>
-        <!-- <property name="connection.username">root</property> -->
+        <property name="connection.url">jdbc:postgresql://localhost:5432/${dbname}</property>
         <property name="connection.username">postgres</property>
-        <!-- <property name="connection.password">root</property> -->
         <property name="connection.password">root</property>
 
         <!-- JDBC connection pool (use the built-in) -->
         <!-- <property name="connection.pool_size">1</property> -->
 
         <!-- set to create to re-create database, set to update to modify the database (the record still intact)-->
-        <property name="hbm2ddl.auto">create</property>
+        <property name="hbm2ddl.auto">update</property>
 
         <!-- SQL dialect -->
         <!-- <property name="dialect">org.hibernate.dialect.MySQL5Dialect</property> -->

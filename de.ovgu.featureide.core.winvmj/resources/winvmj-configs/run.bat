@@ -1,1 +1,0 @@
-java -cp %1 --module-path %1 -m %1
