@@ -15,7 +15,6 @@ import com.google.gson.reflect.TypeToken;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
-import de.ovgu.featureide.core.winvmj.compile.CachedSourceCompiler;
 import de.ovgu.featureide.core.winvmj.compile.SourceCompiler;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.fm.core.job.LongRunningMethod;
@@ -35,7 +34,7 @@ public class CompileHandler extends AFeatureProjectHandler {
 				WinVMJConsole.println("Begin compiling...");
 				try {
 					getFeatureModules(project);
-					CachedSourceCompiler.compileSource(project);
+					SourceCompiler.compileSource(project);
 				} catch (CoreException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();

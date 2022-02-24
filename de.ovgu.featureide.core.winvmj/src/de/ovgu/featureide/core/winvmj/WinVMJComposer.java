@@ -23,11 +23,8 @@ import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.HibernateCfgRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoHibernateRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassHibernateRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.io.EclipseFileSystem;
 import de.ovgu.featureide.fm.core.io.manager.ConfigurationManager;
 import de.ovgu.featureide.fm.core.io.manager.FeatureModelManager;
@@ -46,12 +43,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	@Override
 	public boolean initialize(IFeatureProject project) {
 		super.initialize(project);
-		try {
-			createUvlFeatureModel(project);
-		} catch (CoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		initExtraConfigFiles(project);
 		return true;
 	}
@@ -149,7 +140,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	
 	private boolean createUvlFeatureModel(IFeatureProject project) throws CoreException {
 		IFile uvlFile = project.getProject().getFile("model.uvl");
-//		if (uvlFile.exists()) uvlFile.create(null, isInitialized(), null);
 		if (!uvlFile.exists())
 			FeatureModelManager.save(project.getFeatureModel(), 
 				EclipseFileSystem.getPath(uvlFile), 

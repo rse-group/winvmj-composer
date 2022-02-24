@@ -90,7 +90,7 @@ public class ${productName} {
 			<#if routeSpec['parentVariable']??>, ${routeSpec['parentVariable']}</#if>);
 		</#list>
 
-		<#list routings as routeSpec>
+		<#list routings?reverse as routeSpec>
 		System.out.println("${routeSpec['variableName']} endpoints binding");
 		Router.route(${routeSpec['variableName']});
 		
