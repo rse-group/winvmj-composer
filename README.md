@@ -12,8 +12,8 @@ To use this plugin, you need to install:
 2. [Eclipse IDE 4.18 / 2020-12](https://www.eclipse.org/downloads/packages/release/2020-12/r).
 3. [FeatureIDE 3.8.1](https://featureide.github.io/).
 4. [Eclipse PDE](https://www.eclipse.org/pde/) if hasn't been included on downloaded IDE.
-5. [PostgreSQL].
-6. (Optional) PostgreSQL management tools such as phpmyadmin or adminer
+5. [PostgreSQL](https://www.postgresql.org/download/).
+6. (Optional) PostgreSQL management tools such as [phpmyadmin](https://www.phpmyadmin.net/downloads/) or [adminer](https://www.adminer.org/).
 
 ### Installing the Plugin
 
@@ -119,20 +119,44 @@ The generated product is located on `[src]`, and as mentioned above, its content
 #### Compiling a product
 If you feel the generated product is ready, you can compile it by:
 1. Right click on project folder, then select `FeatureIDE`>`WinVMJ`>`Compile`.
-2. Please wait until the compilation process is completed. You can check the `WinVMJ` to track this process.
+2. Please wait until the compilation process is completed. You can check the `WinVMJ Console` to track this process.
 
 #### Running a product
-Before you run the product, you may need to setup the `hibernate.cfg.xml` located on `src-gen/[Product Name]/[product module name]`, as your Postgresql credentials may differ from the generated one. You may also need to create the database manually using PostgreSQL management tools. Please follow the tools' guide on how to do so.
+Before you run the product, you may need to setup the `hibernate.cfg.xml` located on `src-gen/[Product Name]/[product module name]` and `run.[bat/sh]` located on `src-gen/[Product Name]`, as your Postgresql credentials may differ from the generated one. The location of bot credentials are as follows:
 
+`hibernate.cfg.xml`
+
+`run.[bat/sh]`: line 1.
+```bat
+echo ... | psql "postgresql://[username]:[password]@localhost"
+...
+```
+
+`hibernate.cfg.xml`: line 19-20.
+```
+...
+<hibernate-configuration>
+
+    <session-factory>
+        ...
+        <property name="connection.username">postgres</property>
+        <property name="connection.password">root</property>
+        ...
+    </session-factory>
+
+</hibernate-configuration>
+```
+
+After adjusting your credentials, we can run the product by following these steps:
 1. On top toolbar, click on `Run`>`External Tools`>`External Tool Configuration`.
-2. Select the script location at `src-gen/[Product Name]/run.[bat (Windows) / sh (Linux / Mac)]`.
-3. Select the working directory at `src-gen/[Product Name]/`.
+2. Select the script `Location` at `src-gen/[Product Name]/run.[bat (Windows) / sh (Linux / Mac)]`.
+3. Select the `Working Directory` at `src-gen/[Product Name]/`.
 4. Click `Run`.
 
 This configuration will be saved and can be re-executed by clicking `Run`>`External Tools`>`[Your config name]`.
 
-#### Setup Database
-There are some database setups that you need to do manually. First, you need to seed the authorized user, which is managed on `sqlite` database. If you haven't run the product, please run it first so that it can generate the `db` file. The generated file has a name pattern: `[spl name]_product_[product name]`. We provide a auth seeding artifacts that consist of SQL file ``auth_seed.sql``, `sqlite` executable, SQL execution script `read_sql.bat` for Windows and `read_sql.sh` for Linux / Mac on the [release page](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/). Unpack these artifact to `src-gen/[Desired Product Name]/`. To create a new user, please add this SQL statement on ``auth_seed.sql``:
+#### About Authorization
+You need to seed the authorized user, which is managed on `sqlite` database. If you haven't run the product, please run it first so that it can generate the `db` file. The generated file has a name pattern: `[spl name]_product_[product name]`. We provide a auth seeding artifacts that consist of SQL file ``auth_seed.sql``, `sqlite` executable, SQL execution script `read_sql.bat` for Windows and `read_sql.sh` for Linux / Mac on the [release page](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/). Unpack these artifact to `src-gen/[Desired Product Name]/`. To create a new user, please add this SQL statement on ``auth_seed.sql``:
 ```
 INSERT INTO auth_user (id,password,allowedPermissions,name,email) VALUES ([unique integer],'fd4f97ae96ed4c0268d0b275765c849ce511419d96d6290ed583b9516f8cab61dfeddf43a522167bc9fa1eaeebb72b88158a2e646d1006799eb65a0e5805341a','',[Nama anda],[email google anda]);
 ```
@@ -156,9 +180,9 @@ INSERT INTO auth_user_role (id,role,user) VALUES (13,1,5);
 
 To seed using those resource, you can create an `External Configuration` similar to how you run a product.
 1. On top toolbar, click on `Run`>`External Tools`>`External Tool Configuration`.
-2. Select the script location at `src-gen/[Product Name]/auth_seed.sql`.
-3. Select the working directory at `src-gen/[Product Name]/`.
-4. Add these folloing argument: `[sqlite db file name] auth_seed.sql` on argument section.
+2. Select the script `Location` at `src-gen/[Product Name]/auth_seed.sql`.
+3. Select the `Working Directory` at `src-gen/[Product Name]/`.
+4. Add these folloing `Arguments`: `[sqlite db file name] auth_seed.sql` on argument section.
 5. Click `Run`.
 
 ### Developer's Corner
@@ -169,12 +193,7 @@ This section explains about how to develop this plugin.
 
 1. Open your `Eclipse IDE`.
 2. Select `File`>`Open projects from file system...`.
-3. Click `Directory`, and then select where the `de.ovgu.featureide.core.winvmj` directory of this repository is located.
-4. If there are error markers, please add the `Plug-In Dependiencies` manually by:
-  - Right-click the project directory and click `Build Path`>`Configure Build Path`.
-  - Select the `Library`>`Classpath` section and click `add library` button.
-  - Select `Plug-In Dependencies` and click `next`>`Finish`.
-  
+3. Click `Directory`, and then select where the `de.ovgu.featureide.core.winvmj`, `de.ovgu.featureide.core.winvmj.feature`, and `de.ovgu.featureide.core.winvmj.updatesite` directories of this repository is located.
 
 #### Important Classes
 When developing this plugin, you will most likely develop these classes.

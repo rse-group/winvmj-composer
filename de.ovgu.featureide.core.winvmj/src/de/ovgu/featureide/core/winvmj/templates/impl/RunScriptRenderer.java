@@ -18,6 +18,7 @@ public class RunScriptRenderer extends TemplateRenderer {
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
 		
+		dataModel.put("dbname", product.getProductQualifiedName().replace(".", "_"));
 		dataModel.put("product", product.getProductQualifiedName());
 		return dataModel;
 	}

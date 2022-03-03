@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import vmj.object.mapper.VMJDatabaseMapper;
 import vmj.routing.route.VMJServer;
 import vmj.routing.route.Router;
+import vmj.hibernate.integrator.HibernateUtil;
+import org.hibernate.cfg.Configuration;
 
 <#list imports as import>
 import ${import};
@@ -18,28 +20,20 @@ import prices.auth.vmj.model.core.Role;
 public class ${productName} {
 
 	public static void main(String[] args) {
-		generateTables();
 		activateServer("localhost", 7776);
+		Configuration configuration = new Configuration().configure();
+		configuration.addResource("program_concrete_union.hbm.xml");
+		<#list models as modelSpec>
+		<#list modelSpec['class'] as className>
+		configuration.addAnnotatedClass(${modelSpec['module']}.${className}.class);
+		</#list>
+		</#list>
+		configuration.buildMappings();
+		HibernateUtil.buildSessionFactory(configuration);
+		
+		generateTables();
 		generateCRUDEndpoints();
 		createObjectsAndBindEndPoints();
-	}
-
-	public static void generateTables() {
-		try {
-			System.out.println("== GENERATING TABLES ==");
-			<#list models as modelSpec>
-			VMJDatabaseMapper.generateTable("${modelSpec['module']}.${modelSpec['class']}", ${modelSpec['hasParentTable']?then('true', 'false')});
-			</#list>
-			VMJDatabaseMapper.generateTable("prices.auth.vmj.model.passworded.UserImpl", false);
-			VMJDatabaseMapper.generateTable("prices.auth.vmj.model.core.RoleImpl", false);
-			VMJDatabaseMapper.generateTable("prices.auth.vmj.model.core.UserRoleImpl", false);
-			System.out.println();
-		} catch (Exception e) {
-			System.out.println("Skipping generate tables...");
-		} catch (Error e) {
-			System.out.println("Skipping generate tables...");
-		}
-
 	}
 
 	public static void activateServer(String hostName, int portNumber) {
@@ -52,19 +46,25 @@ public class ${productName} {
 		}
 	}
 	
+	public static void generateTables() {
+		try {
+			System.out.println("== GENERATING TABLES ==");
+			VMJDatabaseMapper.generateTable("prices.auth.vmj.model.passworded.UserImpl", false);
+			VMJDatabaseMapper.generateTable("prices.auth.vmj.model.core.RoleImpl", false);
+			VMJDatabaseMapper.generateTable("prices.auth.vmj.model.core.UserRoleImpl", false);
+			System.out.println();
+		} catch (Exception e) {
+			System.out.println("Skipping generate tables...");
+		} catch (Error e) {
+			System.out.println("Skipping generate tables...");
+		}
+
+	}
+
 	public static void generateCRUDEndpoints() {
 		System.out.println("== CRUD ENDPOINTS ==");
 		VMJServer vmjServer = VMJServer.getInstance();
-		
-		/**
-		 * Full Generated Table
-		 */
-		<#list models as modelSpec>
-		<#if modelSpec['crudEndpoint']??>
-		vmjServer.createABSCRUDEndpoint("${modelSpec['crudEndpoint']}", "${modelSpec['tableName']}", "${modelSpec['module']}.${modelSpec['class']}",
-				VMJDatabaseMapper.getTableColumnsNames("${modelSpec['module']}.${modelSpec['class']}", ${modelSpec['hasParentTable']?then('true', 'false')}));
-		</#if>
-		</#list>
+
 		/**
 		 * AUTH BASE MODELS
 		 */
@@ -84,30 +84,17 @@ public class ${productName} {
 	public static void createObjectsAndBindEndPoints() {
 		System.out.println("== CREATING OBJECTS AND BINDING ENDPOINTS ==");
 		<#list routings as routeSpec>
-		${routeSpec['interface']} ${routeSpec['variableName']} = ${routeSpec['factory']}
-			.create${routeSpec['interface']}("${routeSpec['module']}.${routeSpec['class']}"
+		${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
+			.create${routeSpec['class']}(
+			"${routeSpec['module']}.${routeSpec['implClass']}"
 			<#if routeSpec['parentVariable']??>, ${routeSpec['parentVariable']}</#if>);
 		</#list>
-		
-		User user = UserFactory.createUser("prices.auth.vmj.model.core.UserImpl");
-		User passwordedUser = UserFactory.createUser("prices.auth.vmj.model.passworded.UserImpl", user);
-		Role role = RoleFactory.createRole("prices.auth.vmj.model.core.RoleImpl");
 
-		<#list routings as routeSpec>
+		<#list routings?reverse as routeSpec>
 		System.out.println("${routeSpec['variableName']} endpoints binding");
 		Router.route(${routeSpec['variableName']});
 		
 		</#list>
-		System.out.println("Passworded User binding");
-		Router.bindMethod("login", passwordedUser);
-		Router.bindMethod("register", passwordedUser);
-		Router.bindMethod("forgotPassword", passwordedUser);
-		Router.bindMethod("getForgotPasswordToken", passwordedUser);
-		Router.bindMethod("changePassword", passwordedUser);
-
-		System.out.println("Permission mangement");
-		Router.bindMethod("changePermissions", user);
-		Router.bindMethod("changePermissions", role);
 		System.out.println();
 	}
 

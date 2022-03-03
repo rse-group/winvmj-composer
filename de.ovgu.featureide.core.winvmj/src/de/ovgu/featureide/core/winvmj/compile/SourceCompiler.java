@@ -5,15 +5,18 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
+import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
@@ -24,13 +27,14 @@ import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.SqliteDbPropertiesRenderer;
 
 public class SourceCompiler {
+	
+	private static String OUTPUT_FOLDER = "src-gen";
 	private SourceCompiler() {};
 	
 	public static void compileSource(IFeatureProject project) {
-		IFile featureModuleMapper = project.getProject().getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
 		try {
-			WinVMJProduct sourceProduct = new WinVMJProduct(project, featureModuleMapper);
-			IFolder compiledProductDir = project.getProject().getFolder("src-gen");
+			WinVMJProduct sourceProduct = new WinVMJProduct(project);
+			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
@@ -97,7 +101,6 @@ public class SourceCompiler {
 				.filter(f -> product.getModules()
 				.stream().anyMatch(m -> m.contains(f.getName().split("_")[0])))
 		.collect(Collectors.toList());
-		requiredMappers.forEach(m -> WinVMJConsole.println(m.getName()));
 		if (!productModule.exists()) productModule.create(false, true, null);
 		WinVMJConsole.println("Importing database mappers for product...");
 		for (IResource mapperFile: requiredMappers)
@@ -118,22 +121,33 @@ public class SourceCompiler {
 	private static void compileModules(IFeatureProject project, IFolder compiledProductDir, 
 			WinVMJProduct product) throws CoreException, IOException {
 		String productModule = product.getProductQualifiedName();
+		List<IResource> externalLibraries = listAllExternalLibraries(project);
 		for (String module: product.getModules()) {
-			importExternalLibrariesByModuleInfo(project, compiledProductDir, product, module);
+			importExternalLibrariesByModuleInfo(project, externalLibraries, compiledProductDir, product, module);
 			compileModuleForProduct(project, compiledProductDir, module, productModule);
 		}
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
 	}
 	
+	private static List<IResource> listAllExternalLibraries(IFeatureProject project) throws CoreException {
+		List<IResource> externalLibraries = new ArrayList<>();
+		for (IProject externalProject: project.getProject().getReferencedProjects()) {
+			CorePlugin.getDefault();
+			externalLibraries.addAll(listAllExternalLibraries(CorePlugin.getFeatureProject(externalProject)));
+		}
+		externalLibraries.addAll(Arrays.asList(project.getProject()
+				.getFolder(WinVMJComposer.EXTERNAL_LIB_FOLDERNAME)
+				.members()));
+		return externalLibraries;
+	}
+	
 	private static void importExternalLibrariesByModuleInfo(IFeatureProject project, 
-			IFolder compiledProductDir, WinVMJProduct product, String module) 
-			throws IOException, CoreException {
-		IResource[] externalLibs = project.getProject()
-				.getFolder(WinVMJComposer.EXTERNAL_LIB_FOLDERNAME).members();
+			List<IResource> externalLibs, IFolder compiledProductDir, WinVMJProduct product, 
+			String module) throws IOException, CoreException {
 		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
 		List<String> requiredModules = parseModuleInfo(project, module);
 		for (String requiredModule: requiredModules) {
-			if (Stream.of(externalLibs).anyMatch(el -> requiredModule.startsWith(requiredModule))) {
+			if (externalLibs.stream().anyMatch(el -> requiredModule.startsWith(requiredModule))) {
 				IFile externalLib = (IFile) Stream.of(externalLibs)
 						.filter(el -> requiredModule.startsWith(requiredModule))
 						.findFirst().get();
@@ -142,93 +156,86 @@ public class SourceCompiler {
 		}
 	}
 	
-	public static void compileProductJar(IFeatureProject project, IFolder compiledProductDir,
-			String productModuleName, String productName) throws IOException, CoreException {
-		List<String> modulePaths = transverseModuleFilePaths(project
-				.getBuildFolder().getFolder(productModuleName));
-		IFolder compiledProductFolder = compiledProductDir.getFolder(productModuleName);
-		IFolder binModuleFolder = project.getProject().getFolder("bin-comp").getFolder(productModuleName);
+	private static void compileModuleForProduct(IFeatureProject project, IFolder productDir, 
+			String module, String productModule) throws CoreException, IOException {
+		IFolder compiledProductFolder = productDir.getFolder(productModule);
+		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(module);
 		
-		List<String> compileCommand = new ArrayList<>();
-		compileCommand.add("javac");
-		compileCommand.add("-d");
-		compileCommand.add(quoteString(binModuleFolder.getLocation().toOSString()));
-		compileCommand.add("--module-path");
-		compileCommand.add(quoteString(compiledProductFolder.getLocation().toOSString()));
-		compileCommand.addAll(modulePaths);
+		List<String> compileCommand = constructCompileCommand(project.getBuildFolder().getFolder(module), 
+				binFolder, compiledProductFolder);
 		
 		System.out.println(String.join(" ", compileCommand));
 
-		ProcessBuilder compilePb = new ProcessBuilder(compileCommand);
-		Process compileProcess = compilePb.start();
-		BufferedReader reader = 
-                new BufferedReader(new InputStreamReader(compileProcess.getInputStream()));
-		String line = null;
-		while ( (line = reader.readLine()) != null) System.out.println(line);
-		reader.close();
+		JavaCLI.execute("Compiling " + module + " module...", module + " module compiled", compileCommand);
 		
-		IFile compiledModuleFile = compiledProductFolder.getFile(productName + ".jar");
-		System.out.println(compiledModuleFile.getLocation().toOSString());
+		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, module);
 		
-		ProcessBuilder jarPb = new ProcessBuilder("jar", "--create", "--file", 
-				quoteString(compiledModuleFile.getLocation().toOSString()), 
-				"--main-class", productModuleName + "." + productName,
-				"-C", quoteString(binModuleFolder.getLocation().toOSString()), ".");
+		System.out.println(String.join(" ", jarCommand));
 		
-		System.out.println("jar --create --file " + 
-				quoteString(compiledModuleFile.getLocation().toOSString()) +
-				" --main-class " + productModuleName + "." + productName +
-				" -C " + quoteString(binModuleFolder.getLocation().toOSString()) + " .");
-		WinVMJConsole.println("Compiling " + productModuleName + " product module...");
-		Process jarProcess = jarPb.start();
-		reader = new BufferedReader(new InputStreamReader(jarProcess.getInputStream()));
-		line = null;
-		while ( (line = reader.readLine()) != null) System.out.println(line);
-		reader.close();
-		WinVMJConsole.println(productModuleName + " product module packaged");
+		JavaCLI.execute("Packaging " + module + " module...", module + " module packaged", jarCommand);
 	}
 	
-	private static void compileModuleForProduct(IFeatureProject project, IFolder compiledProductDir, 
-			String module, String productModule) throws CoreException, IOException {
-		List<String> modulePaths = transverseModuleFilePaths(project.getBuildFolder().getFolder(module));
-		IFolder compiledProductFolder = compiledProductDir.getFolder(productModule);
-		IFolder binModuleFolder = project.getProject().getFolder("bin-comp").getFolder(module);
+	public static void compileProductJar(IFeatureProject project, IFolder productDir,
+			String productModule, String productName) throws IOException, CoreException {
+		IFolder compiledProductFolder = productDir.getFolder(productModule);
+		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(productModule);
+		
+		List<String> compileCommand = constructCompileCommand(project.getBuildFolder()
+				.getFolder(productModule), binFolder, compiledProductFolder);
+		
+		System.out.println(String.join(" ", compileCommand));
+
+		JavaCLI.execute("Compiling " + productModule + " module...", 
+				productModule + " module compiled", compileCommand);
+		
+		String mainClass = productModule + "." + productName;
+		
+		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, productName, mainClass);
+		
+		System.out.println(String.join(" ", jarCommand));
+		
+		JavaCLI.execute("Compiling " + productModule + " product module...", 
+				productModule + " product module packaged", jarCommand);
+	}
+	
+	private static List<String> constructCompileCommand(IFolder sourceFolder, IFolder binFolder, 
+			IFolder modulePath) throws CoreException {
+		List<String> modulePaths = transverseModuleFilePaths(sourceFolder);
 		
 		List<String> compileCommand = new ArrayList<>();
 		compileCommand.add("javac");
 		compileCommand.add("-d");
-		compileCommand.add(quoteString(binModuleFolder.getLocation().toOSString()));
+		compileCommand.add(quoteString(binFolder.getLocation().toOSString()));
 		compileCommand.add("--module-path");
-		compileCommand.add(quoteString(compiledProductFolder.getLocation().toOSString()));
+		compileCommand.add(quoteString(modulePath.getLocation().toOSString()));
 		compileCommand.addAll(modulePaths);
 		
-		System.out.println(String.join(" ", compileCommand));
-
-		ProcessBuilder compilePb = new ProcessBuilder(compileCommand);
-		WinVMJConsole.println("Compiling " + module + " module...");
-		Process compileProcess = compilePb.start();
-		BufferedReader reader = 
-                new BufferedReader(new InputStreamReader(compileProcess.getInputStream()));
-		String line = null;
-		while ( (line = reader.readLine()) != null) WinVMJConsole.println(line);
-		reader.close();
-		WinVMJConsole.println(module + " module compiled");
+		return compileCommand;
+	}
+	
+	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, 
+			String jarName) throws CoreException {
+		return constructJARCommand(binFolder, destFolder, jarName, "") ;
+	}
+	
+	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, 
+			String jarName, String mainClass) throws CoreException {
+		IFile jarFile = destFolder.getFile(jarName + ".jar");
 		
-		IFile compiledModuleFile = compiledProductFolder.getFile(module + ".jar");
-		System.out.println(compiledModuleFile.getLocation().toOSString());
-		System.out.println("jar --create --file " + 
-				compiledModuleFile.getLocation().toOSString() + 
-				" -C " + binModuleFolder.getLocation().toOSString() + " .");
-		ProcessBuilder jarPb = new ProcessBuilder("jar", "--create", "--file", 
-				compiledModuleFile.getLocation().toOSString(), 
-				"-C", binModuleFolder.getLocation().toOSString(), ".");
-		WinVMJConsole.println("Packaging " + module + " module...");
-		Process jarProcess = jarPb.start();
-		reader = new BufferedReader(new InputStreamReader(jarProcess.getInputStream()));
-		line = null;
-		while ( (line = reader.readLine()) != null) WinVMJConsole.println(line);
-		reader.close();
-		WinVMJConsole.println(module + " module packaged");
+		List<String> jarCommand = new ArrayList<>();
+		jarCommand.add("jar");
+		jarCommand.add("--create");
+		jarCommand.add("--file");
+		jarCommand.add(quoteString(jarFile.getLocation().toOSString()));
+		if (mainClass.length() > 0) {
+			jarCommand.add("--main-class");
+			jarCommand.add(mainClass);
+		}
+		jarCommand.add("-C");
+		jarCommand.add(quoteString(binFolder.getLocation().toOSString()));
+		jarCommand.add(".");
+		
+		return jarCommand;
 	}
 	
 	private static List<String> transverseModuleFilePaths(IFolder module) throws CoreException {
@@ -242,27 +249,6 @@ public class SourceCompiler {
 			if (resource instanceof IFolder) transverseModuleFilePaths((IFolder) resource, fileNames);
 			else if (resource instanceof IFile && resource.getName().endsWith(".java")) 
 				fileNames.add(quoteString(resource.getLocation().toOSString()));
-		}
-	}
-	
-	private static void copy(IFolder featureFolder, IFolder buildFolder) throws CoreException {
-		if (!featureFolder.exists()) {
-			return;
-		}
-
-		for (final IResource res : featureFolder.members()) {
-			if (res instanceof IFolder) {
-				final IFolder folder = buildFolder.getFolder(res.getName());
-				if (!folder.exists()) {
-					folder.create(false, true, null);
-				}
-				copy((IFolder) res, folder);
-			} else if (res instanceof IFile) {
-				final IFile file = buildFolder.getFile(res.getName());
-				if (!file.exists()) {
-					res.copy(file.getFullPath(), true, null);
-				}
-			}
 		}
 	}
 	

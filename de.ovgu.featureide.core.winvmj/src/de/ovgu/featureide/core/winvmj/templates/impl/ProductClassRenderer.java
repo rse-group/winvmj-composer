@@ -1,14 +1,16 @@
 package de.ovgu.featureide.core.winvmj.templates.impl;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
@@ -16,7 +18,6 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
-import com.google.common.base.CaseFormat;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -48,7 +49,9 @@ public class ProductClassRenderer extends TemplateRenderer {
 			dataModel.put("models", getRequiredModels(product));
 			dataModel.put("routings", getRequiredBindings(product));
 		} catch (IOException | CoreException e) {
-			// TODO Auto-generated catch block
+			WinVMJConsole.println(e.getMessage());
+			for (StackTraceElement em: e.getStackTrace())
+				WinVMJConsole.println(em.toString());
 			e.printStackTrace();
 		}
 		
@@ -91,7 +94,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		for (String module: requiredModels) {
 			if (requiredModules.contains(module)) {
 				Map<String, Object> modelSpec;
-				modelSpec = constructDefaultModelSpec(module, requiredModels);
+				modelSpec = constructHibernateModelSpec(module, requiredModels);
 				modelSpec.put("module", module);
 				models.add(modelSpec);
 			}
@@ -116,7 +119,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		for (String module: requiredRoutings) {
 			if (requiredModules.contains(module)) {
 				Map<String, Object> bindingSpec;
-				bindingSpec = constructDefaultBindingSpec(module, requiredRoutings);
+				bindingSpec = constructHibernateBindingSpec(module, requiredRoutings);
 				bindings.add(bindingSpec);
 			}
 		}
@@ -124,32 +127,34 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return bindings;
 	}
 	
-	private Map<String, Object> constructDefaultModelSpec(String module, 
-			List<String> requiredModels) throws IOException, CoreException {
+	private Map<String, Object> constructHibernateModelSpec(String module, 
+			List<String> requiredModels) throws CoreException {
 		Map<String, Object> modelSpec = new HashMap<>();
-		String[] splittedModule = module.split("\\.");
-		String compClass = this.getModuleInterface(module);
-		String endpoint = module.endsWith(".core") ? CaseFormat.LOWER_CAMEL
-				.to(CaseFormat.LOWER_HYPHEN, compClass) : splittedModule[2];
-		modelSpec.put("crudEndpoint", endpoint);
-		modelSpec.put("class", getModuleImplClass(module));
-		modelSpec.put("tableName", getDefaultTableNameByModule(module));
-		modelSpec.put("hasParentTable", isCoreInMapping(module, requiredModels));
+		modelSpec.put("class", getAllClassInModule(module, "model"));
 		return modelSpec;
 	}
 	
-	private String getDefaultTableNameByModule(String module) {
-		String[] splittedModule = module.split("\\.");
-		return String.join("_", Arrays.copyOfRange(splittedModule, 1, splittedModule.length));
-	}
-	
-	private Map<String, Object> constructDefaultBindingSpec(String module, 
+	private Map<String, Object> constructHibernateBindingSpec(String module, 
 			List<String> routingModules) throws IOException, CoreException {
 		Map<String, Object> bindingSpec = new HashMap<>();
-		bindingSpec.put("interface", getModuleInterface(module));
-		bindingSpec.put("factory", getModuleFactoryClass(module));
+		
+		bindingSpec.put("factory", getModuleControllerFactoryClass(getCoreByModule(module)));
+		
 		bindingSpec.put("module", module);
-		bindingSpec.put("class", getModuleImplClass(module));
+		bindingSpec.put("class", getModuleInterface(module, "controller"));
+
+		if (module.endsWith(".core")) bindingSpec.put("implClass", getModuleImplClass(module, "controller"));
+		else {
+			try {
+			List<String> deltaClasses = getAllClassInModule(module, "controller");
+			String implClass = deltaClasses.size() > 0 ? deltaClasses.get(0) : 
+				getModuleImplClass(module);
+			bindingSpec.put("implClass", implClass);
+			} catch (NullPointerException e) {
+				bindingSpec.put("implClass", getModuleImplClass(module));
+			}
+		}
+		
 		
 		boolean isBase = isCoreInMapping(module, routingModules);
 		bindingSpec.put("isBase", isBase);
@@ -162,8 +167,25 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return bindingSpec;
 	}
 	
-	private List<String> getImports(WinVMJProduct product) throws IOException, CoreException {
-		List<String> imports = new ArrayList<>();
+	private List<String> getAllClassInModule(String module, 
+			String... subDirectories) throws CoreException {
+		File moduleDir = new File("src");
+		IFolder moduleFolder = project.getProject().getFolder("modules").getFolder(module);
+		moduleDir = new File(moduleDir, module);
+		for (String modulePath: module.split("\\.")) {
+			moduleFolder = moduleFolder.getFolder(modulePath);
+		}
+		for (String subDir: subDirectories) {
+			moduleFolder = moduleFolder.getFolder(subDir);
+		}
+		List<String> classNames = new ArrayList<>();
+		for (IResource classFile: moduleFolder.members()) 
+			classNames.add(Files.getNameWithoutExtension(classFile.getName()));
+		return classNames;
+	}
+	
+	private Set<String> getImports(WinVMJProduct product) throws IOException, CoreException {
+		Set<String> imports = new LinkedHashSet<>();
 		for (String module: product.getModules()) {
 			imports.addAll(constructImport(module));
 		}
@@ -174,16 +196,22 @@ public class ProductClassRenderer extends TemplateRenderer {
 		List<String> modulesToImport = new ArrayList<>();
 		String coreModule = getCoreByModule(module);
 		String mainModule = coreModule.replace(".core", "");
-		modulesToImport.add(mainModule + "." + getModuleFactoryClass(module));
-		modulesToImport.add(coreModule + "." + getModuleInterface(module));
+		modulesToImport.add(mainModule + "." + getModuleControllerFactoryClass(module));
+		modulesToImport.add(coreModule + "." + getModuleInterface(module, "controller"));
 		return modulesToImport;
 	}
 	
 	private String getModuleInterface(String module) throws IOException, CoreException {
+		return getModuleInterface(module, new String[] {}); 
+	}
+	
+	private String getModuleInterface(String module, String... subDirectories) throws IOException, CoreException {
 		String coreModule = getCoreByModule(module);
 		IFolder moduleFolder = project.getProject().getFolder("modules").getFolder(coreModule);
 		for (String modulePath: coreModule.split("\\."))
 			moduleFolder = moduleFolder.getFolder(modulePath);
+		for (String subDir: subDirectories)
+			moduleFolder = moduleFolder.getFolder(subDir);
 		for (IResource moduleResource: moduleFolder.members()) {
 			if (moduleResource instanceof IFile && moduleResource.getName().endsWith(".java")) {
 				IFile javaFile = (IFile) moduleResource;
@@ -209,11 +237,11 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return String.join(".", splittedModule);
 	}
 	
-	private String getModuleFactoryClass(String module) throws IOException, CoreException {
-		return getModuleInterface(module) + "Factory";
+	private String getModuleControllerFactoryClass(String module) throws IOException, CoreException {
+		return getModuleInterface(module, "controller") + "Factory";
 	}
 	
-	private String getModuleImplClass(String module) throws IOException, CoreException {
-		return getModuleInterface(module) + "Impl";
+	private String getModuleImplClass(String module, String... subDirectories) throws IOException, CoreException {
+		return getModuleInterface(module, subDirectories) + "Impl";
 	}
 }
