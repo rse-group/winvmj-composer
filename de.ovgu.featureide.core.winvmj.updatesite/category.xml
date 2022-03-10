@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature id="de.ovgu.featureide.core.winvmj.feature">
+      <category name="WinVMJ"/>
+   </feature>
+   <category-def name="WinVMJ" label="WinVMJ"/>
+</site>
