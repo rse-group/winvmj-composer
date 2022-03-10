@@ -1,0 +1,2 @@
+echo SELECT 'CREATE DATABASE ${dbname}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${dbname}') \gexec | psql "postgresql://postgres:root@localhost"
+java -cp ${product} --module-path ${product} -m ${product}

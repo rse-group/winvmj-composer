@@ -1,0 +1,1 @@
+vmjdb.datasource.url=jdbc:sqlite:${dbname}.db
