@@ -14,7 +14,6 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import de.ovgu.featureide.core.CorePlugin;
@@ -31,7 +30,6 @@ import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
 public class WinVMJComposer extends ComposerExtensionClass {
 	
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
-	public static String DB_AND_ROUTING_FILENAME = "db_and_routing.json";
 	public static String DB_CONFIG_FILENAME = "db.properties";
 	public static String EXTERNAL_LIB_FOLDERNAME = "external";
 	public static String MODULE_FOLDERNAME = "modules";
@@ -130,17 +128,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			IFile featureModuleMapper = project.getProject().getFile(FEATURE_MODULE_MAPPER_FILENAME);
 			if (!featureModuleMapper.exists()) {
 				featureModuleMapper.create(emptyContentStream, false, null);
-				emptyContentStream.close();
-			}
-			
-			IFile dbAndRoutingFile = project.getProject().getFile(DB_AND_ROUTING_FILENAME);
-			if (!dbAndRoutingFile.exists()) {
-				// prepare init content for db and routing
-				jsonInitContent.add("dataModel", new JsonArray());
-				jsonInitContent.add("methodRouting", new JsonArray());
-				emptyContentStream = new ByteArrayInputStream(jsonInitContent.toString().getBytes());
-				
-				dbAndRoutingFile.create(emptyContentStream, false, null);
 				emptyContentStream.close();
 			}
 			
