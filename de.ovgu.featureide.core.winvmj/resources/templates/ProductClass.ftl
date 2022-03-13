@@ -22,7 +22,6 @@ public class ${productName} {
 	public static void main(String[] args) {
 		activateServer("localhost", 7776);
 		Configuration configuration = new Configuration().configure();
-		configuration.addResource("program_concrete_union.hbm.xml");
 		<#list models as modelSpec>
 		<#list modelSpec['class'] as className>
 		configuration.addAnnotatedClass(${modelSpec['module']}.${className}.class);

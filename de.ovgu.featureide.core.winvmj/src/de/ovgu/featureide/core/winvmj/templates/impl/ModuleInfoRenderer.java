@@ -19,7 +19,7 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		Map<String, Object> dataModel = new HashMap<>();
 		
 		dataModel.put("productPackage", product.getProductQualifiedName());
-		dataModel.put("requiredModules", product.getModules());
+		dataModel.put("requiredModules", product.getModuleNames());
 		
 		return dataModel;
 	}

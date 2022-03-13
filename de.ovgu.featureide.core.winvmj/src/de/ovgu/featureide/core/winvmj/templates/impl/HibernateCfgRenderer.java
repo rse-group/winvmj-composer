@@ -11,14 +11,22 @@ import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 
 public class HibernateCfgRenderer extends TemplateRenderer {
 	
-	public HibernateCfgRenderer(IFeatureProject project) {
+	private String dbUsername;
+	private String dbPassword;
+	
+	public HibernateCfgRenderer(IFeatureProject project, 
+			String dbUsername, String dbPassword) {
 		super(project);
+		this.dbUsername = dbUsername;
+		this.dbPassword = dbPassword;
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
 		
 		dataModel.put("dbname", product.getProductQualifiedName().replace(".", "_"));
+		dataModel.put("dbUsername", dbUsername);
+		dataModel.put("dbPassword", dbPassword);
 		return dataModel;
 	}
 	

@@ -8,9 +8,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -24,7 +26,6 @@ import org.logicng.formulas.Variable;
 import org.logicng.io.parsers.ParserException;
 import org.logicng.io.parsers.PropositionalParser;
 
-import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -32,21 +33,22 @@ import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.fm.core.base.IFeature;
+import de.ovgu.featureide.fm.core.base.impl.Feature;
+import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel;
+import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel.UsedModel;
 
 public class WinVMJProduct {
 	
-	private List<IFeature> features;
-	private List<String> modules;
+	private List<IFolder> modules;
 	private String productName;
 	private String splName;
 	
 	public WinVMJProduct(IFeatureProject featureProject, Path config) {
 		this.productName = getProductName(config);
 		this.splName = getSplName(featureProject);
-		this.features = featureProject.loadConfiguration(config).getSelectedFeatures();
 		try {
-			this.modules = selectModules(features, featureProject.getProject()
-					.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME));
+			this.modules = selectModules(featureProject, featureProject
+					.loadConfiguration(config).getSelectedFeatures());
 		} catch (CoreException | ParserException e) {
 			this.modules = null;
 		}
@@ -57,8 +59,7 @@ public class WinVMJProduct {
 		IFolder productModule = getProductModuleFromComposedProduct(project);
 		this.splName = productModule.getName().split(".product.")[0];
 		this.productName = getProductClassName(productModule);
-		this.features = null;
-		this.modules = getFeatureModulesFromComposedProduct(project);
+		this.modules = getModulesFromComposedProduct(project);
 		
 	}
 	
@@ -66,7 +67,7 @@ public class WinVMJProduct {
 		IFolder dirToClass = productModule;
 		for (String filePath: productModule.getName().split("\\."))
 			dirToClass = dirToClass.getFolder(filePath);
-		return Files.getNameWithoutExtension(dirToClass.members()[0].getName());
+		return FilenameUtils.getBaseName(dirToClass.members()[0].getName());
 	}
 	
 	private static IFolder getProductModuleFromComposedProduct(IFeatureProject project)
@@ -79,7 +80,12 @@ public class WinVMJProduct {
 		return (IFolder) productModule;
 	}
 	
-	private static List<String> getFeatureModulesFromComposedProduct(IFeatureProject project)
+	private static List<IFolder> getModulesFromComposedProduct(IFeatureProject project) throws CoreException {
+		return getModuleNamesFromComposedProduct(project).stream().map(mdl -> 
+				project.getBuildFolder().getFolder(mdl)).collect(Collectors.toList());
+	}
+	
+	private static List<String> getModuleNamesFromComposedProduct(IFeatureProject project)
 			throws CoreException {
 		List<String> sourceModules = Stream
 				.of(project.getBuildFolder().members())
@@ -89,15 +95,15 @@ public class WinVMJProduct {
 		List<String> orderedSourceModules = new ArrayList<>();
 		for (IProject externalProject: project.getProject().getReferencedProjects()) {
 			CorePlugin.getDefault();
-			orderedSourceModules.addAll(getFeatureModulesFromComposedProduct(
+			orderedSourceModules.addAll(getModuleNamesFromComposedProduct(
 					CorePlugin.getFeatureProject(externalProject)));
 		}
-		orderedSourceModules.addAll(selectFeatureModuleWithMapping(sourceModules, 
+		orderedSourceModules.addAll(selectModulesWithMapping(sourceModules, 
 				project.getProject()));
 		return orderedSourceModules.stream().distinct().collect(Collectors.toList());
 	}
 	
-	private static List<String> selectFeatureModuleWithMapping(List<String> sourceModules, 
+	private static List<String> selectModulesWithMapping(List<String> sourceModules, 
 			IProject project) throws CoreException {
 		Reader mapReader = new InputStreamReader(project
 				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents()); 
@@ -111,12 +117,39 @@ public class WinVMJProduct {
 				.collect(Collectors.toList());
 	}
 	
-	private List<String> selectModules(List<IFeature> features, 
-			IFile featureToModuleMapper) throws CoreException, ParserException {
+	private List<IFolder> selectModules(IFeatureProject project, List<IFeature> features) 
+			throws CoreException, ParserException {
 		final FormulaFactory formulaFactory = new FormulaFactory();
 		final PropositionalParser formulaParser = new PropositionalParser(formulaFactory);
 		
-		List<String> selectedModules = new ArrayList<>();
+		IFile featureToModuleMapper = project.getProject()
+		.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
+		List<IFolder> selectedModules = new ArrayList<>();
+		
+		CorePlugin.getDefault();
+		Map<String, IFeatureProject> refProjectMap = 
+				Stream.of(project.getProject().getReferencedProjects())
+				.map(pr -> CorePlugin.getFeatureProject(pr))
+				.collect(Collectors.toMap(pr -> getSplName(pr), Function.identity()));
+		
+		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
+		if (multiFetureModel.isMultiProductLineModel()) {
+			for (Entry<String, UsedModel> importedModel: multiFetureModel
+					.getExternalModels().entrySet()) {
+				String externalSplName = importedModel.getValue()
+						 .getModelName().replace("interfaces.", "");
+				IFeatureProject refProject = refProjectMap.get(externalSplName);
+				 List<IFeature> externalFeatures = features.stream()
+						 .filter(f -> f.getName()
+								 .startsWith(importedModel.getKey() + "."))
+						 .map(f -> new Feature(refProject.getFeatureModel(), 
+								 f.getName().replace(importedModel.getKey() + ".", "")))
+						 .collect(Collectors.toList());
+				 selectedModules.addAll(selectModules(
+						 refProject, externalFeatures));
+			}
+		}
+		
 		Assignment assignment = getFeatureCheckingAssignment(features, formulaFactory);
 		Reader mapReader =  new InputStreamReader(featureToModuleMapper.getContents());
 		Gson gson = new Gson();
@@ -129,7 +162,9 @@ public class WinVMJProduct {
 		}
 		for (Entry<String, List<String>> mapping: mappings.entrySet()) {
 			if (this.evaluate(assignment, formulaParser, mapping.getKey())) 
-				selectedModules.addAll(mapping.getValue());
+				selectedModules.addAll(mapping.getValue().stream().map(mdl -> 
+				project.getProject().getFolder(WinVMJComposer.MODULE_FOLDERNAME)
+				.getFolder(mdl)).collect(Collectors.toList()));
 		}
 		return selectedModules.stream().distinct().collect(Collectors.toList());
 	}
@@ -152,11 +187,15 @@ public class WinVMJProduct {
 	}
 	
 	private String getProductName(Path config) {
-		return StringUtils.capitalize(Files.getNameWithoutExtension(config.getFileName().toString()));
+		return StringUtils.capitalize(FilenameUtils.getBaseName(config.getFileName().toString()));
 	}
 
-	public List<String> getModules() {
+	public List<IFolder> getModules() {
 		return modules;
+	}
+	
+	public List<String> getModuleNames() {
+		return modules.stream().map(IFolder::getName).collect(Collectors.toList());
 	}
 
 	public String getProductName() {
