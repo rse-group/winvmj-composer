@@ -86,7 +86,9 @@ public class ${productName} {
 		${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
 			.create${routeSpec['class']}(
 			"${routeSpec['module']}.${routeSpec['implClass']}"
-			<#if routeSpec['parentVariable']??>, ${routeSpec['parentVariable']}</#if>);
+			<#if routeSpec['coreModule']??>,
+			${routeSpec['factory']}.create${routeSpec['class']}(
+			"${routeSpec['coreModule']}.${routeSpec['coreImplClass']}")</#if>);
 		</#list>
 
 		<#list routings?reverse as routeSpec>
