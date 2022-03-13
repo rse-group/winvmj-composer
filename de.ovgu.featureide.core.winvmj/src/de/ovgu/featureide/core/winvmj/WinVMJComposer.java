@@ -160,9 +160,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			
 			IFolder externalLibFolder = project.getProject().getFolder(EXTERNAL_LIB_FOLDERNAME);
 			if (!externalLibFolder.exists()) externalLibFolder.create(false, true, null);
-			
-			IFolder interfaceFolder = project.getProject().getFolder(INTERFACES_FOLDERNAME);
-			if (!interfaceFolder.exists()) interfaceFolder.create(false, true, null);
 		} catch (CoreException | IOException e) {
 			WinVMJConsole.println(e.getMessage());
 			e.printStackTrace();
