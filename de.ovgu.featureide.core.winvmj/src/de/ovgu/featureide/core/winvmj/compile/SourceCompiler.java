@@ -22,7 +22,7 @@ import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
-import de.ovgu.featureide.core.winvmj.templates.impl.HibernateCfgRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.SqliteDbPropertiesRenderer;
 
@@ -75,7 +75,7 @@ public class SourceCompiler {
 		String dbUsername = dbProperties.getProperty("db.username");
 		String dbPassword = dbProperties.getProperty("db.password");
 		WinVMJConsole.println("Generating additional config files for product...");
-		new HibernateCfgRenderer(project, dbUsername, dbPassword).render(product);
+		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 		new SqliteDbPropertiesRenderer(project).render(product);
 		new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
 		WinVMJConsole.println("All additional config files has been generated");

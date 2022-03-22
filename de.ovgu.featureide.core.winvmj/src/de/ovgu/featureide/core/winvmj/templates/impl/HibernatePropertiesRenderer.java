@@ -9,12 +9,12 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 
-public class HibernateCfgRenderer extends TemplateRenderer {
+public class HibernatePropertiesRenderer extends TemplateRenderer {
 	
 	private String dbUsername;
 	private String dbPassword;
 	
-	public HibernateCfgRenderer(IFeatureProject project, 
+	public HibernatePropertiesRenderer(IFeatureProject project, 
 			String dbUsername, String dbPassword) {
 		super(project);
 		this.dbUsername = dbUsername;
@@ -31,13 +31,13 @@ public class HibernateCfgRenderer extends TemplateRenderer {
 	}
 	
 	protected String loadTemplateFilename() {
-		return "hibernate.cfg";
+		return "hibernate.properties";
 	}
 	
 	protected IFile getOutputFile(WinVMJProduct product) {
 		return project.getProject().getFolder("src-gen")
 				.getFolder(product.getProductName())
 				.getFolder(product.getProductQualifiedName())
-				.getFile("hibernate.cfg.xml");
+				.getFile("hibernate.properties");
 	}
 }
