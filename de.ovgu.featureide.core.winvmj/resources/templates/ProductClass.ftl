@@ -21,7 +21,7 @@ public class ${productName} {
 
 	public static void main(String[] args) {
 		activateServer("localhost", 7776);
-		Configuration configuration = new Configuration().configure();
+		Configuration configuration = new Configuration();
 		<#list models as modelSpec>
 		<#list modelSpec['class'] as className>
 		configuration.addAnnotatedClass(${modelSpec['module']}.${className}.class);
