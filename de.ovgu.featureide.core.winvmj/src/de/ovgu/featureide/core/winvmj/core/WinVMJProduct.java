@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,10 +33,12 @@ import com.google.gson.reflect.TypeToken;
 import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
+import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.fm.core.base.impl.Feature;
 import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel;
 import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel.UsedModel;
+import de.ovgu.featureide.fm.core.io.EclipseFileSystem;
 
 public class WinVMJProduct {
 	
@@ -145,8 +148,10 @@ public class WinVMJProduct {
 						 .map(f -> new Feature(refProject.getFeatureModel(), 
 								 f.getName().replace(importedModel.getKey() + ".", "")))
 						 .collect(Collectors.toList());
-				 selectedModules.addAll(selectModules(
-						 refProject, externalFeatures));
+				List<String> relatedProducts = getRelatedProducts(project, externalSplName);
+				externalFeatures.addAll(selectFeaturesFromRelatedProducts(externalSplName, 
+						refProject, relatedProducts));
+				selectedModules.addAll(selectModules(refProject, externalFeatures));
 			}
 		}
 		
@@ -167,6 +172,45 @@ public class WinVMJProduct {
 				.getFolder(mdl)).collect(Collectors.toList()));
 		}
 		return selectedModules.stream().distinct().collect(Collectors.toList());
+	}
+	
+	private List<String> getRelatedProducts(IFeatureProject project, 
+			String externalSplName) throws CoreException {
+		IFile interSplProductMapper = project.getProject()
+				.getFile(WinVMJComposer.INTER_SPL_PRODUCT_MAPPER_FILENAME);
+		Reader mapReader =  new InputStreamReader(interSplProductMapper.getContents());
+		Gson gson = new Gson();
+		Map<String, List<String>> mappings;
+		try {
+			mappings = gson.fromJson(mapReader, 
+					new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+		} catch (NullPointerException e) {
+			mappings = new LinkedHashMap<String, List<String>>();
+		}
+		if (mappings.containsKey(productName))
+			return mappings.get(productName).stream()
+				.filter(p -> p.startsWith(externalSplName)).map(p -> 
+				p.replace(externalSplName + ":", ""))
+				.collect(Collectors.toList());
+		return new ArrayList<>();
+	}
+	
+	private List<IFeature> selectFeaturesFromRelatedProducts(String externalSplName, 
+			IFeatureProject refProject, List<String> relatedProducts) 
+					throws CoreException {
+		List<IFeature> features = new ArrayList<>();
+		for (String relatedProduct: relatedProducts) {
+			Optional<IResource> configFile = Stream.of(refProject.getConfigFolder()
+					.members()).filter(c -> c.getName().startsWith(relatedProduct))
+					.findFirst();
+			if (configFile.isPresent()) 
+				features.addAll(refProject.loadConfiguration(EclipseFileSystem
+					.getPath(configFile.get())).getSelectedFeatures());
+			else WinVMJConsole.println("[WARNING] Product `" + relatedProduct + 
+					"` does not exist in `" + externalSplName + "` SPL and will be ignored");
+		}
+		
+		return features.stream().distinct().collect(Collectors.toList());
 	}
 	
 	private Assignment getFeatureCheckingAssignment(List<IFeature> features, 

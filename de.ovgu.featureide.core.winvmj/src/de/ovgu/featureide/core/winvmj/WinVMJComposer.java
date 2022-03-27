@@ -30,6 +30,7 @@ import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
 public class WinVMJComposer extends ComposerExtensionClass {
 	
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
+	public static String INTER_SPL_PRODUCT_MAPPER_FILENAME = "inter_spl_product.json";
 	public static String DB_CONFIG_FILENAME = "db.properties";
 	public static String EXTERNAL_LIB_FOLDERNAME = "external";
 	public static String MODULE_FOLDERNAME = "modules";
@@ -128,6 +129,15 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			IFile featureModuleMapper = project.getProject().getFile(FEATURE_MODULE_MAPPER_FILENAME);
 			if (!featureModuleMapper.exists()) {
 				featureModuleMapper.create(emptyContentStream, false, null);
+				emptyContentStream.close();
+			}
+			
+			emptyContentStream = new ByteArrayInputStream(
+					jsonInitContent.toString().getBytes());
+			
+			IFile interSplProductMapper = project.getProject().getFile(INTER_SPL_PRODUCT_MAPPER_FILENAME);
+			if (!interSplProductMapper.exists()) {
+				interSplProductMapper.create(emptyContentStream, false, null);
 				emptyContentStream.close();
 			}
 			
