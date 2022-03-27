@@ -132,15 +132,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				emptyContentStream.close();
 			}
 			
-			emptyContentStream = new ByteArrayInputStream(
-					jsonInitContent.toString().getBytes());
-			
-			IFile interSplProductMapper = project.getProject().getFile(INTER_SPL_PRODUCT_MAPPER_FILENAME);
-			if (!interSplProductMapper.exists()) {
-				interSplProductMapper.create(emptyContentStream, false, null);
-				emptyContentStream.close();
-			}
-			
 			IFile dbPropertiesFile = project.getProject().getFile(DB_CONFIG_FILENAME);
 			if (!dbPropertiesFile.exists()) {
 				dbProperties.setProperty("db.username", "");
