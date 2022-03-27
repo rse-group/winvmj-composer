@@ -122,31 +122,33 @@ public class WinVMJProduct {
 	
 	private List<IFolder> selectModules(IFeatureProject project, List<IFeature> features) 
 			throws CoreException, ParserException {
-		final FormulaFactory formulaFactory = new FormulaFactory();
-		final PropositionalParser formulaParser = new PropositionalParser(formulaFactory);
-		
-		IFile featureToModuleMapper = project.getProject()
-		.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
 		List<IFolder> selectedModules = new ArrayList<>();
-		
+		selectedModules.addAll(selectExternalModules(project, features));
+		selectedModules.addAll(selectAndOrderModulesByMapping(project, features));
+		return selectedModules.stream().distinct().collect(Collectors.toList());
+	}
+	
+	private List<IFolder> selectExternalModules(IFeatureProject project, 
+			List<IFeature> features) throws CoreException, ParserException {
 		CorePlugin.getDefault();
 		Map<String, IFeatureProject> refProjectMap = 
 				Stream.of(project.getProject().getReferencedProjects())
 				.map(pr -> CorePlugin.getFeatureProject(pr))
 				.collect(Collectors.toMap(pr -> getSplName(pr), Function.identity()));
 		
+		List<IFolder> selectedModules = new ArrayList<>();
 		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
 		if (multiFetureModel.isMultiProductLineModel()) {
-			for (Entry<String, UsedModel> importedModel: multiFetureModel
+			for (Entry<String, UsedModel> interfaceModel: multiFetureModel
 					.getExternalModels().entrySet()) {
-				String externalSplName = importedModel.getValue()
+				String externalSplName = interfaceModel.getValue()
 						 .getModelName().replace("interfaces.", "");
 				IFeatureProject refProject = refProjectMap.get(externalSplName);
 				 List<IFeature> externalFeatures = features.stream()
 						 .filter(f -> f.getName()
-								 .startsWith(importedModel.getKey() + "."))
+								 .startsWith(interfaceModel.getKey() + "."))
 						 .map(f -> new Feature(refProject.getFeatureModel(), 
-								 f.getName().replace(importedModel.getKey() + ".", "")))
+								 f.getName().replace(interfaceModel.getKey() + ".", "")))
 						 .collect(Collectors.toList());
 				List<String> relatedProducts = getRelatedProducts(project, externalSplName);
 				externalFeatures.addAll(selectFeaturesFromRelatedProducts(externalSplName, 
@@ -154,6 +156,16 @@ public class WinVMJProduct {
 				selectedModules.addAll(selectModules(refProject, externalFeatures));
 			}
 		}
+		return selectedModules;
+	}
+	
+	private List<IFolder> selectAndOrderModulesByMapping(IFeatureProject project, 
+			List<IFeature> features) throws ParserException, CoreException {
+		List<IFolder> selectedModules = new ArrayList<>();
+		IFile featureToModuleMapper = project.getProject()
+				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
+		final FormulaFactory formulaFactory = new FormulaFactory();
+		final PropositionalParser formulaParser = new PropositionalParser(formulaFactory);
 		
 		Assignment assignment = getFeatureCheckingAssignment(features, formulaFactory);
 		Reader mapReader =  new InputStreamReader(featureToModuleMapper.getContents());
@@ -171,7 +183,7 @@ public class WinVMJProduct {
 				project.getProject().getFolder(WinVMJComposer.MODULE_FOLDERNAME)
 				.getFolder(mdl)).collect(Collectors.toList()));
 		}
-		return selectedModules.stream().distinct().collect(Collectors.toList());
+		return selectedModules;
 	}
 	
 	private List<String> getRelatedProducts(IFeatureProject project, 
@@ -203,9 +215,9 @@ public class WinVMJProduct {
 			Optional<IResource> configFile = Stream.of(refProject.getConfigFolder()
 					.members()).filter(c -> c.getName().startsWith(relatedProduct))
 					.findFirst();
-			if (configFile.isPresent()) 
+			if (configFile.isPresent())
 				features.addAll(refProject.loadConfiguration(EclipseFileSystem
-					.getPath(configFile.get())).getSelectedFeatures());
+						.getPath(configFile.get())).getSelectedFeatures());
 			else WinVMJConsole.println("[WARNING] Product `" + relatedProduct + 
 					"` does not exist in `" + externalSplName + "` SPL and will be ignored");
 		}
