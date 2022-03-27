@@ -26,6 +26,9 @@ import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.io.IFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
+import de.ovgu.featureide.fm.core.job.LongRunningMethod;
+import de.ovgu.featureide.fm.core.job.LongRunningWrapper;
+import de.ovgu.featureide.fm.core.job.monitor.IMonitor;
 
 public class WinVMJComposer extends ComposerExtensionClass {
 	
@@ -56,8 +59,10 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	}
 	
 	public boolean isSameConfig() {
-		return (previousConfig != null && previousConfig.equals(featureProject.getCurrentConfiguration()) && 
-				previousFeatures.equals(featureProject.loadCurrentConfiguration().getSelectedFeatureNames()));
+		return (previousConfig != null && previousConfig.equals(
+				featureProject.getCurrentConfiguration()) && 
+				previousFeatures.equals(featureProject
+						.loadCurrentConfiguration().getSelectedFeatureNames()));
 	}
 
 	@Override
@@ -66,7 +71,17 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		updatePreviousConfig();
 		
 		WinVMJProduct product = new WinVMJProduct(featureProject, config);
-		
+		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
+			@Override
+			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
+				composeProduct(product);
+				return true;
+			}
+		};
+		LongRunningWrapper.getRunner(job, "Compose Product").schedule();
+	}
+	
+	private void composeProduct(WinVMJProduct product) {
 		try {
 			CorePlugin.getDefault();
 			for (IProject refProject: featureProject.getProject().getReferencedProjects())
