@@ -95,29 +95,30 @@ public class WinVMJProduct {
 				.filter(module -> !module.getName().contains(".product."))
 				.map(module -> module.getName())
 				.collect(Collectors.toList());
-		List<String> orderedSourceModules = new ArrayList<>();
-		for (IProject externalProject: project.getProject().getReferencedProjects()) {
-			CorePlugin.getDefault();
-			orderedSourceModules.addAll(getModuleNamesFromComposedProduct(
-					CorePlugin.getFeatureProject(externalProject)));
+		return selectModulesWithMapping(sourceModules, project.getProject());
+	}
+	
+	private static Map<String,List<String>> getAllSplMappings(IProject 
+			project) throws CoreException {
+		Map<String, List<String>> mappings = new LinkedHashMap<String, List<String>>();
+		for (IProject externalProject: project.getReferencedProjects()) {
+			mappings.putAll(getAllSplMappings(externalProject));
 		}
-		orderedSourceModules.addAll(selectModulesWithMapping(sourceModules, 
-				project.getProject()));
-		return orderedSourceModules.stream().distinct().collect(Collectors.toList());
+		Reader mapReader = new InputStreamReader(project
+				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents());
+		Gson gson = new Gson();
+		mappings.putAll(gson.fromJson(mapReader,
+				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType()));
+		return mappings;
 	}
 	
 	private static List<String> selectModulesWithMapping(List<String> sourceModules, 
 			IProject project) throws CoreException {
-		Reader mapReader = new InputStreamReader(project
-				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents()); 
-		Gson gson = new Gson();
-		Map<String,List<String>> mappings = gson.fromJson(mapReader, 
-				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
-		
+		Map<String,List<String>> mappings = getAllSplMappings(project);
 		return mappings.values().stream().distinct()
 				.flatMap(modules -> modules.stream())
 				.filter(module -> sourceModules.contains(module))
-				.collect(Collectors.toList());
+				.distinct().collect(Collectors.toList());
 	}
 	
 	private List<IFolder> selectModules(IFeatureProject project, List<IFeature> features) 
