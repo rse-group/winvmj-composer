@@ -20,6 +20,7 @@ import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
@@ -70,7 +71,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		if (isSameConfig()) return;
 		updatePreviousConfig();
 		
-		WinVMJProduct product = new WinVMJProduct(featureProject, config);
+		WinVMJProduct product = new ProductToCompose(featureProject, config);
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 			@Override
 			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {

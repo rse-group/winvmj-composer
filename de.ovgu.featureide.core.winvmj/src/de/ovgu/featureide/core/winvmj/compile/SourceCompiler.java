@@ -20,6 +20,7 @@ import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
@@ -33,7 +34,7 @@ public class SourceCompiler {
 	
 	public static void compileSource(IFeatureProject project) {
 		try {
-			WinVMJProduct sourceProduct = new WinVMJProduct(project);
+			WinVMJProduct sourceProduct = new ComposedProduct(project);
 			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
