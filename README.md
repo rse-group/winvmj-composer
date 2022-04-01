@@ -33,7 +33,7 @@ WinVMJ Composer can be installed via Releases or Update Site
 #### Via Update Site
 
 1. On top toolbar, click on `Help`>`Install New Software`.
-2. Type PriceISE update site (https://github.com/spectrum71/Prices-IDE-Temp-Asset-Host/raw/main/updatesite/) on `Work with` textbox.
+2. Type PriceISE update site (https://amanah.cs.ui.ac.id/priceside/updatesite/) on `Work with` textbox.
 3. Follow step 5 onwards from previous method. Because you work with PricesIDE update site, you might see other plugins such as `UML to VMJ`. You could install those plugins but please follow their respective installation guidelines.
 
 ### WinVMJ on FeatureIDE 101
