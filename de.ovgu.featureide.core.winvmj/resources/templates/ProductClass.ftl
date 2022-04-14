@@ -21,8 +21,7 @@ public class ${productName} {
 
 	public static void main(String[] args) {
 		activateServer("localhost", 7776);
-		Configuration configuration = new Configuration().configure();
-		configuration.addResource("program_concrete_union.hbm.xml");
+		Configuration configuration = new Configuration();
 		<#list models as modelSpec>
 		<#list modelSpec['class'] as className>
 		configuration.addAnnotatedClass(${modelSpec['module']}.${className}.class);
@@ -87,7 +86,9 @@ public class ${productName} {
 		${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
 			.create${routeSpec['class']}(
 			"${routeSpec['module']}.${routeSpec['implClass']}"
-			<#if routeSpec['parentVariable']??>, ${routeSpec['parentVariable']}</#if>);
+			<#if routeSpec['coreModule']??>,
+			${routeSpec['factory']}.create${routeSpec['class']}(
+			"${routeSpec['coreModule']}.${routeSpec['coreImplClass']}")</#if>);
 		</#list>
 
 		<#list routings?reverse as routeSpec>

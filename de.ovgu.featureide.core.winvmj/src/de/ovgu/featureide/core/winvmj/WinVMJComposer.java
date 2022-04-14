@@ -1,37 +1,42 @@
 package de.ovgu.featureide.core.winvmj;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
-import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel;
 import de.ovgu.featureide.fm.core.io.IFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
+import de.ovgu.featureide.fm.core.job.LongRunningMethod;
+import de.ovgu.featureide.fm.core.job.LongRunningWrapper;
+import de.ovgu.featureide.fm.core.job.monitor.IMonitor;
 
 public class WinVMJComposer extends ComposerExtensionClass {
 	
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
-	public static String DB_AND_ROUTING_FILENAME = "db_and_routing.json";
+	public static String INTER_SPL_PRODUCT_MAPPER_FILENAME = "inter_spl_product.json";
+	public static String DB_CONFIG_FILENAME = "db.properties";
 	public static String EXTERNAL_LIB_FOLDERNAME = "external";
-	public static String HIBERNATE_MAPPERS_FOLDERNAME = "mappers";
 	public static String MODULE_FOLDERNAME = "modules";
+	public static String INTERFACES_FOLDERNAME = "interfaces";
 	private Path previousConfig = null;
 	private Set<String> previousFeatures = null;
 
@@ -53,8 +58,10 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	}
 	
 	public boolean isSameConfig() {
-		return (previousConfig != null && previousConfig.equals(featureProject.getCurrentConfiguration()) && 
-				previousFeatures.equals(featureProject.loadCurrentConfiguration().getSelectedFeatureNames()));
+		return (previousConfig != null && previousConfig.equals(
+				featureProject.getCurrentConfiguration()) && 
+				previousFeatures.equals(featureProject
+						.loadCurrentConfiguration().getSelectedFeatureNames()));
 	}
 
 	@Override
@@ -62,42 +69,31 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		if (isSameConfig()) return;
 		updatePreviousConfig();
 		
-//		MultiFeatureModel mplFm = (MultiFeatureModel) featureProject.getFeatureModel();
-//		for (String imports: mplFm.getExternalModels().keySet()) {
-//			WinVMJConsole.print(imports);
-//			WinVMJConsole.print(": ");
-//			WinVMJConsole.println(mplFm.getExternalModel(imports).getModelName());
-//			WinVMJConsole.println(mplFm.getExternalModel(imports).getVarName());
-//		}
-		
-		WinVMJProduct product = new WinVMJProduct(featureProject, config);
-		
-		try {
-			IFolder moduleFolder = featureProject.getProject().getFolder(MODULE_FOLDERNAME);
-			for (String module: product.getModules()) {
-				IFolder buildFolder = featureProject.getBuildFolder().getFolder(module);
-				if (!buildFolder.exists()) {
-					buildFolder.create(false, true, null);
-					copy(moduleFolder.getFolder(module), buildFolder);
-				}
+		WinVMJProduct product = new ProductToCompose(featureProject, config);
+		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
+			@Override
+			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
+				composeProduct(product);
+				return true;
 			}
-			
-			IFolder productModule = featureProject.getBuildFolder().getFolder(product.getProductQualifiedName());
-			productModule.create(false, true, null);
+		};
+		LongRunningWrapper.getRunner(job, "Compose Product").schedule();
+	}
+	
+	private void composeProduct(WinVMJProduct product) {
+		try {
+			selectModulesFromProject(featureProject, product);
+			IFolder productModule = featureProject.getBuildFolder()
+					.getFolder(product.getProductQualifiedName());
+			if (!productModule.exists()) productModule.create(false, true, null);
 		} catch (CoreException e) {
 			e.printStackTrace();
 		}
-		try {
-			TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(featureProject);
-			TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
-			moduleInfoRenderer.render(product);
-			productClassRenderer.render(product);
-			//hibernateCfgRenderer.render(product);
-		} catch (Exception e) {
-			for (StackTraceElement em: e.getStackTrace())
-				WinVMJConsole.println(em.toString());
-			e.printStackTrace();
-		}
+		
+		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(featureProject);
+		TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
+		moduleInfoRenderer.render(product);
+		productClassRenderer.render(product);
 	}
 
 	@Override
@@ -117,14 +113,24 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return false;
 	}
 	
-//	@Override
-//	public IFeatureModelFormat getFeatureModelFormat() {
-//		return new UVLFeatureModelFormat();
-//	}
+	@Override
+	public IFeatureModelFormat getFeatureModelFormat() {
+		return new UVLFeatureModelFormat();
+	}
+	
+	private void selectModulesFromProject(IFeatureProject project, WinVMJProduct product) throws CoreException {
+		for (IFolder sourceModule: product.getModules()) {
+			IFolder destModule = project.getBuildFolder().getFolder(sourceModule.getName());
+			if (!destModule.exists()) destModule.create(false, true, null);
+			copy(sourceModule, destModule);
+		}
+	}
 	
 	private boolean initExtraConfigFiles(IFeatureProject project) {
 		JsonObject jsonInitContent = new JsonObject();
-		InputStream emptyContentStream = new ByteArrayInputStream(jsonInitContent.toString().getBytes());
+		InputStream emptyContentStream = new ByteArrayInputStream(
+				jsonInitContent.toString().getBytes());
+		Properties dbProperties = new Properties();
 		
 		try {
 			IFile featureModuleMapper = project.getProject().getFile(FEATURE_MODULE_MAPPER_FILENAME);
@@ -133,19 +139,16 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				emptyContentStream.close();
 			}
 			
-			IFile dbAndRoutingFile = project.getProject().getFile(DB_AND_ROUTING_FILENAME);
-			if (!dbAndRoutingFile.exists()) {
-				// prepare init content for db and routing
-				jsonInitContent.add("dataModel", new JsonArray());
-				jsonInitContent.add("methodRouting", new JsonArray());
-				emptyContentStream = new ByteArrayInputStream(jsonInitContent.toString().getBytes());
+			IFile dbPropertiesFile = project.getProject().getFile(DB_CONFIG_FILENAME);
+			if (!dbPropertiesFile.exists()) {
+				dbProperties.setProperty("db.username", "");
+				dbProperties.setProperty("db.password", "");
+				ByteArrayOutputStream dbPropStream = new ByteArrayOutputStream();
 				
-				dbAndRoutingFile.create(emptyContentStream, false, null);
-				emptyContentStream.close();
+				dbProperties.store(dbPropStream, null);
+				InputStream dbPropInputStream = new ByteArrayInputStream(dbPropStream.toByteArray());
+				dbPropertiesFile.create(dbPropInputStream, true, null);
 			}
-			
-			IFolder mapperFolder = project.getProject().getFolder(HIBERNATE_MAPPERS_FOLDERNAME);
-			if (!mapperFolder.exists()) mapperFolder.create(false, true, null);
 			
 			IFolder moduleFolder = project.getProject().getFolder(MODULE_FOLDERNAME);
 			if (!moduleFolder.exists()) moduleFolder.create(false, true, null);

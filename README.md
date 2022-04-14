@@ -17,16 +17,24 @@ To use this plugin, you need to install:
 
 ### Installing the Plugin
 
-To install this plugin:
+WinVMJ Composer can be installed via Releases or Update Site
+
+#### Via Releases
 
 1. Download the zip releases and unzip it somehere. Check [Releases page](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases) to download the plugin zip. It's a package with pattern name: `de.ovgu.featureide.core.winvmj-vx.y.z`.
 2. On top toolbar, click on `Help`>`Install New Software`.
-2. Click on `Add`>`Archive`.
+3. Click on `Add`>`Archive`.
 4. Select the zip file you downloaded before.
-5. Select `WinVMJ Composer`. You can uncheck the `Group By Category` and `Contact all update sites` to avoid additional updates.
+5. Make sure you check the `Group Items by Category` first and the select `WinVMJ Composer`. You can uncheck `Contact all update sites` to avoid additional updates. If this is your first time installing the version 1.1.0 onwards, please select the `FeatureIDE Patch` too as those are patched plugin that enables UVL usage.
 6. Click `Finish` or `Next`. You might get a notification about untrusted plugin. If so, click `Install Anyway`.
 7. After the plugin has been installed, you will be asked to restart you plugin. Click `Restart Now`.
 8. Congratulations! Now you can use FeatureIDE to develop software with WinVMJ.
+
+#### Via Update Site
+
+1. On top toolbar, click on `Help`>`Install New Software`.
+2. Type PriceISE update site (https://amanah.cs.ui.ac.id/priceside/updatesite/) on `Work with` textbox.
+3. Follow step 5 onwards from previous method. Because you work with PricesIDE update site, you might see other plugins such as `UML to VMJ`. You could install those plugins but please follow their respective installation guidelines.
 
 ### WinVMJ on FeatureIDE 101
 We strongly recommend to visit [FeatureIDE Github Page](https://featureide.github.io/) and [WinVMJ-AISCO Gitlab Repository](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/vmj-aisco/-/tree/Hibernate-Integration) to learn more about respective framework's usage.
@@ -60,34 +68,24 @@ root
 │   ├── pl.corefeature1.delta2/
 │   ├── ...
 │   └── pl.corefeaturem.deltan/
-├── db_and_routing.json
+├── db.properties
 ├── feature_to_module.json
-└── model.xml
+└── model.uvl
 ```
 Each component can be explained as:
 - `root`: project root
-- `[src]`: generated product directory consist of selected modules and a generated product module. Its name can be defined by user when creating the project. Its content changes depending on selected configuration.
+- `[src]`: generated product directory consist of selected modules (including from other SPLs) and a generated product module. Its name can be defined by user when creating the project. Its content changes depending on selected configuration.
 - `src-gen`: compiled generated product directory. All compiled products will be preserved in this directory.
 - `[config]`: directory where product configurations are defined. Its name can be defined by user when creating the project and it will determined the product's name.
 - `external`: directory where additional libraries are stored. Make sure the library's name is same as the its package name when being declared on module-info.
-- `mappers`: directory where all database mapping of modules are stored.
 - `modules`: directory where all implementation modules are stored.
-- `db_and_routing.json`: a file that defines the mapping between features and modules. This is the example of its content.
-```json
-{
-	"dataModel": [
-		"aisco.program.core",
-		"aisco.program.activity",
-		"aisco.program.operational",
-	],
-	"methodRouting": [
-		"aisco.program.activity",
-		"aisco.financialreport.core",
-	]
-}
+- `db.properties`: a file that defines the database credentials. This is the example of its content.
+```properties
+db.username=postgres
+db.password=postgres
 ```
-As seen above, it consist of two `key-value` pairs. The first `key` is `dataModel`, that defines which modules need a data table. The second `key` is `methodRouting`, that dfines which modules need routings.
-- `feature_to_module.json`: a file that defines which modules require database and / or routing. This is the example of its content.
+As seen above, it consist two properties: `db.username` that defines your `Postgresql` username and `db.password` that defines your `Postgresql` password. Please adjust it to match your current credentials.
+- `feature_to_module.json`: a file that defines the Feature-Module mapping. This is the example of its content.
 ```json
 {
 	"Program": ["aisco.program.core"],
@@ -97,7 +95,7 @@ As seen above, it consist of two `key-value` pairs. The first `key` is `dataMode
 }
 ```
 As seen above, it consist of `key-value` pairs. The `key` is the feature condition required to apply a set of modules defined as `value`. The `key` can be a single feature or a mathematical logic with a set of features as its atoms.
-- `model.xml`: a file that defines the feature model.
+- `model.uvl`: a file that defines the feature model.
 
 #### Development on FeatureIDE Project
 
@@ -108,13 +106,82 @@ We provide [WinVMJ-AISCO FeatureIDE Project](https://gitlab.com/RSE-Lab-Fasilkom
 4. Click `Finish`, and finally you'll find your project on package explorer.
 
 To compose a product, you need to develop these artifacts:
-- FeatureIDE assets such as `[config]` and `model.xml`. Please refer to [FeatureIDE guide](https://featureide.github.io/) to develop those artifacts.
-- WinVMJ assets such as `modules` and `mappers`. Please refer to [Hibernate-Integrated WinVMJ Repository](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/vmj-aisco/-/tree/Hibernate-Integration) to develop those artifacts.
-- Additional config file such as `db_and_routing.json` and `feature_to_module.json`. Please refer to example above to develop those artifacts.
+- FeatureIDE assets such as `[config]` and `model.uvl`. Please refer to [FeatureIDE guide](https://featureide.github.io/) to develop those artifacts.
+- WinVMJ assets such as `modules`. Please refer to [Hibernate-Integrated WinVMJ Repository](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/vmj-aisco/-/tree/Hibernate-Integration) to develop those artifacts.
+- Additional config file such as `db.properties` and `feature_to_module.json`. Please refer to example above to develop those artifacts.
 
 Optionally, you can also import external libraries and store on `external`. Please be mind to the library naming as mentioned above.
 
 The generated product is located on `[src]`, and as mentioned above, its content will change whenever the current feature selection changed. You can make adjustment on generated product to customize the detail that cannot be covered by this composer.
+
+#### MPL Development
+
+A FeatureIDE project that uses WinVMJ Composer can applicate MPL development by following these steps:
+1. Right-click on project root, then select `Properties`.
+2. Select `Project References`, then add another FeatureIDE project that uses WinVMJ Composer.
+3. Create `interfaces` directory on project root.
+4. Copy the referenced project's feature model and rename it based on its product line name (Root Feature). The copied feature model is called Feature Model Interface.
+5. You can edit the feature model interface as long as the result fulfills these two conditions:
+  - Its features is a subset of its original sources features.
+  - Its possible configurations is a subset of its original source's possible configurations.
+   Do mind that currently there's no such validation procedure to validate your edited feture model based on those two conditions. Such procedure is still an open question.
+6. Integrate those feature model interfaces on `model.uvl` using sources editor (switch to `source` on the bottom tab when editing `model.uvl`): add the import statement with pattern `interfaces [PL Name]`, and then define the feature model interface's root location on `model.uvl`. Here is the example of the integration result.
+```
+namespace AISCO
+
+imports
+	interfaces.Blog as bo
+features
+	AISCO {abstract}	
+		mandatory
+			Program
+			FinancialReport {abstract}	
+				...
+			bo.Blog
+```
+After that, you can develop the FeatureIDE project just like before, only this time you can reuse the external SPL assets by selecting feature model interfaces' features on configuration. You can even define a cross-tree constraint on `movel.uvl`, which is a constraint that involve features from different SPLs.
+7. You can also create `inter_spl_product` to define the cross SPL product dependency, albeit you also need to manually validate it.
+
+The MPL project should look like this.
+```
+root
+├── [src]
+│   ├── pl.corefeature1.core/
+│   ├── pl.corefeature1.delta1/
+│   ├── exspl1.corefeaturex.deltay/
+│   ├── ...
+│   └── pl.product.productx/
+├── src-gen/
+├── [config]/
+├── external/
+├── interfaces
+│   ├── ExSPL1.uvl
+│   ├── ExSPL2.uvl
+│   ├── ...
+│   └── ExSPLn.uvl
+├── modules/
+├── db.properties
+├── feature_to_module.json
+├── inter_spl_product.json
+└── model.uvl
+```
+The additional component can be explained as:
+- `interfaces`: directory where related SPL's feture model interface are stored.
+- `inter_spl_product.json`: a file that defines the cross SPL product dependency.
+This is the example of its content.
+```json
+{
+	"SheilaPlusSchool": ["PaymentGateway:FullMidtrans", "Blog:Standard"],
+	"SheilaSchool": ["PaymentGateway:FullDOKU"]
+}
+```
+As seen above, it consist of `key-value` pairs. The `key` is the product names defined by the SPL, while the `value` is a list of products defined on related SPLs with the format `[External SPL name]:[Product Name]`.
+- Additionally, the `[src]` directory now holds the external SPL's module if selected.
+
+We provide [WinVMJ-AISCO-MPL FeatureIDE Project Set](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/) to help you simulate the MPL development using this plugin. It consist of an MPL project and two related project. If the projects are somehow not linked, please link it manually by:
+1. Right click on `WinVMJ-AISCO-MPL` project, then select `Properties`.
+2. On left side of `properties` menu, please select `Project References` and then select both `WinVMJ-PaymentGateway` and `WinVMJ-Blog`.
+3. Click `Apply and Close` to finish the process.
 
 #### Compiling a product
 If you feel the generated product is ready, you can compile it by:
@@ -122,32 +189,7 @@ If you feel the generated product is ready, you can compile it by:
 2. Please wait until the compilation process is completed. You can check the `WinVMJ Console` to track this process.
 
 #### Running a product
-Before you run the product, you may need to setup the `hibernate.cfg.xml` located on `src-gen/[Product Name]/[product module name]` and `run.[bat/sh]` located on `src-gen/[Product Name]`, as your Postgresql credentials may differ from the generated one. The location of bot credentials are as follows:
-
-`hibernate.cfg.xml`
-
-`run.[bat/sh]`: line 1.
-```bat
-echo ... | psql "postgresql://[username]:[password]@localhost"
-...
-```
-
-`hibernate.cfg.xml`: line 19-20.
-```
-...
-<hibernate-configuration>
-
-    <session-factory>
-        ...
-        <property name="connection.username">postgres</property>
-        <property name="connection.password">root</property>
-        ...
-    </session-factory>
-
-</hibernate-configuration>
-```
-
-After adjusting your credentials, we can run the product by following these steps:
+We can run the product by following these steps:
 1. On top toolbar, click on `Run`>`External Tools`>`External Tool Configuration`.
 2. Select the script `Location` at `src-gen/[Product Name]/run.[bat (Windows) / sh (Linux / Mac)]`.
 3. Select the `Working Directory` at `src-gen/[Product Name]/`.

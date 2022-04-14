@@ -20,6 +20,5 @@
 	<classpathentry kind="lib" path="libs/jsr305-3.0.2.jar"/>
 	<classpathentry kind="lib" path="libs/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar"/>
 	<classpathentry kind="lib" path="libs/logicng-2.2.0.jar"/>
-	<classpathentry kind="lib" path="libs/guava-28.2-jre.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -11,8 +11,14 @@ import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 
 public class RunScriptRenderer extends TemplateRenderer {
 	
-	public RunScriptRenderer(IFeatureProject project) {
+	private String dbUsername;
+	private String dbPassword;
+	
+	public RunScriptRenderer(IFeatureProject project, 
+			String dbUsername, String dbPassword) {
 		super(project);
+		this.dbUsername = dbUsername;
+		this.dbPassword = dbPassword;
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
@@ -20,6 +26,8 @@ public class RunScriptRenderer extends TemplateRenderer {
 		
 		dataModel.put("dbname", product.getProductQualifiedName().replace(".", "_"));
 		dataModel.put("product", product.getProductQualifiedName());
+		dataModel.put("dbUsername", dbUsername);
+		dataModel.put("dbPassword", dbPassword);
 		return dataModel;
 	}
 	
