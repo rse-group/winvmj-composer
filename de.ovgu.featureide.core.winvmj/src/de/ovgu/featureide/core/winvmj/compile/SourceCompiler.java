@@ -7,7 +7,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Properties;
 import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IFile;
@@ -20,9 +20,10 @@ import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
-import de.ovgu.featureide.core.winvmj.templates.impl.HibernateCfgRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.SqliteDbPropertiesRenderer;
 
@@ -33,26 +34,23 @@ public class SourceCompiler {
 	
 	public static void compileSource(IFeatureProject project) {
 		try {
-			WinVMJProduct sourceProduct = new WinVMJProduct(project);
+			WinVMJProduct sourceProduct = new ComposedProduct(project);
 			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 			importWinVMJLibraries(compiledProductDir, sourceProduct);
-			importDatabaseMappers(project, compiledProductDir, sourceProduct);
 			importWinVMJProductConfigs(compiledProductDir);
 			generateConfigFiles(project, sourceProduct);
 			compileModules(project, compiledProductDir, sourceProduct);
-			cleanBinaries(project);
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
 	}
 	
-	private static List<String> parseModuleInfo(IFeatureProject project, String module) 
+	private static List<String> parseModuleInfo(IFeatureProject project, IFolder module) 
 			throws IOException, CoreException {
-		IFile moduleInfo = project.getProject().getFolder("modules")
-				.getFolder(module).getFile("module-info.java");
+		IFile moduleInfo = module.getFile("module-info.java");
 		List<String> requiredModules = new ArrayList<>();
 		BufferedReader reader = 
                 new BufferedReader(new InputStreamReader(moduleInfo.getContents()));
@@ -69,11 +67,17 @@ public class SourceCompiler {
 	}
 	
 	private static void generateConfigFiles(IFeatureProject project,
-			WinVMJProduct product) throws CoreException {
+			WinVMJProduct product) throws CoreException, IOException {
+		Properties dbProperties = new Properties();
+		dbProperties.load(project.getProject().getFile(
+				WinVMJComposer.DB_CONFIG_FILENAME).getContents());
+		
+		String dbUsername = dbProperties.getProperty("db.username");
+		String dbPassword = dbProperties.getProperty("db.password");
 		WinVMJConsole.println("Generating additional config files for product...");
-		new HibernateCfgRenderer(project).render(product);
+		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 		new SqliteDbPropertiesRenderer(project).render(product);
-		new RunScriptRenderer(project).render(product);
+		new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
 		WinVMJConsole.println("All additional config files has been generated");
 	}
 	
@@ -91,23 +95,6 @@ public class SourceCompiler {
 		WinVMJConsole.println("WinVMJ Configs unpacked");
 	}
 	
-	private static void importDatabaseMappers(IFeatureProject project, 
-			IFolder compiledProductDir, WinVMJProduct product) 
-			throws IOException, CoreException {
-		IFolder mappers = project.getProject().getFolder("mappers");
-		IFolder productModule = compiledProductDir
-				.getFolder(product.getProductQualifiedName());
-		List<IResource> requiredMappers = Stream.of(mappers.members())
-				.filter(f -> product.getModules()
-				.stream().anyMatch(m -> m.contains(f.getName().split("_")[0])))
-		.collect(Collectors.toList());
-		if (!productModule.exists()) productModule.create(false, true, null);
-		WinVMJConsole.println("Importing database mappers for product...");
-		for (IResource mapperFile: requiredMappers)
-			copyFile((IFile)mapperFile, productModule);
-		WinVMJConsole.println("Database Mappers imported");
-	}
-	
 	private static void importWinVMJLibraries(IFolder compiledProductDir, WinVMJProduct product) 
 			throws IOException, URISyntaxException, CoreException {
 		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
@@ -122,18 +109,21 @@ public class SourceCompiler {
 			WinVMJProduct product) throws CoreException, IOException {
 		String productModule = product.getProductQualifiedName();
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
-		for (String module: product.getModules()) {
-			importExternalLibrariesByModuleInfo(project, externalLibraries, compiledProductDir, product, module);
+		for (IFolder module: product.getModules()) {
+			importExternalLibrariesByModuleInfo(project, externalLibraries, 
+					compiledProductDir, product, module);
 			compileModuleForProduct(project, compiledProductDir, module, productModule);
 		}
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
+		cleanBinaries(project);
 	}
 	
 	private static List<IResource> listAllExternalLibraries(IFeatureProject project) throws CoreException {
 		List<IResource> externalLibraries = new ArrayList<>();
 		for (IProject externalProject: project.getProject().getReferencedProjects()) {
 			CorePlugin.getDefault();
-			externalLibraries.addAll(listAllExternalLibraries(CorePlugin.getFeatureProject(externalProject)));
+			externalLibraries.addAll(listAllExternalLibraries(
+					CorePlugin.getFeatureProject(externalProject)));
 		}
 		externalLibraries.addAll(Arrays.asList(project.getProject()
 				.getFolder(WinVMJComposer.EXTERNAL_LIB_FOLDERNAME)
@@ -143,7 +133,7 @@ public class SourceCompiler {
 	
 	private static void importExternalLibrariesByModuleInfo(IFeatureProject project, 
 			List<IResource> externalLibs, IFolder compiledProductDir, WinVMJProduct product, 
-			String module) throws IOException, CoreException {
+			IFolder module) throws IOException, CoreException {
 		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
 		List<String> requiredModules = parseModuleInfo(project, module);
 		for (String requiredModule: requiredModules) {
@@ -157,22 +147,24 @@ public class SourceCompiler {
 	}
 	
 	private static void compileModuleForProduct(IFeatureProject project, IFolder productDir, 
-			String module, String productModule) throws CoreException, IOException {
+			IFolder module, String productModule) throws CoreException, IOException {
 		IFolder compiledProductFolder = productDir.getFolder(productModule);
-		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(module);
+		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(module.getName());
 		
-		List<String> compileCommand = constructCompileCommand(project.getBuildFolder().getFolder(module), 
-				binFolder, compiledProductFolder);
+		List<String> compileCommand = constructCompileCommand(
+				module, binFolder, compiledProductFolder);
 		
 		System.out.println(String.join(" ", compileCommand));
 
-		JavaCLI.execute("Compiling " + module + " module...", module + " module compiled", compileCommand);
+		JavaCLI.execute("Compiling " + module + " module...", 
+				module + " module compiled", compileCommand);
 		
-		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, module);
+		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, module.getName());
 		
 		System.out.println(String.join(" ", jarCommand));
 		
-		JavaCLI.execute("Packaging " + module + " module...", module + " module packaged", jarCommand);
+		JavaCLI.execute("Packaging " + module + " module...", 
+				module + " module packaged", jarCommand);
 	}
 	
 	public static void compileProductJar(IFeatureProject project, IFolder productDir,
@@ -190,7 +182,8 @@ public class SourceCompiler {
 		
 		String mainClass = productModule + "." + productName;
 		
-		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, productName, mainClass);
+		List<String> jarCommand = constructJARCommand(binFolder, 
+				compiledProductFolder, productName, mainClass);
 		
 		System.out.println(String.join(" ", jarCommand));
 		
@@ -244,9 +237,11 @@ public class SourceCompiler {
 		return fileNames;
 	}
 	
-	private static void transverseModuleFilePaths(IFolder submodule, List<String> fileNames) throws CoreException {
+	private static void transverseModuleFilePaths(IFolder submodule, 
+			List<String> fileNames) throws CoreException {
 		for (IResource resource: submodule.members()) {
-			if (resource instanceof IFolder) transverseModuleFilePaths((IFolder) resource, fileNames);
+			if (resource instanceof IFolder) 
+				transverseModuleFilePaths((IFolder) resource, fileNames);
 			else if (resource instanceof IFile && resource.getName().endsWith(".java")) 
 				fileNames.add(quoteString(resource.getLocation().toOSString()));
 		}

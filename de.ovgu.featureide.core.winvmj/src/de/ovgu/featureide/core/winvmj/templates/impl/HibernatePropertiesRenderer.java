@@ -9,27 +9,35 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 
-public class HibernateCfgRenderer extends TemplateRenderer {
+public class HibernatePropertiesRenderer extends TemplateRenderer {
 	
-	public HibernateCfgRenderer(IFeatureProject project) {
+	private String dbUsername;
+	private String dbPassword;
+	
+	public HibernatePropertiesRenderer(IFeatureProject project, 
+			String dbUsername, String dbPassword) {
 		super(project);
+		this.dbUsername = dbUsername;
+		this.dbPassword = dbPassword;
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
 		
 		dataModel.put("dbname", product.getProductQualifiedName().replace(".", "_"));
+		dataModel.put("dbUsername", dbUsername);
+		dataModel.put("dbPassword", dbPassword);
 		return dataModel;
 	}
 	
 	protected String loadTemplateFilename() {
-		return "hibernate.cfg";
+		return "hibernate.properties";
 	}
 	
 	protected IFile getOutputFile(WinVMJProduct product) {
 		return project.getProject().getFolder("src-gen")
 				.getFolder(product.getProductName())
 				.getFolder(product.getProductQualifiedName())
-				.getFile("hibernate.cfg.xml");
+				.getFile("hibernate.properties");
 	}
 }
