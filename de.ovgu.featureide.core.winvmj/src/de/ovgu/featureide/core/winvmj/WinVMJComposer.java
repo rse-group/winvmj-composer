@@ -11,12 +11,10 @@ import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 
 import com.google.gson.JsonObject;
 
-import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
@@ -84,11 +82,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	
 	private void composeProduct(WinVMJProduct product) {
 		try {
-			CorePlugin.getDefault();
-			for (IProject refProject: featureProject.getProject().getReferencedProjects())
-				selectModulesFromProject(CorePlugin.getFeatureProject(refProject), 
-						featureProject, product);
-			selectModulesFromProject(featureProject, featureProject, product);
+			selectModulesFromProject(featureProject, product);
 			IFolder productModule = featureProject.getBuildFolder()
 					.getFolder(product.getProductQualifiedName());
 			if (!productModule.exists()) productModule.create(false, true, null);
@@ -124,14 +118,11 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return new UVLFeatureModelFormat();
 	}
 	
-	private void selectModulesFromProject(IFeatureProject sourceProject, 
-			IFeatureProject destProject, WinVMJProduct product) throws CoreException {
+	private void selectModulesFromProject(IFeatureProject project, WinVMJProduct product) throws CoreException {
 		for (IFolder sourceModule: product.getModules()) {
-			IFolder destModule = destProject.getBuildFolder().getFolder(sourceModule.getName());
-			if (!destModule.exists() && sourceModule.exists()) {
-				destModule.create(false, true, null);
-				copy(sourceModule, destModule);
-			}
+			IFolder destModule = project.getBuildFolder().getFolder(sourceModule.getName());
+			if (!destModule.exists()) destModule.create(false, true, null);
+			copy(sourceModule, destModule);
 		}
 	}
 	

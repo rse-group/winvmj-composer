@@ -2,6 +2,7 @@ package de.ovgu.featureide.core.winvmj.core.impl;
 
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,14 +33,14 @@ public class ComposedProduct extends WinVMJProduct {
 		
 	}
 	
-	private static String getProductClassName(IFolder productModule) throws CoreException {
+	private String getProductClassName(IFolder productModule) throws CoreException {
 		IFolder dirToClass = productModule;
 		for (String filePath: productModule.getName().split("\\."))
 			dirToClass = dirToClass.getFolder(filePath);
 		return FilenameUtils.getBaseName(dirToClass.members()[0].getName());
 	}
 	
-	private static IFolder getProductModuleFromComposedProduct(IFeatureProject project)
+	private IFolder getProductModuleFromComposedProduct(IFeatureProject project)
 			throws CoreException {
 		IResource productModule = Stream
 				.of(project.getBuildFolder().members())
@@ -49,41 +50,36 @@ public class ComposedProduct extends WinVMJProduct {
 		return (IFolder) productModule;
 	}
 	
-	private static List<IFolder> getModulesFromComposedProduct(IFeatureProject project) throws CoreException {
-		return getModuleNamesFromComposedProduct(project).stream().map(mdl -> 
-				project.getBuildFolder().getFolder(mdl)).collect(Collectors.toList());
+	private List<IFolder> getModulesFromComposedProduct(IFeatureProject project) throws CoreException {
+		List<String> moduleOrders = getModuleOrdersByMappings(project.getProject());
+		List<IFolder> orderedSourceModules = new ArrayList<>();
+		List<IFolder> sourceModules = Stream.of(project.getBuildFolder().members())
+				.filter(m -> m instanceof IFolder)
+				.map(m -> (IFolder) m).collect(Collectors.toList());
+		for (String module: moduleOrders)
+			if (containsModule(sourceModules, module)) 
+				orderedSourceModules.add(project.getBuildFolder().getFolder(module));
+			
+		return orderedSourceModules;
 	}
 	
-	private static List<String> getModuleNamesFromComposedProduct(IFeatureProject project)
-			throws CoreException {
-		List<String> sourceModules = Stream
-				.of(project.getBuildFolder().members())
-				.filter(module -> !module.getName().contains(".product."))
-				.map(module -> module.getName())
-				.collect(Collectors.toList());
-		return selectModulesWithMapping(sourceModules, project.getProject());
+	private boolean containsModule(List<IFolder> modules, String module) {
+		return modules.stream().anyMatch(m -> m.getName().equals(module));
 	}
 	
-	private static Map<String,List<String>> getAllSplMappings(IProject 
+	private List<String> getModuleOrdersByMappings(IProject 
 			project) throws CoreException {
-		Map<String, List<String>> mappings = new LinkedHashMap<String, List<String>>();
+		List<String> moduleOrders = new ArrayList<>();
 		for (IProject externalProject: project.getReferencedProjects()) {
-			mappings.putAll(getAllSplMappings(externalProject));
+			moduleOrders.addAll(getModuleOrdersByMappings(externalProject));
 		}
+		
 		Reader mapReader = new InputStreamReader(project
 				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents());
 		Gson gson = new Gson();
-		mappings.putAll(gson.fromJson(mapReader,
-				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType()));
-		return mappings;
-	}
-	
-	private static List<String> selectModulesWithMapping(List<String> sourceModules, 
-			IProject project) throws CoreException {
-		Map<String,List<String>> mappings = getAllSplMappings(project);
-		return mappings.values().stream().distinct()
-				.flatMap(modules -> modules.stream())
-				.filter(module -> sourceModules.contains(module))
-				.distinct().collect(Collectors.toList());
+		Map<String, List<String>> splMappings = gson.fromJson(mapReader,
+				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+		splMappings.values().forEach(v -> moduleOrders.addAll(v));
+		return moduleOrders.stream().distinct().collect(Collectors.toList());
 	}
 }

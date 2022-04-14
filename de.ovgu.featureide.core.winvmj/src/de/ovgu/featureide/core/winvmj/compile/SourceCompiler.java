@@ -43,7 +43,6 @@ public class SourceCompiler {
 			importWinVMJProductConfigs(compiledProductDir);
 			generateConfigFiles(project, sourceProduct);
 			compileModules(project, compiledProductDir, sourceProduct);
-			cleanBinaries(project);
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -116,6 +115,7 @@ public class SourceCompiler {
 			compileModuleForProduct(project, compiledProductDir, module, productModule);
 		}
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
+		cleanBinaries(project);
 	}
 	
 	private static List<IResource> listAllExternalLibraries(IFeatureProject project) throws CoreException {
