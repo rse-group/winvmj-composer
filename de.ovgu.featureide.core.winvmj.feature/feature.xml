@@ -180,6 +180,11 @@ permanent authorization for you to choose that version for the
 Library.
    </license>
 
+   <requires>
+      <import feature="de.ovgu.featureide" version="3.8.1.qualifier"/>
+      <import feature="de.ovgu.featureide.featuremodeling" version="3.8.1.qualifier"/>
+   </requires>
+
    <plugin
          id="de.ovgu.featureide.core.winvmj"
          download-size="0"
