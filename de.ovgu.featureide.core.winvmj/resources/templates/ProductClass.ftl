@@ -11,10 +11,10 @@ import org.hibernate.cfg.Configuration;
 import ${import};
 </#list>
 
-import prices.auth.vmj.model.UserControllerFactory;
-import prices.auth.vmj.model.RoleControllerFactory;
-import prices.auth.vmj.model.core.UserController;
-import prices.auth.vmj.model.core.RoleController;
+import prices.auth.vmj.model.UserResourceFactory;
+import prices.auth.vmj.model.RoleResourceFactory;
+import prices.auth.vmj.model.core.UserResource;
+import prices.auth.vmj.model.core.RoleResource;
 
 
 public class ${productName} {
@@ -60,21 +60,22 @@ public class ${productName} {
 			"${routeSpec['coreModule']}.${routeSpec['coreImplClass']}")</#if>);
 		</#list>
 		
-		UserController userCore = UserControllerFactory
-				.createUserController("prices.auth.vmj.model.core.UserControllerImpl");
-		UserController userPassworded = UserControllerFactory
-				.createUserController("prices.auth.vmj.model.passworded.UserPasswordedControllerDecorator", userCore);
-		RoleController roleCore = RoleControllerFactory
-				.createRoleController("prices.auth.vmj.model.core.RoleControllerImpl");
+		UserResource userCore = UserResourceFactory
+				.createUserResource("prices.auth.vmj.model.core.UserResourceImpl");
+		UserResource userPassworded = UserResourceFactory
+				.createUserResource("prices.auth.vmj.model.passworded.UserPasswordedResourceDecorator", userCore);
+		RoleResource roleCore = RoleResourceFactory
+				.createRoleResource("prices.auth.vmj.model.core.RoleResourceImpl");
 
 
 		<#list routings?reverse as routeSpec>
 		System.out.println("${routeSpec['variableName']} endpoints binding");
 		Router.route(${routeSpec['variableName']});
-		Router.route(userPassworded);
-		Router.route(roleCore);
 		
 		</#list>
+		
+		Router.route(userPassworded);
+		Router.route(roleCore);
 		System.out.println();
 	}
 
