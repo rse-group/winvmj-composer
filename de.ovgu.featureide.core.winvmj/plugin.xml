@@ -51,6 +51,13 @@
                   label="Compile"
                   style="push">
             </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.routinggenhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.routinggenhandler"
+                  label="Generate Menu and Route"
+                  style="push">
+            </command>
          </menu>
       </menuContribution>
    </extension>
@@ -59,6 +66,10 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileHandler"
             commandId="de.ovgu.featureide.core.winvmj.compilehandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.RoutingGenHandler"
+            commandId="de.ovgu.featureide.core.winvmj.routinggenhandler">
       </handler>
    </extension>
 
