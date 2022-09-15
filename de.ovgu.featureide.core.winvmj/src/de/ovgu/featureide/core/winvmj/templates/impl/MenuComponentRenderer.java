@@ -22,11 +22,6 @@ public class MenuComponentRenderer extends TemplateRenderer {
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
 		
-		dataModel.put("dbname", "value-dbname");
-		dataModel.put("product", "value-product");
-		dataModel.put("dbUser", "value-username");
-		dataModel.put("dbPassword", "value-password");
-		
 		for (Element element : selectedFeature) {
 			dataModel.put(element.getAttribute("name").toLowerCase(), true);
 		}
