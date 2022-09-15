@@ -44,20 +44,21 @@ import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 public class RoutingGenerator {
 	
 	private static String OUTPUT_FOLDER = "routing";
+	private static DocumentBuilder documentBuilder;
 	private RoutingGenerator() {};
 	
 	public static void generateRouting(IFeatureProject project) throws IOException {
 		try {
-			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 			WinVMJProduct sourceProduct = new ComposedProduct(project);
 			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
 			WinVMJConsole.println("Before config file");
-			File configFile = new File(project.getCurrentConfiguration().toString());
-			Document document = documentBuilder.parse(configFile);
-			document.getDocumentElement().normalize();
-			Element configElement = document.getDocumentElement();
+//			File configFile = new File(project.getCurrentConfiguration().toString());
+//			Document document = documentBuilder.parse(configFile);
+//			document.getDocumentElement().normalize();
+//			Element configElement = document.getDocumentElement();
+			Element configElement = readXmlFile(project.getCurrentConfiguration().toString());
 			WinVMJConsole.println(configElement.getNodeName());
 			NodeList featureList = configElement.getElementsByTagName("feature");
 			WinVMJConsole.println("Print selected...");
@@ -71,7 +72,7 @@ public class RoutingGenerator {
 //			importWinVMJProductConfigs(compiledProductDir);
 //			generateConfigFiles(project, sourceProduct);
 //			compileModules(project, compiledProductDir, sourceProduct);
-		} catch (CoreException  | ParserConfigurationException | SAXException e) {
+		} catch (CoreException  | SAXException e) {
 			e.printStackTrace();
 		}
 	}
@@ -100,6 +101,26 @@ public class RoutingGenerator {
 	
 	private static boolean isElementSelected(Element element) {
 		return element.hasAttribute("automatic") || element.hasAttribute("manual");
+	}
+	
+	private static DocumentBuilder getDocumentBuilder() {
+		if (documentBuilder == null) {
+			try {
+				documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+			} catch (ParserConfigurationException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return documentBuilder;
+	}
+	
+	private static Element readXmlFile(String xmlFilePath) throws SAXException, IOException {
+		File file = new File(xmlFilePath);
+		Document document = getDocumentBuilder().parse(file);
+		document.getDocumentElement().normalize();
+		return document.getDocumentElement();
+		
 	}
 	
 	private static List<String> parseModuleInfo(IFeatureProject project, IFolder module) 
