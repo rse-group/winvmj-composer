@@ -58,7 +58,9 @@ public class RoutingGenerator {
 //			Document document = documentBuilder.parse(configFile);
 //			document.getDocumentElement().normalize();
 //			Element configElement = document.getDocumentElement();
-			Element configElement = readXmlFile(project.getCurrentConfiguration().toString());
+			Element featureMapElement = readXmlFile(project.getProject().getFile("FeatureMapping.xml").getLocation().toString());
+			WinVMJConsole.println("Map path: " + featureMapElement.getTagName());
+			Element configElement = readXmlFile(project.getCurrentConfiguration().toFile());
 			WinVMJConsole.println(configElement.getNodeName());
 			NodeList featureList = configElement.getElementsByTagName("feature");
 			WinVMJConsole.println("Print selected...");
@@ -116,11 +118,13 @@ public class RoutingGenerator {
 	}
 	
 	private static Element readXmlFile(String xmlFilePath) throws SAXException, IOException {
-		File file = new File(xmlFilePath);
+		return readXmlFile(new File(xmlFilePath));
+	}
+	
+	private static Element readXmlFile(File file) throws SAXException, IOException {
 		Document document = getDocumentBuilder().parse(file);
 		document.getDocumentElement().normalize();
 		return document.getDocumentElement();
-		
 	}
 	
 	private static List<String> parseModuleInfo(IFeatureProject project, IFolder module) 
