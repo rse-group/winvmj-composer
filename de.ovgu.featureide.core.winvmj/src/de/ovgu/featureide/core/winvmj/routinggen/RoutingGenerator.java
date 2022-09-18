@@ -8,8 +8,10 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 
@@ -25,6 +27,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
@@ -58,17 +61,18 @@ public class RoutingGenerator {
 //			Document document = documentBuilder.parse(configFile);
 //			document.getDocumentElement().normalize();
 //			Element configElement = document.getDocumentElement();
+			
 			Element featureMapElement = readXmlFile(project.getProject().getFile("FeatureMapping.xml").getLocation().toString());
-			WinVMJConsole.println("Map path: " + featureMapElement.getTagName());
+			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"));
+			WinVMJConsole.println("Done reading mapping");
+			
 			Element configElement = readXmlFile(project.getCurrentConfiguration().toFile());
 			WinVMJConsole.println(configElement.getNodeName());
 			NodeList featureList = configElement.getElementsByTagName("feature");
 			WinVMJConsole.println("Print selected...");
-			Element[] selectedFeature = getSelectedFeature(featureList);
-			for (Element element : selectedFeature) {
-				WinVMJConsole.println("Name: " + element.getAttribute("name"));
-			};
-			generateMainMenu(project, sourceProduct, selectedFeature);
+			String[] selectedFeature = getSelectedFeature(featureList);
+			WinVMJConsole.println("Done reading selected feature");
+			generateMainMenu(project, sourceProduct, selectedFeature, featureMap);
 //			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 //			importWinVMJLibraries(compiledProductDir, sourceProduct);
 //			importWinVMJProductConfigs(compiledProductDir);
@@ -79,7 +83,28 @@ public class RoutingGenerator {
 		}
 	}
 	
-	private static Element[] getSelectedFeature(NodeList featureList) {
+	private static Map<String, Object> mapFeature(NodeList featureMapList) {
+
+		WinVMJConsole.println("Mapping feature");
+		Map<String, Object> featureMap = new HashMap<String, Object>();
+		
+		for (int i = 0; i < featureMapList.getLength(); i++) {
+			Map<String, String> mapValue = new HashMap<String, String>();
+			Element feature = (Element) featureMapList.item(i);
+			NamedNodeMap attributes = feature.getAttributes();
+			WinVMJConsole.println("Name: " + feature.getNodeName());
+			for (int j = 0; j < attributes.getLength(); j++) {
+				Node attribute = attributes.item(j);
+				WinVMJConsole.println(attribute.getNodeName() + ": " + attribute.getNodeValue());
+				mapValue.put(attribute.getNodeName(), attribute.getNodeValue());
+			}
+			featureMap.put(feature.getAttribute("name"), mapValue);
+		}
+		
+		return featureMap;
+	}
+	
+	private static String[] getSelectedFeature(NodeList featureList) {
 		int selectedCount = 0;
 		for (int i = 0; i < featureList.getLength(); i++) {
 			Element feature = (Element) featureList.item(i);
@@ -90,12 +115,12 @@ public class RoutingGenerator {
 		if (selectedCount == 0) {
 			return null;
 		}
-		Element[] selectedFeature = new Element[selectedCount];
+		String[] selectedFeature = new String[selectedCount];
 		selectedCount = 0;
 		for (int i = 0; i < featureList.getLength(); i++) {
 			Element feature = (Element) featureList.item(i);
 			if (isElementSelected(feature)) {
-				selectedFeature[selectedCount++] = feature;
+				selectedFeature[selectedCount++] = feature.getAttribute("name");
 			}
 		}
 		return selectedFeature;
@@ -146,11 +171,18 @@ public class RoutingGenerator {
 	}
 	
 	private static void generateMainMenu(IFeatureProject project,
-			WinVMJProduct product, Element[] selectedFeature) throws CoreException, IOException {
+			WinVMJProduct product, String[] selectedFeature, Map<String, Object> featureMap) throws CoreException, IOException {
 		WinVMJConsole.println("Generating main menu component...");
-		new MenuComponentRenderer(project, selectedFeature).render(product);
+		new MenuComponentRenderer(project, selectedFeature, featureMap).render(product);
 //		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 //		new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
+		WinVMJConsole.println("All additional config files has been generated");
+	}
+	
+	private static void generateAppRouting(IFeatureProject project,
+			WinVMJProduct product, Element[] selectedFeature, Element[] featureMap) throws CoreException, IOException {
+		WinVMJConsole.println("Generating main menu component...");
+//		new MenuComponentRenderer(project, selectedFeature).render(product);
 		WinVMJConsole.println("All additional config files has been generated");
 	}
 	

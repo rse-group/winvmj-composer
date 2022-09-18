@@ -7,6 +7,10 @@ import MenuLink from '../components/MenuLink/MenuLink';
 import MenuChildren from '../components/MenuChildren/MenuChildren';
 import FeatureArrow from '../components/FeatureArrow/FeatureArrow';
 
+<#list features as feature>
+import ${feature.menuname} from '${feature.menupath}';
+</#list>
+
 <#if financialreport??>
 import FinancialReportMainMenuComponent from '../FinancialReportMainMenu/financial-report-main-menu.js';
 </#if>
