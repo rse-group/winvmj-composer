@@ -78,7 +78,7 @@ public class SourceCompiler {
 		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 		new SqliteDbPropertiesRenderer(project).render(product);
 		new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
-		WinVMJConsole.println("All additional config files has HAHA generated");
+		WinVMJConsole.println("All additional config files has been generated");
 	}
 	
 	
