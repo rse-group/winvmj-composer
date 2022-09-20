@@ -30,18 +30,7 @@ public class MenuComponentRenderer extends TemplateRenderer {
 		Map<String, Object>[] selectedMap = new Map[selectedFeature.length];
 		
 		for (int featureIndex = 0; featureIndex < selectedFeature.length; featureIndex++) {
-//		for (Map<String, Object> f : featureMap) {
-//			Map<String, Object> mapping = new HashMap<>();
-//			NamedNodeMap attributes = selectedFeature[featureIndex].getAttributes();
-//			int attributeLength = attributes.getLength();
-//			for (int i = 0; i < attributeLength; i++) {
-//				Node attribute = attributes.item(i);
-//				mapping.put(attribute.getNodeName(), attribute.getNodeValue());
-//			}
 			String featureName = selectedFeature[featureIndex];
-//			WinVMJConsole.println(feature.getNodeName());
-			WinVMJConsole.println("Here: " + featureIndex);
-			WinVMJConsole.println("Here: " + featureName);
 			selectedMap[featureIndex] = (Map<String, Object>) featureMap.get(featureName);
 		}
 		

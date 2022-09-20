@@ -56,46 +56,31 @@ public class RoutingGenerator {
 			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
-			WinVMJConsole.println("Before config file");
-//			File configFile = new File(project.getCurrentConfiguration().toString());
-//			Document document = documentBuilder.parse(configFile);
-//			document.getDocumentElement().normalize();
-//			Element configElement = document.getDocumentElement();
-			
+
+			WinVMJConsole.println("Reading mapping...");
 			Element featureMapElement = readXmlFile(project.getProject().getFile("FeatureMapping.xml").getLocation().toString());
 			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"));
-			WinVMJConsole.println("Done reading mapping");
-			
+
+			WinVMJConsole.println("Reading selected feature..");
 			Element configElement = readXmlFile(project.getCurrentConfiguration().toFile());
-			WinVMJConsole.println(configElement.getNodeName());
 			NodeList featureList = configElement.getElementsByTagName("feature");
-			WinVMJConsole.println("Print selected...");
 			String[] selectedFeature = getSelectedFeature(featureList);
-			WinVMJConsole.println("Done reading selected feature");
+			
 			generateMainMenu(project, sourceProduct, selectedFeature, featureMap);
-//			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
-//			importWinVMJLibraries(compiledProductDir, sourceProduct);
-//			importWinVMJProductConfigs(compiledProductDir);
-//			generateConfigFiles(project, sourceProduct);
-//			compileModules(project, compiledProductDir, sourceProduct);
 		} catch (CoreException  | SAXException e) {
 			e.printStackTrace();
 		}
 	}
 	
 	private static Map<String, Object> mapFeature(NodeList featureMapList) {
-
-		WinVMJConsole.println("Mapping feature");
 		Map<String, Object> featureMap = new HashMap<String, Object>();
 		
 		for (int i = 0; i < featureMapList.getLength(); i++) {
 			Map<String, String> mapValue = new HashMap<String, String>();
 			Element feature = (Element) featureMapList.item(i);
 			NamedNodeMap attributes = feature.getAttributes();
-			WinVMJConsole.println("Name: " + feature.getNodeName());
 			for (int j = 0; j < attributes.getLength(); j++) {
 				Node attribute = attributes.item(j);
-				WinVMJConsole.println(attribute.getNodeName() + ": " + attribute.getNodeValue());
 				mapValue.put(attribute.getNodeName(), attribute.getNodeValue());
 			}
 			featureMap.put(feature.getAttribute("name"), mapValue);
