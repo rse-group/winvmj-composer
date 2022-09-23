@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -13,18 +12,23 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.eclipse.core.internal.resources.Folder;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.Path;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -42,7 +46,12 @@ import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.MenuComponentRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.RoutingComponentRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
+import de.ovgu.featureide.fm.core.base.IFeatureModel;
+import de.ovgu.featureide.fm.core.base.IFeatureStructure;
+import de.ovgu.featureide.fm.core.configuration.Configuration;
+import de.ovgu.featureide.fm.core.io.manager.IFeatureModelManager;
 
 public class RoutingGenerator {
 	
@@ -50,28 +59,56 @@ public class RoutingGenerator {
 	private static DocumentBuilder documentBuilder;
 	private RoutingGenerator() {};
 	
-	public static void generateRouting(IFeatureProject project) throws IOException {
+	public static void generateRouting(IFeatureProject winVmjProject, IProject targetProject) throws IOException {
 		try {
-			WinVMJProduct sourceProduct = new ComposedProduct(project);
-			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+			WinVMJProduct sourceProduct = new ComposedProduct(winVmjProject);
+			IFolder compiledProductDir = winVmjProject.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
 			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
+			
 
 			WinVMJConsole.println("Reading mapping...");
-			Element featureMapElement = readXmlFile(project.getProject().getFile("FeatureMapping.xml").getLocation().toString());
+			Element featureMapElement = readXmlFile(winVmjProject.getProject().getFile("FeatureMapping.xml").getLocation().toString());
 			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"));
 
-			WinVMJConsole.println("Reading selected feature..");
-			Element configElement = readXmlFile(project.getCurrentConfiguration().toFile());
-			NodeList featureList = configElement.getElementsByTagName("feature");
-			String[] selectedFeature = getSelectedFeature(featureList);
+			String[] selectedFeature = getSelectedFeature(winVmjProject);
+			Map<String, Object>[] modelStructureMap = readModelStructure(winVmjProject, featureMap);
 			
-			generateMainMenu(project, sourceProduct, selectedFeature, featureMap);
+			generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
+			generateAppRouting(targetProject, selectedFeature, featureMap);
 		} catch (CoreException  | SAXException e) {
 			e.printStackTrace();
 		}
 	}
 	
+	private static Map<String, Object>[] readModelStructure(IFeatureProject winVmjProject, Map<String, Object> featureMap) {
+		// TODO Auto-generated method stub
+		IFeatureStructure modelRoot = winVmjProject.getFeatureModel().getStructure().getRoot();
+		List<IFeatureStructure> modelChildren = modelRoot.getChildren();
+		Map<String, Object>[] featuresStructure = new Map[modelChildren.size()];
+		for (int childIndex = 0; childIndex < featuresStructure.length; childIndex++) {
+			featuresStructure[childIndex] = traverseStructureToMap(modelChildren.get(childIndex), featureMap);
+		}
+		return featuresStructure;
+	}
+
+	private static Map<String, Object> traverseStructureToMap(IFeatureStructure modelStructure, Map<String, Object> featureMap) {
+		// TODO Auto-generated method stub
+		Map<String, Object> result = new HashMap<>();
+		String featureName = modelStructure.getFeature().getName();
+		Map<String, Object> featureDetail = (Map<String, Object>) featureMap.get(featureName);
+		result.put("name", featureName);
+		result.put("route", featureDetail.get("menupath"));
+		result.put("menulabel", featureDetail.get("menulabel"));
+		List<IFeatureStructure> modelChildren = modelStructure.getChildren();
+		Map<String, Object>[] children = new HashMap[modelChildren.size()];
+		for (int childIndex = 0; childIndex < children.length; childIndex++) {
+			children[childIndex] = traverseStructureToMap(modelChildren.get(childIndex), featureMap);
+		}
+		result.put("children", children);
+		return result;
+	}
+
 	private static Map<String, Object> mapFeature(NodeList featureMapList) {
 		Map<String, Object> featureMap = new HashMap<String, Object>();
 		
@@ -89,30 +126,12 @@ public class RoutingGenerator {
 		return featureMap;
 	}
 	
-	private static String[] getSelectedFeature(NodeList featureList) {
-		int selectedCount = 0;
-		for (int i = 0; i < featureList.getLength(); i++) {
-			Element feature = (Element) featureList.item(i);
-			if (isElementSelected(feature)) {
-				selectedCount += 1;
-			}
-		}
-		if (selectedCount == 0) {
-			return null;
-		}
-		String[] selectedFeature = new String[selectedCount];
-		selectedCount = 0;
-		for (int i = 0; i < featureList.getLength(); i++) {
-			Element feature = (Element) featureList.item(i);
-			if (isElementSelected(feature)) {
-				selectedFeature[selectedCount++] = feature.getAttribute("name");
-			}
-		}
+	private static String[] getSelectedFeature(IFeatureProject winVmjProject) {
+		Set<String> selectedFeatureSet = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
+		selectedFeatureSet.remove("AISCO");
+		String[] selectedFeature = new String[selectedFeatureSet.size()];
+		selectedFeatureSet.toArray(selectedFeature);
 		return selectedFeature;
-	}
-	
-	private static boolean isElementSelected(Element element) {
-		return element.hasAttribute("automatic") || element.hasAttribute("manual");
 	}
 	
 	private static DocumentBuilder getDocumentBuilder() {
@@ -137,213 +156,17 @@ public class RoutingGenerator {
 		return document.getDocumentElement();
 	}
 	
-	private static List<String> parseModuleInfo(IFeatureProject project, IFolder module) 
-			throws IOException, CoreException {
-		IFile moduleInfo = module.getFile("module-info.java");
-		List<String> requiredModules = new ArrayList<>();
-		BufferedReader reader = 
-                new BufferedReader(new InputStreamReader(moduleInfo.getContents()));
-		String line = null;
-		while ( (line = reader.readLine()) != null) {
-			String trimmedLine = line.trim();
-			if (trimmedLine.startsWith("requires")) {
-				String[] moduleStatement = trimmedLine.split(" ");
-				requiredModules.add(moduleStatement[moduleStatement.length-1].replace(";", ""));
-			}
-		}
-		reader.close();
-		return requiredModules;
-	}
-	
-	private static void generateMainMenu(IFeatureProject project,
-			WinVMJProduct product, String[] selectedFeature, Map<String, Object> featureMap) throws CoreException, IOException {
+	private static void generateMainMenu(IProject targetProject,
+			String[] selectedFeature, Map<String, Object> featureMap, Map<String, Object>[] modelStructureMap) throws CoreException, IOException {
 		WinVMJConsole.println("Generating main menu component...");
-		new MenuComponentRenderer(project, selectedFeature, featureMap).render(product);
-//		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
-//		new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
-		WinVMJConsole.println("All additional config files has been generated");
+		new MenuComponentRenderer(selectedFeature, featureMap, modelStructureMap).render(targetProject);
+		WinVMJConsole.println("Main menu component generated");
 	}
 	
-	private static void generateAppRouting(IFeatureProject project,
-			WinVMJProduct product, Element[] selectedFeature, Element[] featureMap) throws CoreException, IOException {
-		WinVMJConsole.println("Generating main menu component...");
-//		new MenuComponentRenderer(project, selectedFeature).render(product);
-		WinVMJConsole.println("All additional config files has been generated");
-	}
-	
-	
-	private static void cleanBinaries(IFeatureProject project) throws CoreException {
-		IFolder binModuleFolder = project.getProject().getFolder("bin-comp");
-		if (binModuleFolder.exists()) binModuleFolder.delete(true, null);
-	}
-	
-	private static void importWinVMJProductConfigs(IFolder compiledProductDir) 
-			throws IOException, CoreException {
-		WinVMJConsole.println("Unpack WinVMJ Configs for product...");
-		InternalResourceManager.loadResourceDirectory("winvmj-configs", 
-				compiledProductDir.getLocation().toOSString());
-		WinVMJConsole.println("WinVMJ Configs unpacked");
-	}
-	
-	private static void importWinVMJLibraries(IFolder compiledProductDir, WinVMJProduct product) 
-			throws IOException, URISyntaxException, CoreException {
-		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
-		if (!productModule.exists()) productModule.create(false, true, null);
-		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
-		InternalResourceManager.loadResourceDirectory("winvmj-libraries", 
-				productModule.getLocation().toOSString());
-		WinVMJConsole.println("WinVMJ Libraries unpacked");
-	}
-	
-	private static void compileModules(IFeatureProject project, IFolder compiledProductDir, 
-			WinVMJProduct product) throws CoreException, IOException {
-		String productModule = product.getProductQualifiedName();
-		List<IResource> externalLibraries = listAllExternalLibraries(project);
-		for (IFolder module: product.getModules()) {
-			importExternalLibrariesByModuleInfo(project, externalLibraries, 
-					compiledProductDir, product, module);
-			compileModuleForProduct(project, compiledProductDir, module, productModule);
-		}
-		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
-		cleanBinaries(project);
-	}
-	
-	private static List<IResource> listAllExternalLibraries(IFeatureProject project) throws CoreException {
-		List<IResource> externalLibraries = new ArrayList<>();
-		for (IProject externalProject: project.getProject().getReferencedProjects()) {
-			CorePlugin.getDefault();
-			externalLibraries.addAll(listAllExternalLibraries(
-					CorePlugin.getFeatureProject(externalProject)));
-		}
-		externalLibraries.addAll(Arrays.asList(project.getProject()
-				.getFolder(WinVMJComposer.EXTERNAL_LIB_FOLDERNAME)
-				.members()));
-		return externalLibraries;
-	}
-	
-	private static void importExternalLibrariesByModuleInfo(IFeatureProject project, 
-			List<IResource> externalLibs, IFolder compiledProductDir, WinVMJProduct product, 
-			IFolder module) throws IOException, CoreException {
-		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
-		List<String> requiredModules = parseModuleInfo(project, module);
-		for (String requiredModule: requiredModules) {
-			if (externalLibs.stream().anyMatch(el -> requiredModule.startsWith(requiredModule))) {
-				IFile externalLib = (IFile) Stream.of(externalLibs)
-						.filter(el -> requiredModule.startsWith(requiredModule))
-						.findFirst().get();
-				copyFile(externalLib, productModule);
-			}
-		}
-	}
-	
-	private static void compileModuleForProduct(IFeatureProject project, IFolder productDir, 
-			IFolder module, String productModule) throws CoreException, IOException {
-		IFolder compiledProductFolder = productDir.getFolder(productModule);
-		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(module.getName());
-		
-		List<String> compileCommand = constructCompileCommand(
-				module, binFolder, compiledProductFolder);
-		
-		System.out.println(String.join(" ", compileCommand));
-
-		JavaCLI.execute("Compiling " + module + " module...", 
-				module + " module compiled", compileCommand);
-		
-		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, module.getName());
-		
-		System.out.println(String.join(" ", jarCommand));
-		
-		JavaCLI.execute("Packaging " + module + " module...", 
-				module + " module packaged", jarCommand);
-	}
-	
-	public static void compileProductJar(IFeatureProject project, IFolder productDir,
-			String productModule, String productName) throws IOException, CoreException {
-		IFolder compiledProductFolder = productDir.getFolder(productModule);
-		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(productModule);
-		
-		List<String> compileCommand = constructCompileCommand(project.getBuildFolder()
-				.getFolder(productModule), binFolder, compiledProductFolder);
-		
-		System.out.println(String.join(" ", compileCommand));
-
-		JavaCLI.execute("Compiling " + productModule + " module...", 
-				productModule + " module compiled", compileCommand);
-		
-		String mainClass = productModule + "." + productName;
-		
-		List<String> jarCommand = constructJARCommand(binFolder, 
-				compiledProductFolder, productName, mainClass);
-		
-		System.out.println(String.join(" ", jarCommand));
-		
-		JavaCLI.execute("Compiling " + productModule + " product module...", 
-				productModule + " product module packaged", jarCommand);
-	}
-	
-	private static List<String> constructCompileCommand(IFolder sourceFolder, IFolder binFolder, 
-			IFolder modulePath) throws CoreException {
-		List<String> modulePaths = transverseModuleFilePaths(sourceFolder);
-		
-		List<String> compileCommand = new ArrayList<>();
-		compileCommand.add("javac");
-		compileCommand.add("-d");
-		compileCommand.add(quoteString(binFolder.getLocation().toOSString()));
-		compileCommand.add("--module-path");
-		compileCommand.add(quoteString(modulePath.getLocation().toOSString()));
-		compileCommand.addAll(modulePaths);
-		
-		return compileCommand;
-	}
-	
-	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, 
-			String jarName) throws CoreException {
-		return constructJARCommand(binFolder, destFolder, jarName, "") ;
-	}
-	
-	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, 
-			String jarName, String mainClass) throws CoreException {
-		IFile jarFile = destFolder.getFile(jarName + ".jar");
-		
-		List<String> jarCommand = new ArrayList<>();
-		jarCommand.add("jar");
-		jarCommand.add("--create");
-		jarCommand.add("--file");
-		jarCommand.add(quoteString(jarFile.getLocation().toOSString()));
-		if (mainClass.length() > 0) {
-			jarCommand.add("--main-class");
-			jarCommand.add(mainClass);
-		}
-		jarCommand.add("-C");
-		jarCommand.add(quoteString(binFolder.getLocation().toOSString()));
-		jarCommand.add(".");
-		
-		return jarCommand;
-	}
-	
-	private static List<String> transverseModuleFilePaths(IFolder module) throws CoreException {
-		List<String> fileNames = new ArrayList<>();
-		transverseModuleFilePaths(module, fileNames);
-		return fileNames;
-	}
-	
-	private static void transverseModuleFilePaths(IFolder submodule, 
-			List<String> fileNames) throws CoreException {
-		for (IResource resource: submodule.members()) {
-			if (resource instanceof IFolder) 
-				transverseModuleFilePaths((IFolder) resource, fileNames);
-			else if (resource instanceof IFile && resource.getName().endsWith(".java")) 
-				fileNames.add(quoteString(resource.getLocation().toOSString()));
-		}
-	}
-	
-	private static void copyFile(IFile file, IFolder outputFolder) throws CoreException {
-		IFile copiedFile = outputFolder.getFile(file.getName());
-		if (!copiedFile.exists()) copiedFile.create(file.getContents(), false, null);
-		else copiedFile.setContents(file.getContents(), 1, null);
-	}
-	
-	private static String quoteString(String str) {
-		return "\"" + str + "\"";
+	private static void generateAppRouting(IProject targetProject,
+			String[] selectedFeature, Map<String, Object> featureMap) throws CoreException, IOException {
+		WinVMJConsole.println("Generating routing component...");
+		new RoutingComponentRenderer(selectedFeature, featureMap).render(targetProject);
+		WinVMJConsole.println("Routing component generated");
 	}
 }

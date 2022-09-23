@@ -17,30 +17,32 @@ import de.ovgu.featureide.core.winvmj.templates.ReactTemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import freemarker.template.Template;
 
-public class MenuComponentRenderer extends ReactTemplateRenderer {
+public class RoutingComponentRenderer extends ReactTemplateRenderer {
 	
-	private Map<String, Object>[] modelStructureMap;
-
-	public MenuComponentRenderer(String[] selectedFeature, Map<String, Object> featureMap, Map<String, Object>[] modelStructureMap) {
+	public RoutingComponentRenderer(String[] selectedFeature, Map<String, Object> featureMap) {
 		super(selectedFeature, featureMap);
-		this.modelStructureMap = modelStructureMap;
 	}
 
 	protected Map<String, Object> extractDataModel() {
 		Map<String, Object> dataModel = new HashMap<>();
+		Map<String, Object>[] selectedMap = new Map[selectedFeature.length];
 		
-		dataModel.put("features", selectedFeature);
-		dataModel.put("structures", modelStructureMap);
+		for (int featureIndex = 0; featureIndex < selectedFeature.length; featureIndex++) {
+			String featureName = selectedFeature[featureIndex];
+			selectedMap[featureIndex] = (Map<String, Object>) featureMap.get(featureName);
+		}
+		
+		dataModel.put("features", selectedMap);
 		
 		return dataModel;
 	}
 	
 	protected String loadTemplateFilename() {
-		return "MenuComponent";
+		return "RoutingComponent";
 	}
 	
 	protected IFile getOutputFile(IProject targetProject) {
 		return targetProject.getFolder("src")
-				.getFile("menus.js");
+				.getFile("routes.js");
 	}
 }

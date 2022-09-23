@@ -1,92 +1,41 @@
-import React from 'react';
-import AuthConsumer from '../Authentication';
-import { withRouter } from 'react-router-dom';
-import RootMenu from '../components/RootMenu/RootMenu';
-import MenuItem from '../components/MenuItem/MenuItem';
-import MenuLink from '../components/MenuLink/MenuLink';
-import MenuChildren from '../components/MenuChildren/MenuChildren';
-import FeatureArrow from '../components/FeatureArrow/FeatureArrow';
+<#macro traversePrint structure, not_last, indent=0>
+<#local pad1>${""?left_pad(indent*6+4)}</#local>
+<#if features?seq_contains(structure.name)>
+${pad1}{
+${pad1}  route: '${structure.route}',
+${pad1}  label: '${structure.menulabel}',
+${pad1}  subMenus: [
+           <#list structure.children as child>
+           <@traversePrint child, child?has_next, indent+1/>
+           </#list>
+${pad1}  ] 
+${pad1}}<#if not_last>,</#if>
+</#if>
+</#macro>
+import React from 'react'
+import { Link } from 'react-router-dom'
 
-<#list features as feature>
-import ${feature.menuname} from '${feature.menupath}';
-</#list>
+import AuthConsumer from 'commons/auth'
+import RootMenu from 'commons/components/RootMenu/RootMenu'
+import MenuItem from 'commons/components/MenuItem/MenuItem'
+import MenuLink from 'commons/components/MenuLink/MenuLink'
 
-<#if financialreport??>
-import FinancialReportMainMenuComponent from '../FinancialReportMainMenu/financial-report-main-menu.js';
-</#if>
-<#if income??>
-import IncomeMainMenuComponent from '../IncomeMainMenu/income-main-menu.js';
-</#if>
-<#if expense??>
-import ExpenseMainMenuComponent from '../ExpenseMainMenu/expense-main-menu.js';
-</#if>
-<#if program??>
-import ProgramMainMenuComponent from '../ProgramMainMenu/program-main-menu.js';
-</#if>
-import ReportMainMenuComponent from '../ReportMainMenu/report-main-menu.js';
-<#if summary??>
-import SummaryMainMenuComponent from '../SummaryMainMenu/summary-main-menu.js';
-</#if>
-import AutomaticMainMenuComponent from '../AutomaticMainMenu/automatic-main-menu.js';
-<#if aruskasreport??>
-import CoaMainMenuComponent from '../CoaMainMenu/coa-main-menu.js';
-</#if>
-import ListDeskripsiCoaMainMenuComponent from '../ListDeskripsiCoaMainMenu/list-deskripsi-coa-main-menu.js';
-<#if donation??>
-import DonationMainMenuComponent from '../DonationMainMenu/donation-main-menu.js';
-import DonasiMainMenuComponent from '../DonasiMainMenu/donasi-main-menu.js';
-</#if>
-import OfflineMainMenuComponent from '../OfflineMainMenu/offline-main-menu.js';
+import { FeatureArrow, MenuChildren } from 'commons/components'
 
 class FeatureMainMenu extends React.Component {
-    state = {};
-    
-    onLogoutClicked = e => {
-            e.preventDefault();
-            this.props.logout();
-        };
-    
-    currencyFormatDE(num) {
-        if (!num) {
-            return "0,00"
-        }
-        return (
-            num.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.')
-        )
-    }
+  const menus = [
+    <#list structures as structure>
+      <@traversePrint structure, structure?has_next/>
+    </#list>
+  ]
 
-    render() {
-		const appVariant = this.props.variant;
-        return (
-	        <AuthConsumer>{ (values) => 
-	        	{ return (
-				<RootMenu isAuth={values.isAuth} variant={appVariant}>
-					<MenuItem variant={appVariant}>
-						<MenuLink variant={appVariant} href="#" onClick={this.onLogoutClicked}>
-							Logout
-						</MenuLink>
-					</MenuItem>
-					<ProgramMainMenuComponent {...values} variant={appVariant}/>
-					<FinancialReportMainMenuComponent variant={appVariant}>
-						<IncomeMainMenuComponent {...values} variant={appVariant}/>
-						<ExpenseMainMenuComponent {...values} variant={appVariant}/>
-						<ReportMainMenuComponent variant={appVariant}>
-							<SummaryMainMenuComponent {...values} variant={appVariant}/>
-							<AutomaticMainMenuComponent variant={appVariant}>
-								<CoaMainMenuComponent {...values} variant={appVariant}/>
-							</AutomaticMainMenuComponent>
-							<ListDeskripsiCoaMainMenuComponent {...values} variant={appVariant}/>
-						</ReportMainMenuComponent>
-					</FinancialReportMainMenuComponent>
-					<DonationMainMenuComponent variant={appVariant}>
-						<OfflineMainMenuComponent variant={appVariant}>
-							<DonasiMainMenuComponent {...values} variant={appVariant}/>
-						</OfflineMainMenuComponent>
-					</DonationMainMenuComponent>
-				</RootMenu>)}
-			}</AuthConsumer>
-        );
-    }
+  render() {
+    const appVariant = this.props.variant
+    return (
+      <AuthConsumer>
+      </AuthConsumer>
+    )
+  }
 }
 
-export default FeatureMainMenu;
+export default FeatureMainMenu
