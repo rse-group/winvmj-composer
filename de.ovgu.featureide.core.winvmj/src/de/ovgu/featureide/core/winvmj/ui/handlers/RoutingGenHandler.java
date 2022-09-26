@@ -48,7 +48,6 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 							project.getFile("package-lock.json").exists() &&
 							srcFolder.exists() &&
 							srcFolder.getFile("index.js").exists()) {
-						WinVMJConsole.println("Proj: " + project.getName());
 						filteredProject.add(project);
 					}
 				}
@@ -59,6 +58,8 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 				ListDialog dialog = new ListDialog(shell);
 				dialog.setContentProvider(new ArrayContentProvider());
 				dialog.setLabelProvider(new WorkbenchLabelProvider());
+				dialog.setTitle("Target Project Selector");
+				dialog.setMessage("Select target project to generate routes and menus files");
 				dialog.setInput(filteredProject);
 				if (dialog.open() == Window.OK) {
 					Object[] result = dialog.getResult();

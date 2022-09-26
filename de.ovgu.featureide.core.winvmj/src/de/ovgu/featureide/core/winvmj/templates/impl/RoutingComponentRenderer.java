@@ -37,6 +37,10 @@ public class RoutingComponentRenderer extends ReactTemplateRenderer {
 		return dataModel;
 	}
 	
+	private Map<String, Object> createDefaultMap(String featurename) {
+		return null;
+	}
+	
 	protected String loadTemplateFilename() {
 		return "RoutingComponent";
 	}

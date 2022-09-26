@@ -48,6 +48,7 @@ import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer
 import de.ovgu.featureide.core.winvmj.templates.impl.MenuComponentRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RoutingComponentRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
+import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.fm.core.base.IFeatureModel;
 import de.ovgu.featureide.fm.core.base.IFeatureStructure;
 import de.ovgu.featureide.fm.core.configuration.Configuration;
@@ -55,23 +56,26 @@ import de.ovgu.featureide.fm.core.io.manager.IFeatureModelManager;
 
 public class RoutingGenerator {
 	
+	private static String[] defaultKey = {
+		"menupath",
+		"menulabel",
+		"routename",
+		"routefilepath",
+		"name"
+	};
 	private static String OUTPUT_FOLDER = "routing";
 	private static DocumentBuilder documentBuilder;
+	private static Map<String, Object> abstractMap;
 	private RoutingGenerator() {};
 	
 	public static void generateRouting(IFeatureProject winVmjProject, IProject targetProject) throws IOException {
 		try {
-			WinVMJProduct sourceProduct = new ComposedProduct(winVmjProject);
-			IFolder compiledProductDir = winVmjProject.getProject().getFolder(OUTPUT_FOLDER);
-			if (!compiledProductDir.exists()) compiledProductDir.create(false, true, null);
-			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
-			
+			String[] selectedFeature = getSelectedFeature(winVmjProject);
 
 			WinVMJConsole.println("Reading mapping...");
 			Element featureMapElement = readXmlFile(winVmjProject.getProject().getFile("FeatureMapping.xml").getLocation().toString());
-			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"));
+			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"), selectedFeature);
 
-			String[] selectedFeature = getSelectedFeature(winVmjProject);
 			Map<String, Object>[] modelStructureMap = readModelStructure(winVmjProject, featureMap);
 			
 			generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
@@ -95,13 +99,19 @@ public class RoutingGenerator {
 	private static Map<String, Object> traverseStructureToMap(IFeatureStructure modelStructure, Map<String, Object> featureMap) {
 		// TODO Auto-generated method stub
 		Map<String, Object> result = new HashMap<>();
-		String featureName = modelStructure.getFeature().getName();
-		Map<String, Object> featureDetail = (Map<String, Object>) featureMap.get(featureName);
+		String featureName = modelStructure.getFeature().getName().replaceAll("[- ]", "");
 		result.put("name", featureName);
-		result.put("route", featureDetail.get("menupath"));
-		result.put("menulabel", featureDetail.get("menulabel"));
+		if (modelStructure.isAbstract()) {
+			result.put("abstract", true);
+			result.put("route", "#");
+			result.put("menulabel", featureName);
+		} else {
+			Map<String, Object> featureDetail = (Map<String, Object>) featureMap.get(featureName);
+			result.put("route", featureDetail.get("menupath"));
+			result.put("menulabel", featureDetail.get("menulabel"));
+		}
 		List<IFeatureStructure> modelChildren = modelStructure.getChildren();
-		Map<String, Object>[] children = new HashMap[modelChildren.size()];
+		Map<String, Object>[] children = new Map[modelChildren.size()];
 		for (int childIndex = 0; childIndex < children.length; childIndex++) {
 			children[childIndex] = traverseStructureToMap(modelChildren.get(childIndex), featureMap);
 		}
@@ -109,7 +119,7 @@ public class RoutingGenerator {
 		return result;
 	}
 
-	private static Map<String, Object> mapFeature(NodeList featureMapList) {
+	private static Map<String, Object> mapFeature(NodeList featureMapList, String[] selectedFeature) {
 		Map<String, Object> featureMap = new HashMap<String, Object>();
 		
 		for (int i = 0; i < featureMapList.getLength(); i++) {
@@ -123,15 +133,25 @@ public class RoutingGenerator {
 			featureMap.put(feature.getAttribute("name"), mapValue);
 		}
 		
+		for (String featureName : selectedFeature) {
+			if (!featureMap.containsKey(featureName)) {
+				Map<String, String> mapValue = new HashMap<String, String>();
+				for (String key : defaultKey) {
+					mapValue.put(key, featureName + "_" + key);
+				}
+				featureMap.put(featureName, mapValue);
+			}
+		}
+		
 		return featureMap;
 	}
 	
 	private static String[] getSelectedFeature(IFeatureProject winVmjProject) {
-		Set<String> selectedFeatureSet = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
-		selectedFeatureSet.remove("AISCO");
-		String[] selectedFeature = new String[selectedFeatureSet.size()];
-		selectedFeatureSet.toArray(selectedFeature);
-		return selectedFeature;
+		List<IFeature> selectedFeatureList = winVmjProject.loadCurrentConfiguration().getSelectedFeatures();
+		return selectedFeatureList.stream()
+				.filter(feature -> !feature.getStructure().isAbstract() && feature.getName() != "AISCO")
+				.map(feature -> feature.getName().replaceAll("[- ]", ""))
+				.toArray(String[]::new);
 	}
 	
 	private static DocumentBuilder getDocumentBuilder() {
