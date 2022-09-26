@@ -146,6 +146,13 @@ public class SourceCompiler {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
+					} else {
+						try {
+							copyFile((IFile) el, productModule);
+						} catch (CoreException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 					}
 				});
 			});
