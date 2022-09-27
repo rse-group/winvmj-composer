@@ -63,9 +63,7 @@ public class RoutingGenerator {
 		"routefilepath",
 		"name"
 	};
-	private static String OUTPUT_FOLDER = "routing";
 	private static DocumentBuilder documentBuilder;
-	private static Map<String, Object> abstractMap;
 	private RoutingGenerator() {};
 	
 	public static void generateRouting(IFeatureProject winVmjProject, IProject targetProject) throws IOException {
