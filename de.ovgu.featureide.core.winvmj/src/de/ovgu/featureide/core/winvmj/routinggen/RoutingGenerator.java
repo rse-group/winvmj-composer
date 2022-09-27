@@ -70,11 +70,11 @@ public class RoutingGenerator {
 	
 	public static void generateRouting(IFeatureProject winVmjProject, IProject targetProject) throws IOException {
 		try {
-			String[] selectedFeature = getSelectedFeature(winVmjProject);
+			Map<String, Boolean> selectedFeature = getSelectedFeature(winVmjProject);
 
 			WinVMJConsole.println("Reading mapping...");
 			Element featureMapElement = readXmlFile(winVmjProject.getProject().getFile("FeatureMapping.xml").getLocation().toString());
-			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"), selectedFeature);
+			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"), selectedFeature.keySet());
 
 			Map<String, Object>[] modelStructureMap = readModelStructure(winVmjProject, featureMap);
 			
@@ -101,8 +101,9 @@ public class RoutingGenerator {
 		Map<String, Object> result = new HashMap<>();
 		String featureName = modelStructure.getFeature().getName().replaceAll("[- ]", "");
 		result.put("name", featureName);
-		if (modelStructure.isAbstract()) {
-			result.put("abstract", true);
+		boolean isAbstract = modelStructure.isAbstract();
+		result.put("abstract", isAbstract);
+		if (isAbstract || !featureMap.containsKey(featureName)) {
 			result.put("route", "#");
 			result.put("menulabel", featureName);
 		} else {
@@ -119,7 +120,7 @@ public class RoutingGenerator {
 		return result;
 	}
 
-	private static Map<String, Object> mapFeature(NodeList featureMapList, String[] selectedFeature) {
+	private static Map<String, Object> mapFeature(NodeList featureMapList, Set<String> featureSet) {
 		Map<String, Object> featureMap = new HashMap<String, Object>();
 		
 		for (int i = 0; i < featureMapList.getLength(); i++) {
@@ -133,7 +134,7 @@ public class RoutingGenerator {
 			featureMap.put(feature.getAttribute("name"), mapValue);
 		}
 		
-		for (String featureName : selectedFeature) {
+		for (String featureName : featureSet) {
 			if (!featureMap.containsKey(featureName)) {
 				Map<String, String> mapValue = new HashMap<String, String>();
 				for (String key : defaultKey) {
@@ -146,12 +147,15 @@ public class RoutingGenerator {
 		return featureMap;
 	}
 	
-	private static String[] getSelectedFeature(IFeatureProject winVmjProject) {
+	private static Map<String, Boolean> getSelectedFeature(IFeatureProject winVmjProject) {
 		List<IFeature> selectedFeatureList = winVmjProject.loadCurrentConfiguration().getSelectedFeatures();
-		return selectedFeatureList.stream()
-				.filter(feature -> !feature.getStructure().isAbstract() && feature.getName() != "AISCO")
-				.map(feature -> feature.getName().replaceAll("[- ]", ""))
-				.toArray(String[]::new);
+		Map<String, Boolean> selectedFeatureMap = new HashMap<>();
+		selectedFeatureList.stream()
+				.filter(feature -> feature.getName() != "AISCO")
+				.forEach(
+						feature -> selectedFeatureMap.put(
+								feature.getName().replaceAll("[- ]", ""), feature.getStructure().isAbstract()));
+		return selectedFeatureMap;
 	}
 	
 	private static DocumentBuilder getDocumentBuilder() {
@@ -177,16 +181,21 @@ public class RoutingGenerator {
 	}
 	
 	private static void generateMainMenu(IProject targetProject,
-			String[] selectedFeature, Map<String, Object> featureMap, Map<String, Object>[] modelStructureMap) throws CoreException, IOException {
+			Map<String, Boolean> selectedFeature, Map<String, Object> featureMap, Map<String, Object>[] modelStructureMap) throws CoreException, IOException {
 		WinVMJConsole.println("Generating main menu component...");
-		new MenuComponentRenderer(selectedFeature, featureMap, modelStructureMap).render(targetProject);
+		String[] selectedFeatureName = selectedFeature.keySet().toArray(String[]::new);
+		new MenuComponentRenderer(selectedFeatureName , featureMap, modelStructureMap).render(targetProject);
 		WinVMJConsole.println("Main menu component generated");
 	}
 	
 	private static void generateAppRouting(IProject targetProject,
-			String[] selectedFeature, Map<String, Object> featureMap) throws CoreException, IOException {
+			Map<String, Boolean> selectedFeature, Map<String, Object> featureMap) throws CoreException, IOException {
 		WinVMJConsole.println("Generating routing component...");
-		new RoutingComponentRenderer(selectedFeature, featureMap).render(targetProject);
+		List<String> selectedFeatureNonAbstractList = new ArrayList<>();
+		selectedFeature.keySet().stream()
+			.filter(key -> !selectedFeature.get(key))
+			.forEach(key -> selectedFeatureNonAbstractList.add(key));
+		new RoutingComponentRenderer(selectedFeatureNonAbstractList.toArray(String[]::new), featureMap).render(targetProject);
 		WinVMJConsole.println("Routing component generated");
 	}
 }

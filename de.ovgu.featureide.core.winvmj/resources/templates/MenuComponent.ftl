@@ -1,6 +1,6 @@
 <#macro traversePrint structure, not_last, indent=0>
 <#local pad>${""?left_pad(indent*6+2)}</#local>
-<#if features?seq_contains(structure.name) || structure.abstract>
+<#if features?seq_contains(structure.name)>
 ${pad}{
 ${pad}  route: '${structure.route}',
 ${pad}  label: '${structure.menulabel}',
