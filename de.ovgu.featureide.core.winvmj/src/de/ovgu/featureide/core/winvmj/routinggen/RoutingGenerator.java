@@ -78,7 +78,7 @@ public class RoutingGenerator {
 			
 			generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
 			generateAppRouting(targetProject, selectedFeature, featureMap);
-		} catch (CoreException  | SAXException e) {
+		} catch (CoreException | SAXException e) {
 			e.printStackTrace();
 		}
 	}

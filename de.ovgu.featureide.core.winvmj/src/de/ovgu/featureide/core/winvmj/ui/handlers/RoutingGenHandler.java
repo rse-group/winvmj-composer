@@ -43,24 +43,16 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 				List<IProject> filteredProject = new ArrayList<>();
 				WinVMJConsole.println("Filtering project");
 				for (IProject project : projects) {
-					IFolder srcFolder = project.getFolder("src");
-					if (project.getFile("package.json").exists() &&
-							project.getFile("package-lock.json").exists() &&
-							srcFolder.exists() &&
-							srcFolder.getFile("index.js").exists()) {
+					if (projectIsReact(project)) {
 						filteredProject.add(project);
 					}
 				}
 				
 				Display display = new Display();
-				Shell shell = new Shell(display);
 				
-				ListDialog dialog = new ListDialog(shell);
-				dialog.setContentProvider(new ArrayContentProvider());
-				dialog.setLabelProvider(new WorkbenchLabelProvider());
-				dialog.setTitle("Target Project Selector");
-				dialog.setMessage("Select target project to generate routes and menus files");
-				dialog.setInput(filteredProject);
+				ListDialog dialog = createProjectSelectorDialog(filteredProject,
+						"Target Project Selector",
+						"Select target project to generate routes and menus files");
 				if (dialog.open() == Window.OK) {
 					Object[] result = dialog.getResult();
 					if (result.length > 0) {
@@ -78,12 +70,33 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 					} else {
 						WinVMJConsole.println("No target project selected");
 					}
+				} else {
+					WinVMJConsole.println("Generating cancelled.");
 				}
+				
 				dialog.close();
 				display.dispose();
 				return true;
 			}
 		};
 		LongRunningWrapper.getRunner(job, "Compile JAR").schedule();
+	}
+	
+	private static boolean projectIsReact(IProject project) {
+		IFolder srcFolder = project.getFolder("src");
+		return project.getFile("package.json").exists() &&
+				project.getFile("package-lock.json").exists() &&
+				srcFolder.exists() &&
+				srcFolder.getFile("index.js").exists();
+	}
+	
+	private static ListDialog createProjectSelectorDialog(Object input, String title, String messages) {
+		ListDialog dialog = new ListDialog(null);
+		dialog.setContentProvider(new ArrayContentProvider());
+		dialog.setLabelProvider(new WorkbenchLabelProvider());
+		dialog.setTitle(title);
+		dialog.setMessage(messages);
+		dialog.setInput(input);
+		return dialog;
 	}
 }
