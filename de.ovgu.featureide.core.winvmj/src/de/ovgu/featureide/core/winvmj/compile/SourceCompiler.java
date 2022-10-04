@@ -139,20 +139,11 @@ public class SourceCompiler {
 		for (String requiredModule: requiredModules) {
 			Stream.of(externalLibs).forEach(els -> {
 				els.forEach(el -> {
-					if(el.getName().startsWith(requiredModule)) {
-						try {
-							copyFile((IFile) el, productModule);
-						} catch (CoreException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					} else {
-						try {
-							copyFile((IFile) el, productModule);
-						} catch (CoreException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
+					try {
+						copyFile((IFile) el, productModule);
+					} catch (CoreException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
 					}
 				});
 			});
