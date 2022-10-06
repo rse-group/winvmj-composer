@@ -135,12 +135,16 @@ public class SourceCompiler {
 		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
 		List<String> requiredModules = parseModuleInfo(project, module);
 		for (String requiredModule: requiredModules) {
-			if (externalLibs.stream().anyMatch(el -> requiredModule.startsWith(requiredModule))) {
-				IFile externalLib = (IFile) Stream.of(externalLibs)
-						.filter(el -> requiredModule.startsWith(requiredModule))
-						.findFirst().get();
-				copyFile(externalLib, productModule);
-			}
+			Stream.of(externalLibs).forEach(els -> {
+				els.forEach(el -> {
+					try {
+						copyFile((IFile) el, productModule);
+					} catch (CoreException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				});
+			});
 		}
 	}
 	
@@ -200,7 +204,7 @@ public class SourceCompiler {
 		compileCommand.add("--module-path");
 		compileCommand.add(quoteString(modulePath.getLocation().toOSString()));
 		compileCommand.addAll(modulePaths);
-		
+				
 		return compileCommand;
 	}
 	
@@ -232,6 +236,7 @@ public class SourceCompiler {
 	private static List<String> transverseModuleFilePaths(IFolder module) throws CoreException {
 		List<String> fileNames = new ArrayList<>();
 		transverseModuleFilePaths(module, fileNames);
+
 		return fileNames;
 	}
 	
