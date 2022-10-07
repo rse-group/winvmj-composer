@@ -7,14 +7,11 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 
-import de.ovgu.featureide.core.IFeatureProject;
-import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import freemarker.cache.StringTemplateLoader;
 import freemarker.template.Configuration;

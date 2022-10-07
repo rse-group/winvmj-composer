@@ -1,34 +1,20 @@
 package de.ovgu.featureide.core.winvmj.routinggen;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.eclipse.core.internal.resources.Folder;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IWorkspaceRoot;
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.Path;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -36,23 +22,12 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
-import de.ovgu.featureide.core.winvmj.WinVMJComposer;
-import de.ovgu.featureide.core.winvmj.compile.JavaCLI;
-import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
-import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
-import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
-import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.MenuComponentRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RoutingComponentRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.fm.core.base.IFeature;
-import de.ovgu.featureide.fm.core.base.IFeatureModel;
 import de.ovgu.featureide.fm.core.base.IFeatureStructure;
-import de.ovgu.featureide.fm.core.configuration.Configuration;
-import de.ovgu.featureide.fm.core.io.manager.IFeatureModelManager;
 
 public class RoutingGenerator {
 	
