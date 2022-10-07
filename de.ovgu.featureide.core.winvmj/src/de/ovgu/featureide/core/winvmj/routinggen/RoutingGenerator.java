@@ -66,23 +66,19 @@ public class RoutingGenerator {
 	private static DocumentBuilder documentBuilder;
 	private RoutingGenerator() {};
 	
-	public static void generateRouting(IFeatureProject winVmjProject, IProject targetProject) throws IOException {
+	public static void generateRouting(IFeatureProject winVmjProject, IProject targetProject, IFile mappingFile) throws IOException {
 		try {
+			WinVMJConsole.println("Get selected features...");
 			Map<String, Boolean> selectedFeature = getSelectedFeature(winVmjProject);
 
 			WinVMJConsole.println("Reading mapping...");
-			IFile mappingFile = winVmjProject.getProject().getFile("FeatureMapping.xml");
-			if (mappingFile.exists()) {
-				Element featureMapElement = readXmlFile(mappingFile.getLocation().toString());
-				Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"), selectedFeature.keySet());
+			Element featureMapElement = readXmlFile(mappingFile.getLocation().toString());
+			Map<String, Object> featureMap = mapFeature(featureMapElement.getElementsByTagName("feature"), selectedFeature.keySet());
 
-				Map<String, Object>[] modelStructureMap = readModelStructure(winVmjProject, featureMap);
-				
-				generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
-				generateAppRouting(targetProject, selectedFeature, featureMap);				
-			} else {
-				WinVMJConsole.println("Mapping file not found.");
-			}
+			Map<String, Object>[] modelStructureMap = readModelStructure(winVmjProject, featureMap);
+			
+			generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
+			generateAppRouting(targetProject, selectedFeature, featureMap);
 		} catch (CoreException | SAXException e) {
 			e.printStackTrace();
 		}
