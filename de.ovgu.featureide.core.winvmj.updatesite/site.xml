@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_1.1.1.202206191204.jar" id="de.ovgu.featureide.core.winvmj.feature" version="1.1.1.202206191204">
-      <category name="WinVMJ Composer"/>
-   </feature>
    <feature url="features/de.ovgu.featureide_3.8.1.202206191204.jar" id="de.ovgu.featureide" version="3.8.1.202206191204">
       <category name="WinVMJ Composer Dependencies"/>
    </feature>
    <feature url="features/de.ovgu.featureide.featuremodeling_3.8.1.202206191204.jar" id="de.ovgu.featureide.featuremodeling" version="3.8.1.202206191204">
       <category name="WinVMJ Composer Dependencies"/>
+   </feature>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_1.2.0.202210292252.jar" id="de.ovgu.featureide.core.winvmj.feature" version="1.2.0.202210292252">
+      <category name="WinVMJ Composer"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
    <category-def name="WinVMJ Composer Dependencies" label="WinVMJ Composer Dependencies"/>
