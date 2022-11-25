@@ -26,6 +26,7 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.MenuComponentRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RoutingComponentRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.SelectedFeatureRenderer;
 import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.fm.core.base.IFeatureStructure;
 
@@ -54,11 +55,12 @@ public class RoutingGenerator {
 			
 			generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
 			generateAppRouting(targetProject, selectedFeature, featureMap);
+			generateSelectedFeature(targetProject, selectedFeature);
 		} catch (CoreException | SAXException e) {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private static Map<String, Object>[] readModelStructure(IFeatureProject winVmjProject, Map<String, Object> featureMap) {
 		// TODO Auto-generated method stub
 		IFeatureStructure modelRoot = winVmjProject.getFeatureModel().getStructure().getRoot();
@@ -171,5 +173,11 @@ public class RoutingGenerator {
 			.forEach(key -> selectedFeatureNonAbstractList.add(key));
 		new RoutingComponentRenderer(selectedFeatureNonAbstractList.toArray(String[]::new), featureMap).render(targetProject);
 		WinVMJConsole.println("Routing component generated");
+	}
+	
+	private static void generateSelectedFeature(IProject targetProject, Map<String, Boolean> selectedFeature) {
+		WinVMJConsole.println("Extracting selected feature...");
+		new SelectedFeatureRenderer(selectedFeature.keySet().stream().toArray(String[]::new)).render(targetProject);
+		WinVMJConsole.println("Selected feature extracted");
 	}
 }
