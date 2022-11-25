@@ -12,8 +12,7 @@ ${pad}  ]
 ${pad}}<#if not_last>,</#if>
 </#if>
 </#macro>
-
-export default const menus = [
+const menus = [
 <#list structures as structure>
   <@traversePrint structure, structure?has_next/>
 </#list>
@@ -39,3 +38,5 @@ export default const menus = [
     ] 
   },
 ]
+
+export default menus
