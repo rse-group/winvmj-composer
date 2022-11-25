@@ -1,5 +1,5 @@
 <#macro traversePrint structure, not_last, indent=0>
-<#local pad>${""?left_pad(indent*6+2)}</#local>
+<#local pad>${""?left_pad(indent*4+2)}</#local>
 <#if features?seq_contains(structure.name)>
 ${pad}{
 ${pad}  route: '${structure.route}',
@@ -17,4 +17,25 @@ export default const menus = [
 <#list structures as structure>
   <@traversePrint structure, structure?has_next/>
 </#list>
+  {
+    route: '#',
+    label: 'Pengaturan',
+    subMenus: [
+      {
+        route: '/pengaturan/tampilan',
+        label: 'Pengaturan Tampilan',
+        subMenus: [] 
+      },
+      {
+        route: '/pengaturan/role',
+        label: 'Pengaturan Role',
+        subMenus: [] 
+      },
+      {
+        route: '/pengaturan/user',
+        label: 'Pengaturan User',
+        subMenus: [] 
+      },
+    ] 
+  },
 ]
