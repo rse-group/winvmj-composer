@@ -85,7 +85,6 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 	private static boolean projectIsReact(IProject project) {
 		IFolder srcFolder = project.getFolder("src");
 		return project.getFile("package.json").exists() &&
-				project.getFile("package-lock.json").exists() &&
 				srcFolder.exists() &&
 				srcFolder.getFile("index.js").exists();
 	}
