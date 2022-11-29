@@ -21,17 +21,17 @@ const menus = [
     label: 'Pengaturan',
     subMenus: [
       {
-        route: '/pengaturan/tampilan',
+        route: '/settings/tampilan',
         label: 'Pengaturan Tampilan',
         subMenus: [] 
       },
       {
-        route: '/pengaturan/role',
+        route: '/settings/role',
         label: 'Pengaturan Role',
         subMenus: [] 
       },
       {
-        route: '/pengaturan/user',
+        route: '/settings/user',
         label: 'Pengaturan User',
         subMenus: [] 
       },

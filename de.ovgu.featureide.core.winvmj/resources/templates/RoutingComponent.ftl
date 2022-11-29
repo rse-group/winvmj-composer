@@ -5,7 +5,7 @@ import { useRoutes } from 'react-router-dom'
 import ${feature.routename} from '${feature.routefilepath}'
 </#if>
 </#list>
-import pengaturanRoutes from 'pengaturan/routes.js'
+import settingsRoutes from 'settings/routes.js'
 import commonRoutes from 'commons/routes.js'
 
 const GlobalRoutes = () => {
@@ -13,7 +13,7 @@ const GlobalRoutes = () => {
   	<#list features as feature>
   	...${feature.routename},
   	</#list>
-    ...pengaturanRoutes,
+    ...settingsRoutes,
     ...commonRoutes,
   ])
 
