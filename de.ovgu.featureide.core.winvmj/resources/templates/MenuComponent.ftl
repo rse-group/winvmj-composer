@@ -16,12 +16,15 @@ const menus = [
 <#list structures as structure>
   <@traversePrint structure, structure?has_next/>
 </#list>
+]
+
+export const settingsMenu = [
   {
     route: '#',
     label: 'Pengaturan',
     subMenus: [
       {
-        route: '/settings/tampilan',
+        route: '/settings/appearance',
         label: 'Pengaturan Tampilan',
         subMenus: [] 
       },
