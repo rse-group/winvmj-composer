@@ -88,11 +88,13 @@ public class RoutingGenerator {
 			result.put("menulabel", featureDetail.get("menulabel"));
 		}
 		List<IFeatureStructure> modelChildren = modelStructure.getChildren();
-		Map<String, Object>[] children = new Map[modelChildren.size()];
-		for (int childIndex = 0; childIndex < children.length; childIndex++) {
-			children[childIndex] = traverseStructureToMap(modelChildren.get(childIndex), featureMap);
+		if (modelChildren.size() > 0) {
+			Map<String, Object>[] children = new Map[modelChildren.size()];
+			for (int childIndex = 0; childIndex < children.length; childIndex++) {
+				children[childIndex] = traverseStructureToMap(modelChildren.get(childIndex), featureMap);
+			}
+			result.put("children", children);
 		}
-		result.put("children", children);
 		return result;
 	}
 
