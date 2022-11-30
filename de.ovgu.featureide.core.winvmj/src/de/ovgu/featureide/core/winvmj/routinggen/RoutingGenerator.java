@@ -79,7 +79,7 @@ public class RoutingGenerator {
 		result.put("name", featureName);
 		boolean isAbstract = modelStructure.isAbstract();
 		result.put("abstract", isAbstract);
-		if (isAbstract || !featureMap.containsKey(featureName)) {
+		if (!featureMap.containsKey(featureName)) {
 			result.put("route", "#");
 			result.put("menulabel", featureName);
 		} else {
