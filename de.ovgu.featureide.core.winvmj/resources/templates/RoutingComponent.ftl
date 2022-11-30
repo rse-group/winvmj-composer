@@ -5,16 +5,18 @@ import { useRoutes } from 'react-router-dom'
 import ${feature.routename} from '${feature.routefilepath}'
 </#if>
 </#list>
-import settingsRoutes from 'settings/routes.js'
 import commonRoutes from 'commons/routes.js'
+import staticPageRoutes from 'staticPage/routes'
+import settingsRoutes from 'settings/routes.js'
 
 const GlobalRoutes = () => {
   const router = useRoutes([
   	<#list features as feature>
   	...${feature.routename},
   	</#list>
-    ...settingsRoutes,
     ...commonRoutes,
+    ...staticPageRoutes,
+    ...settingsRoutes,
   ])
 
   return router

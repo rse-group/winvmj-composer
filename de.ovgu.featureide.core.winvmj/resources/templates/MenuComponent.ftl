@@ -13,6 +13,28 @@ ${pad}}<#if not_last>,</#if>
 </#if>
 </#macro>
 const menus = [
+  {
+    route: '#',
+    label: 'Info Organisasi',
+    subMenus: [
+      {
+        route: '/about',
+        label: 'Tentang Kami',
+      },
+      {
+        route: '/contact',
+        label: 'Kontak',
+      },
+      {
+        route: '/partners',
+        label: 'Mitra Kami',
+      },
+      {
+        route: '/maps',
+        label: 'Lokasi',
+      },
+    ],
+  },
 <#list structures as structure>
   <@traversePrint structure, structure?has_next/>
 </#list>
