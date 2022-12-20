@@ -15,12 +15,17 @@ public class RoutingComponentRenderer extends ReactTemplateRenderer {
 	}
 
 	protected Map<String, Object> extractDataModel() {
-		Map<String, Object> dataModel = new HashMap<>();
-		Map<String, Object>[] selectedMap = new Map[selectedFeature.length];
+		Map<String, Object> dataModel = new HashMap();
+		Map<String, Object> selectedMap = new HashMap();
 		
 		for (int featureIndex = 0; featureIndex < selectedFeature.length; featureIndex++) {
 			String featureName = selectedFeature[featureIndex];
-			selectedMap[featureIndex] = (Map<String, Object>) featureMap.get(featureName);
+			Map<String, Object> featureRouting = (Map<String, Object>) featureMap.get(featureName);
+			String routeName = (String) featureRouting.get("routename");
+			String routeFilePath = (String) featureRouting.get("routefilepath");
+			if (!selectedMap.containsKey(routeName)) {
+				selectedMap.put(routeName, routeFilePath);
+			}
 		}
 		
 		dataModel.put("features", selectedMap);
