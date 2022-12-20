@@ -1,18 +1,19 @@
 import { useRoutes } from 'react-router-dom'
 
-<#list features as feature>
-<#if feature.routename?has_content && feature.routefilepath?has_content>
-import ${feature.routename} from '${feature.routefilepath}'
+<#list features as routename, routefilepath>
+<#if routename?has_content && routefilepath?has_content>
+import ${routename} from '${routefilepath}'
 </#if>
 </#list>
 import commonRoutes from 'commons/routes.js'
-import staticPageRoutes from 'staticPage/routes'
 import settingsRoutes from 'settings/routes.js'
 
 const GlobalRoutes = () => {
   const router = useRoutes([
-    <#list features as feature>
-    ...${feature.routename},
+    <#list features as routename, _>
+    <#if routename?has_content>
+    ...${routename},
+    </#if>
     </#list>
     ...commonRoutes,
     ...settingsRoutes,
