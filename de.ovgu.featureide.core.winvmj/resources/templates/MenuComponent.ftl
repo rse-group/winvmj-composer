@@ -4,11 +4,13 @@
 ${pad}{
 ${pad}  route: '${structure.route}',
 ${pad}  label: '${structure.menulabel}',
+        <#if structure.children?? >
 ${pad}  subMenus: [
            <#list structure.children as child>
            <@traversePrint child, child?has_next, indent+1/>
            </#list>
 ${pad}  ] 
+        </#if>
 ${pad}}<#if not_last>,</#if>
 </#if>
 </#macro>
@@ -26,17 +28,14 @@ export const settingsMenu = [
       {
         route: '/settings/appearance',
         label: 'Pengaturan Tampilan',
-        subMenus: [] 
       },
       {
         route: '/settings/role',
         label: 'Pengaturan Role',
-        subMenus: [] 
       },
       {
         route: '/settings/user',
         label: 'Pengaturan User',
-        subMenus: [] 
       },
     ] 
   },
