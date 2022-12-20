@@ -11,9 +11,9 @@ import settingsRoutes from 'settings/routes.js'
 
 const GlobalRoutes = () => {
   const router = useRoutes([
-  	<#list features as feature>
-  	...${feature.routename},
-  	</#list>
+    <#list features as feature>
+    ...${feature.routename},
+    </#list>
     ...commonRoutes,
     ...settingsRoutes,
   ])
