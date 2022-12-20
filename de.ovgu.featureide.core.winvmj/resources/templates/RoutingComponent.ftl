@@ -15,7 +15,6 @@ const GlobalRoutes = () => {
   	...${feature.routename},
   	</#list>
     ...commonRoutes,
-    ...staticPageRoutes,
     ...settingsRoutes,
   ])
 
