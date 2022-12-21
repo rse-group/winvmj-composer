@@ -6,7 +6,6 @@ import ${routename} from '${routefilepath}'
 </#if>
 </#list>
 import commonRoutes from 'commons/routes.js'
-import settingsRoutes from 'settings/routes.js'
 
 const GlobalRoutes = () => {
   const router = useRoutes([
@@ -16,7 +15,6 @@ const GlobalRoutes = () => {
     </#if>
     </#list>
     ...commonRoutes,
-    ...settingsRoutes,
   ])
 
   return router
