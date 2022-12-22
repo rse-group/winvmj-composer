@@ -27,12 +27,22 @@ public class ${productName} {
 		configuration.addAnnotatedClass(${modelSpec['module']}.${className}.class);
 		</#list>
 		</#list>
-		configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserComponent.class);
-		configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserImpl.class);
-		configuration.addAnnotatedClass(prices.auth.vmj.model.passworded.UserPasswordedImpl.class);
-		configuration.addAnnotatedClass(prices.auth.vmj.model.core.RoleComponent.class);
-		configuration.addAnnotatedClass(prices.auth.vmj.model.core.RoleImpl.class);
-		configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserRoleImpl.class);
+		
+		configuration.addAnnotatedClass(prices.auth.vmj.model.core.Role.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.RoleComponent.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.RoleImpl.class);
+        
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserRole.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserRoleComponent.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserRoleImpl.class);
+
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.User.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserComponent.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserDecorator.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserImpl.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.passworded.UserPasswordedImpl.class);
+        configuration.addAnnotatedClass(prices.auth.vmj.model.social.UserSocialImpl.class);
+		
 		configuration.buildMappings();
 		HibernateUtil.buildSessionFactory(configuration);
 
@@ -61,12 +71,16 @@ public class ${productName} {
 		</#list>
 		
 		UserResource userCore = UserResourceFactory
-				.createUserResource("prices.auth.vmj.model.core.UserResourceImpl");
-		UserResource userPassworded = UserResourceFactory
-				.createUserResource("prices.auth.vmj.model.passworded.UserPasswordedResourceDecorator", userCore);
-		RoleResource roleCore = RoleResourceFactory
-				.createRoleResource("prices.auth.vmj.model.core.RoleResourceImpl");
-
+                .createUserResource("prices.auth.vmj.model.core.UserResourceImpl");
+        UserResource userPassworded = UserResourceFactory
+	        .createUserResource("prices.auth.vmj.model.passworded.UserPasswordedResourceDecorator",
+		        UserResourceFactory
+		        	.createUserResource("prices.auth.vmj.model.core.UserResourceImpl"));
+        UserResource userSocial = UserResourceFactory
+        	.createUserResource("prices.auth.vmj.model.social.UserSocialResourceDecorator",
+        		userPassworded);        
+        RoleResource role = RoleResourceFactory
+        	.createRoleResource("prices.auth.vmj.model.core.RoleResourceImpl");
 
 		<#list routings?reverse as routeSpec>
 		System.out.println("${routeSpec['variableName']} endpoints binding");
@@ -74,9 +88,11 @@ public class ${productName} {
 		
 		</#list>
 		
+		System.out.println("auth endpoints binding");
+		Router.route(userCore);
 		Router.route(userPassworded);
-		Router.route(roleCore);
+		Router.route(userSocial);
+		Router.route(role);
 		System.out.println();
 	}
-
 }
