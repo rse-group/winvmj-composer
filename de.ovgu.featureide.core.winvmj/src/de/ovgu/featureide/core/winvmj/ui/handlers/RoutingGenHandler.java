@@ -27,6 +27,7 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 
 	@Override
 	protected void singleAction(IFeatureProject winVmjProject) {
+		WinVMJConsole.showConsole();
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 
 			@Override
