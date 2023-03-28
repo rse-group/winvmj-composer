@@ -29,6 +29,7 @@ public class RunScriptRenderer extends TemplateRenderer {
 		dataModel.put("dbUsername", dbUsername);
 		dataModel.put("dbPassword", dbPassword);
 		dataModel.put("isWindows", isWindows());
+		dataModel.put("SQLFolder", "sql");
 		return dataModel;
 	}
 	

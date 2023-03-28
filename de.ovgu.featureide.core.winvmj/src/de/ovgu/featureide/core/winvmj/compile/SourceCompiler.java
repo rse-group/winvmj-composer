@@ -42,6 +42,7 @@ public class SourceCompiler {
 			importWinVMJProductConfigs(compiledProductDir);
 			generateConfigFiles(project, sourceProduct);
 			compileModules(project, compiledProductDir, sourceProduct);
+			insertSqlFolder(compiledProductDir, project);
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -258,5 +259,16 @@ public class SourceCompiler {
 	
 	private static String quoteString(String str) {
 		return "\"" + str + "\"";
+	}
+	
+	private static void insertSqlFolder(IFolder compiledProductDir, IFeatureProject project) throws IOException, CoreException {
+		IFolder sqlFolder = project.getProject().getFolder("sql");
+		WinVMJConsole.println("Insert SQL Files");
+		IFolder sqlDestinationFolder = compiledProductDir.getFolder("sql");
+		if (!sqlDestinationFolder.exists()) sqlDestinationFolder.create(false, true, null);
+		for (IResource resource : sqlFolder.members()) {
+			copyFile((IFile) resource, compiledProductDir.getFolder("sql"));
+		}
+		WinVMJConsole.println("SQL Files inserted");
 	}
 }
