@@ -23,6 +23,7 @@ import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
+import de.ovgu.featureide.core.winvmj.templates.impl.DeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 
@@ -77,6 +78,7 @@ public class SourceCompiler {
 		WinVMJConsole.println("Generating additional config files for product...");
 		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 		new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
+		new DeploymentScriptRenderer(project).render(product);
 		WinVMJConsole.println("All additional config files has been generated");
 	}
 	
