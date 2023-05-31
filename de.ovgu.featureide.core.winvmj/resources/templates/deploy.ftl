@@ -3,20 +3,19 @@
 :: - 'private_key_amanah': Direktori lokasi private key akses server Amanah
 :: - 'username_amanah': Credential username untuk akses server Amanah
 :: - 'local_tunnel_port': Port lokal yang dibuka untuk akses server Amanah melalui SSH tunneling server Kawung
-echo Script ini bertujuan untuk melakukan deployment produk PRICES-IDE melalui Eclipse.
+echo Eclipse Deployment Script ini bertujuan untuk melakukan deployment produk PRICES-IDE melalui Eclipse.
 echo:
 
 :: Step 1 - Copy komponen produk ke server Amanah
-echo Silahkan isi informasi produk PRICES-IDE yang akan di-deploy ke server Amanah.
+set product_name=${productName}
+echo Script ini akan melakukan deployment produk PRICES-IDE bernama %product_name% ke server Amanah. Silahkan isi informasi produk terkait.
 echo:
 
-set product_name=${productName}
-set /p product_local_directory= "> Masukkan lokasi direktori folder produk tersebut (pastikan folder di-archive dengan nama dan susunan file yang sesuai): " 
-set /p product_backend_port= "> Masukkan port back-end produk yang telah di-compile PRICES-IDE di Eclipse (port dapat dilihat di 'src/aisco.product.[nama_produk]/[nama_produk].java'): "
+set /p product_local_directory= "> Masukkan lokasi direktori folder produk tersebut (pastikan folder di-archive .zip dengan nama dan susunan file yang sesuai): " 
 
 echo:
 echo Meng-copy produk %product_name% ke server Amanah...
-scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %product_local_directory% %username_amanah%@localhost:~/nix-prices-deployment/products && (
+scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %product_local_directory% %username_amanah%@localhost:/tmp && (
     echo Sukses!
 ) || (
     echo Terdapat error ketika meng-copy produk %product_name% ke server Amanah.
@@ -26,7 +25,7 @@ scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %product_local_director
 )
 echo:
 echo Meng-extract produk %product_name%...
-ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd ~/nix-prices-deployment/products && unzip %product_name%.zip && rm %product_name%.zip" && (
+ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /var/www/products && sudo unzip /tmp/%product_name%.zip && rm /tmp/%product_name%.zip" && (
     echo Sukses!
     echo:
     echo Selesai memindahkan produk %product_name% ke server Amanah!
@@ -38,11 +37,11 @@ ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -
 )
 echo:
 
-:: Step 2 - Deployment produk dengan mengesekusi script deployment (prices_product_deployment.sh) di dalam server melalui SSH
+:: Step 2 - Deployment produk dengan mengeksekusi Prices Product Deployment Script (prices_product_deployment.sh) di dalam server melalui SSH
 echo Melakukan deployment produk %product_name% ke server Amanah...
-set product_remote_directory=/home/%username_amanah%/nix-prices-deployment/products/%product_name%
+set product_remote_directory=/var/www/products/%product_name%
 
-ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd ~/nix-prices-deployment && nix-shell --run 'bash prices_product_deployment.sh %product_name% %product_remote_directory% %product_backend_port%'" && (
+ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /home/prices-deployment/nix-environment && nix-shell --run 'bash prices_product_deployment.sh %product_name% %product_remote_directory%'" && (
     echo:
     echo Produk %product_name% berhasil di-deploy!
     echo Dengan ini, deployment produk PRICES-IDE berakhir dengan sukses.
