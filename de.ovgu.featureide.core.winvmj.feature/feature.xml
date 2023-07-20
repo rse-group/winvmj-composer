@@ -2,7 +2,7 @@
 <feature
       id="de.ovgu.featureide.core.winvmj.feature"
       label="WinVMJ Composer"
-      version="2.2.1.qualifier">
+      version="2.3.0.qualifier">
 
    <description>
       Compose Web Backend using WinVMJ: a web framework to develop software using SPLE and Delta-Oriented Programming (DOP) approaches as well as supporting MPL development.

@@ -64,7 +64,7 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 						RoutingGenerator.generateRouting(winVmjProject, targetProject, mappingFile);
 						long finish = System.currentTimeMillis();
 						double elapsedTime = (finish-start)/1000.0;
-						WinVMJConsole.println("Menu and Routing generated in " 
+						WinVMJConsole.println("'SelectedFeature' file generated in " 
 								+ String.valueOf(elapsedTime) 
 								+ " seconds. Please Refresh the project "
 								+ "now and find target folder.");

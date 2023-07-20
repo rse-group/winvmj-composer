@@ -55,7 +55,7 @@
                   commandId="de.ovgu.featureide.core.winvmj.routinggenhandler"
                   icon="resources/icons/FeatureIconSmall.ico"
                   id="de.ovgu.featureide.core.winvmj.routinggenhandler"
-                  label="Generate Menu and Route"
+                  label="Generate SelectedFeature"
                   style="push">
             </command>
          </menu>

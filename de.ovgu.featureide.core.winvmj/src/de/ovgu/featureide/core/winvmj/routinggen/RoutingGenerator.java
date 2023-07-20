@@ -53,10 +53,11 @@ public class RoutingGenerator {
 
 			Map<String, Object>[] modelStructureMap = readModelStructure(winVmjProject, featureMap);
 			
-			generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
-			generateAppRouting(targetProject, selectedFeature, featureMap);
+			// Conversion from Generate Menu and Route -> Generate SelectedFeature
+			// generateMainMenu(targetProject, selectedFeature, featureMap, modelStructureMap);
+			// generateAppRouting(targetProject, selectedFeature, featureMap);
 			generateSelectedFeature(targetProject, selectedFeature);
-		} catch (CoreException | SAXException e) {
+		} catch (SAXException e) {
 			e.printStackTrace();
 		}
 	}

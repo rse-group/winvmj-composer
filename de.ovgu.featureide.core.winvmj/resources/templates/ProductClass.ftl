@@ -113,16 +113,20 @@ public class ${productName} {
 		System.out.println();
 	}
 	
-	public static void setDBProperties(String varname, String typeProp, Configuration configuration){
-        try{
-                String varNameValue = System.getenv(varname);
-                String propertyName = String.format("hibernate.connection.%s",typeProp);
-                configuration.setProperty(propertyName, varNameValue);
-        }catch (Exception e){
-                String error_message = String.format("%s: try to check %s in your local environment variable!", e, varname);
-                System.out.println(error_message);
-        }
-    }
+	public static void setDBProperties(String varname, String typeProp, Configuration configuration) {
+		String varNameValue = System.getenv(varname);
+		String propertyName = String.format("hibernate.connection.%s",typeProp);
+		if (varNameValue != null) {
+			configuration.setProperty(propertyName, varNameValue);
+		} else {
+			String hibernatePropertyVal = configuration.getProperty(propertyName);
+			if (hibernatePropertyVal == null) {
+				String error_message = String.format("Please check '%s' in your local environment variable or "
+                	+ "'hibernate.connection.%s' in your 'hibernate.properties' file!", varname, typeProp);
+            	System.out.println(error_message);
+			}
+		}
+	}
 
 	// if the env variable for server host is null, use localhost instead.
     public static String getEnvVariableHostAddress(String varname_host){
