@@ -12,6 +12,9 @@
    <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.3.0.202307200929.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.3.0.202307200929">
       <category name="WinVMJ Composer"/>
    </feature>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.4.0.qualifier.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.4.0.qualifier">
+      <category name="WinVMJ Composer"/>
+   </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
    <category-def name="WinVMJ Composer Dependencies" label="WinVMJ Composer Dependencies"/>
 </site>
