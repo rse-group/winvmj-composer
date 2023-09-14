@@ -1,5 +1,4 @@
 module ${productPackage} {
-    requires vmj.object.mapper;
     requires vmj.routing.route;
     requires vmj.hibernate.integrator;
     

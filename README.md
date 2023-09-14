@@ -13,7 +13,7 @@ To use this plugin, you need to install:
 3. [FeatureIDE 3.8.1](https://featureide.github.io/).
 4. [Eclipse PDE](https://www.eclipse.org/pde/) if hasn't been included on downloaded IDE.
 5. [PostgreSQL](https://www.postgresql.org/download/).
-6. (Optional) PostgreSQL management tools such as [phpmyadmin](https://www.phpmyadmin.net/downloads/) or [adminer](https://www.adminer.org/).
+6. DBMS to manage PostgreSQL such as [phpmyadmin](https://www.phpmyadmin.net/downloads/) or [adminer](https://www.adminer.org/).
 
 ### Installing the Plugin
 
@@ -99,7 +99,7 @@ As seen above, it consist of `key-value` pairs. The `key` is the feature conditi
 
 #### Development on FeatureIDE Project
 
-We provide [WinVMJ-AISCO FeatureIDE Project](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/) to help you simulate the development using this plugin, but if you want to create a new one:
+To create a new FeatureIDE project:
 1. On top toolbar, click on `File`>`New`>`Other...`. On wizard, select `FeatureIDE`>`FeatureIDE Project`.
 2. Click `next`, and select `WinVMJ` on `Composer` dropdown. On this wizard, you can define your `[src]` and `[config]` name.
 3. Click `next`, and name as well as locate your project.
@@ -197,10 +197,19 @@ We can run the product by following these steps:
 
 This configuration will be saved and can be re-executed by clicking `Run`>`External Tools`>`[Your config name]`.
 
+Running a product for the first time also create a new database with name that match this pattern: [SPL Name]_product_[Product Name]. You can open this database using your DBMS.
+
+#### Example Projects
+We provide [WinVMJ-AISCO FeatureIDE Project](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/) to help you simulate the development using this plugin.
+
 #### About Authorization
-You need to seed the authorized user, which is managed on `sqlite` database. If you haven't run the product, please run it first so that it can generate the `db` file. The generated file has a name pattern: `[spl name]_product_[product name]`. We provide a auth seeding artifacts that consist of SQL file ``auth_seed.sql``, `sqlite` executable, SQL execution script `read_sql.bat` for Windows and `read_sql.sh` for Linux / Mac on the [release page](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/). Unpack these artifact to `src-gen/[Desired Product Name]/`. To create a new user, please add this SQL statement on ``auth_seed.sql``:
+We provide a auth seeding artifacts that consist of SQL file ``auth_seed.sql`` on the [release page](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/). Unpack these artifact to `src-gen/[Desired Product Name]/`. You can use this file on your DBMS to seed the auth database.
+
+
+To create a new user, please execute this SQL statement on your DBMS:
 ```
-INSERT INTO auth_user (id,password,allowedPermissions,name,email) VALUES ([unique integer],'fd4f97ae96ed4c0268d0b275765c849ce511419d96d6290ed583b9516f8cab61dfeddf43a522167bc9fa1eaeebb72b88158a2e646d1006799eb65a0e5805341a','',[Nama anda],[email google anda]);
+INSERT INTO auth_user_comp (id) VALUES ([unique integer]);
+INSERT INTO auth_user_impl_passworded (id,password,allowedPermissions,name,email) VALUES ([unique integer],'fd4f97ae96ed4c0268d0b275765c849ce511419d96d6290ed583b9516f8cab61dfeddf43a522167bc9fa1eaeebb72b88158a2e646d1006799eb65a0e5805341a','',[Nama anda],[email google anda]);
 ```
 
 For example:
@@ -219,13 +228,6 @@ For example:
 ```
 INSERT INTO auth_user_role (id,role,user) VALUES (13,1,5);
 ```
-
-To seed using those resource, you can create an `External Configuration` similar to how you run a product.
-1. On top toolbar, click on `Run`>`External Tools`>`External Tool Configuration`.
-2. Select the script `Location` at `src-gen/[Product Name]/auth_seed.sql`.
-3. Select the `Working Directory` at `src-gen/[Product Name]/`.
-4. Add these folloing `Arguments`: `[sqlite db file name] auth_seed.sql` on argument section.
-5. Click `Run`.
 
 ### Developer's Corner
 

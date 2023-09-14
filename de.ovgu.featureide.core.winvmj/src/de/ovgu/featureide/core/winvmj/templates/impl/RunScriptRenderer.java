@@ -28,6 +28,7 @@ public class RunScriptRenderer extends TemplateRenderer {
 		dataModel.put("product", product.getProductQualifiedName());
 		dataModel.put("dbUsername", dbUsername);
 		dataModel.put("dbPassword", dbPassword);
+		dataModel.put("isWindows", isWindows());
 		return dataModel;
 	}
 	
