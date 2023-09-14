@@ -28,7 +28,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 	private final static String CONCRETE_CLASS_PATTERN = 
 			"([\\S\\s]*)public(\\s+)class(\\s+)[(\\S+)(\\s+)]*\\{([\\S\\s]*)\\}([\\S\\s]*)";
 	
-	private final static String CONTROLLER_FOLDERNAME = "controller";
+	private final static String CONTROLLER_FOLDERNAME = "resource";
 	private final static String MODEL_FOLDERNAME = "model";
 	
 	public ProductClassRenderer(IFeatureProject project) {
