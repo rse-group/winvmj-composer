@@ -12,6 +12,7 @@ public class CompileHandler extends AFeatureProjectHandler {
 
 	@Override
 	protected void singleAction(IFeatureProject project) {
+		WinVMJConsole.showConsole();
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 
 			@Override

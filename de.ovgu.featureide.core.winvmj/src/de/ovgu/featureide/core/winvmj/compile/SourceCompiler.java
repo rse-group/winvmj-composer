@@ -23,6 +23,7 @@ import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
+import de.ovgu.featureide.core.winvmj.templates.impl.DeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 
@@ -42,6 +43,7 @@ public class SourceCompiler {
 			importWinVMJProductConfigs(compiledProductDir);
 			generateConfigFiles(project, sourceProduct);
 			compileModules(project, compiledProductDir, sourceProduct);
+			insertSqlFolder(compiledProductDir, project);
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -76,6 +78,7 @@ public class SourceCompiler {
 		WinVMJConsole.println("Generating additional config files for product...");
 		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 		new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
+		new DeploymentScriptRenderer(project).render(product);
 		WinVMJConsole.println("All additional config files has been generated");
 	}
 	
@@ -135,12 +138,16 @@ public class SourceCompiler {
 		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
 		List<String> requiredModules = parseModuleInfo(project, module);
 		for (String requiredModule: requiredModules) {
-			if (externalLibs.stream().anyMatch(el -> requiredModule.startsWith(requiredModule))) {
-				IFile externalLib = (IFile) Stream.of(externalLibs)
-						.filter(el -> requiredModule.startsWith(requiredModule))
-						.findFirst().get();
-				copyFile(externalLib, productModule);
-			}
+			Stream.of(externalLibs).forEach(els -> {
+				els.forEach(el -> {
+					try {
+						copyFile((IFile) el, productModule);
+					} catch (CoreException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				});
+			});
 		}
 	}
 	
@@ -200,7 +207,7 @@ public class SourceCompiler {
 		compileCommand.add("--module-path");
 		compileCommand.add(quoteString(modulePath.getLocation().toOSString()));
 		compileCommand.addAll(modulePaths);
-		
+				
 		return compileCommand;
 	}
 	
@@ -232,6 +239,7 @@ public class SourceCompiler {
 	private static List<String> transverseModuleFilePaths(IFolder module) throws CoreException {
 		List<String> fileNames = new ArrayList<>();
 		transverseModuleFilePaths(module, fileNames);
+
 		return fileNames;
 	}
 	
@@ -253,5 +261,16 @@ public class SourceCompiler {
 	
 	private static String quoteString(String str) {
 		return "\"" + str + "\"";
+	}
+	
+	private static void insertSqlFolder(IFolder compiledProductDir, IFeatureProject project) throws IOException, CoreException {
+		IFolder sqlFolder = project.getProject().getFolder("sql");
+		WinVMJConsole.println("Insert SQL Files");
+		IFolder sqlDestinationFolder = compiledProductDir.getFolder("sql");
+		if (!sqlDestinationFolder.exists()) sqlDestinationFolder.create(false, true, null);
+		for (IResource resource : sqlFolder.members()) {
+			copyFile((IFile) resource, compiledProductDir.getFolder("sql"));
+		}
+		WinVMJConsole.println("SQL Files inserted");
 	}
 }
