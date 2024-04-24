@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_1.1.1.202206191204.jar" id="de.ovgu.featureide.core.winvmj.feature" version="1.1.1.202206191204">
+   <feature url="features/de.ovgu.featureide_3.9.1.202212061324.jar" id="de.ovgu.featureide" version="3.9.1.202212061324">
+      <category name="WinVMJ Composer Dependencies"/>
+   </feature>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.1.0.202303291139.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.1.0.202303291139">
       <category name="WinVMJ Composer"/>
    </feature>
-   <feature url="features/de.ovgu.featureide_3.8.1.202206191204.jar" id="de.ovgu.featureide" version="3.8.1.202206191204">
-      <category name="WinVMJ Composer Dependencies"/>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.2.1.202305311158.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.2.1.202305311158">
+      <category name="WinVMJ Composer"/>
    </feature>
-   <feature url="features/de.ovgu.featureide.featuremodeling_3.8.1.202206191204.jar" id="de.ovgu.featureide.featuremodeling" version="3.8.1.202206191204">
-      <category name="WinVMJ Composer Dependencies"/>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.3.0.202307200929.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.3.0.202307200929">
+      <category name="WinVMJ Composer"/>
+   </feature>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.4.0.202307241431.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.4.0.202307241431">
+      <category name="WinVMJ Composer"/>
+   </feature>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.4.1.202307271022.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.4.1.202307271022">
+      <category name="WinVMJ Composer"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
    <category-def name="WinVMJ Composer Dependencies" label="WinVMJ Composer Dependencies"/>
