@@ -7,15 +7,16 @@ import vmj.routing.route.Router;
 import vmj.hibernate.integrator.HibernateUtil;
 import org.hibernate.cfg.Configuration;
 
+<#if defaultAuthModel>
+import vmj.auth.model.UserResourceFactory;
+import vmj.auth.model.RoleResourceFactory;
+import vmj.auth.model.core.UserResource;
+import vmj.auth.model.core.RoleResource;
+
+</#if>
 <#list imports as import>
 import ${import};
 </#list>
-
-import prices.auth.vmj.model.UserResourceFactory;
-import prices.auth.vmj.model.RoleResourceFactory;
-import prices.auth.vmj.model.core.UserResource;
-import prices.auth.vmj.model.core.RoleResource;
-
 
 public class ${productName} {
 
@@ -39,26 +40,27 @@ public class ${productName} {
         setDBProperties("AMANAH_DB_USERNAME", "username", configuration);
         setDBProperties("AMANAH_DB_PASSWORD","password", configuration);
 
+		<#if defaultAuthModel>
+		configuration.addAnnotatedClass(vmj.auth.model.core.Role.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.RoleComponent.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.RoleDecorator.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.RoleImpl.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.UserRole.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.UserRoleComponent.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.UserRoleDecorator.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.UserRoleImpl.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.User.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.UserComponent.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.UserDecorator.class);
+        configuration.addAnnotatedClass(vmj.auth.model.core.UserImpl.class);
+        configuration.addAnnotatedClass(vmj.auth.model.passworded.UserImpl.class);
+
+		</#if>
 		<#list models as modelSpec>
 		<#list modelSpec['class'] as className>
 		configuration.addAnnotatedClass(${modelSpec['module']}.${className}.class);
 		</#list>
 		</#list>
-
-		configuration.addAnnotatedClass(prices.auth.vmj.model.core.Role.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.RoleComponent.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.RoleImpl.class);
-
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserRole.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserRoleComponent.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserRoleImpl.class);
-
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.User.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserComponent.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserDecorator.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.core.UserImpl.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.passworded.UserPasswordedImpl.class);
-        configuration.addAnnotatedClass(prices.auth.vmj.model.social.UserSocialImpl.class);
 
 		configuration.buildMappings();
 		HibernateUtil.buildSessionFactory(configuration);
@@ -78,39 +80,44 @@ public class ${productName} {
 
 	public static void createObjectsAndBindEndPoints() {
 		System.out.println("== CREATING OBJECTS AND BINDING ENDPOINTS ==");
-		<#list routings as routeSpec>
+		<#if defaultAuthModel>
+		UserResource userResource = UserResourceFactory
+            .createUserResource("vmj.auth.model.core.UserResourceImpl"
+			);
+
+		RoleResource roleResource = RoleResourceFactory
+        	.createRoleResource("vmj.auth.model.core.RoleResourceImpl"
+			);
+        
+        UserResource userPasswordedResource = UserResourceFactory
+	        .createUserResource("vmj.auth.model.passworded.UserResourceImpl"
+			,
+		    UserResourceFactory.createUserResource("vmj.auth.model.core.UserResourceImpl"));
+
+		</#if>
+		<#list routings as listRouteSpec>
+		<#list listRouteSpec as routeSpec>
 		${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
-			.create${routeSpec['class']}(
-			"${routeSpec['module']}.${routeSpec['implClass']}"
+			.create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
 			<#if routeSpec['coreModule']??>,
-			${routeSpec['factory']}.create${routeSpec['class']}(
-			"${routeSpec['coreModule']}.${routeSpec['coreImplClass']}")</#if>);
+			${routeSpec['factory']}.create${routeSpec['class']}("${routeSpec['coreModule']}.${routeSpec['coreImplClass']}")</#if>);
+		
+		</#list>
 		</#list>
 
-		UserResource userCore = UserResourceFactory
-                .createUserResource("prices.auth.vmj.model.core.UserResourceImpl");
-        UserResource userPassworded = UserResourceFactory
-	        .createUserResource("prices.auth.vmj.model.passworded.UserPasswordedResourceDecorator",
-		        UserResourceFactory
-		        	.createUserResource("prices.auth.vmj.model.core.UserResourceImpl"));
-        UserResource userSocial = UserResourceFactory
-        	.createUserResource("prices.auth.vmj.model.social.UserSocialResourceDecorator",
-        		userPassworded);
-        RoleResource role = RoleResourceFactory
-        	.createRoleResource("prices.auth.vmj.model.core.RoleResourceImpl");
-
-		<#list routings?reverse as routeSpec>
+		<#list routings?reverse as listRouteSpec>
+		<#list listRouteSpec as routeSpec>
 		System.out.println("${routeSpec['variableName']} endpoints binding");
 		Router.route(${routeSpec['variableName']});
-
+		
 		</#list>
-
-		System.out.println("auth endpoints binding");
-		Router.route(userCore);
-		Router.route(userPassworded);
-		Router.route(userSocial);
-		Router.route(role);
-		System.out.println();
+		</#list>
+		<#if defaultAuthModel>
+		System.out.println("authResource endpoints binding");
+		Router.route(userPasswordedResource);
+		Router.route(roleResource);
+		Router.route(userResource);
+		</#if>
 	}
 
 	public static void setDBProperties(String varname, String typeProp, Configuration configuration) {

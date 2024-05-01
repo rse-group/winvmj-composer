@@ -10,6 +10,8 @@ import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 
 public class ModuleInfoRenderer extends TemplateRenderer {
+
+	private final static String PREFIX_AUTH_MODEL_PRODUCT = "auth";
 	
 	public ModuleInfoRenderer(IFeatureProject project) {
 		super(project);
@@ -20,8 +22,17 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("requiredModules", product.getModuleNames());
+		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		
 		return dataModel;
+	}
+
+	private boolean checkDefaultAuthModel(WinVMJProduct product) {
+		for (String module : product.getModuleNames()) {
+			if (module.startsWith(PREFIX_AUTH_MODEL_PRODUCT))
+				return false;
+		}
+		return true;
 	}
 	
 	protected String loadTemplateFilename() {

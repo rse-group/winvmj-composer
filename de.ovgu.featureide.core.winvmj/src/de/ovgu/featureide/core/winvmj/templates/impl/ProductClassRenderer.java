@@ -30,6 +30,8 @@ public class ProductClassRenderer extends TemplateRenderer {
 	
 	private final static String CONTROLLER_FOLDERNAME = "resource";
 	private final static String MODEL_FOLDERNAME = "model";
+
+	private final static String PREFIX_AUTH_MODEL_PRODUCT = "auth";
 	
 	public ProductClassRenderer(IFeatureProject project) {
 		super(project);
@@ -41,6 +43,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("productName", product.getProductName());
+		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		try {
 			dataModel.put("imports", getImports(product));
 			dataModel.put("models", getRequiredModels(product));
@@ -75,6 +78,14 @@ public class ProductClassRenderer extends TemplateRenderer {
 		}
 		return productModuleFolder.getFile(product.getProductName() + ".java");
 	}
+
+	private boolean checkDefaultAuthModel(WinVMJProduct product) {
+		for (String module : product.getModuleNames()) {
+			if (module.startsWith(PREFIX_AUTH_MODEL_PRODUCT))
+				return false;
+		}
+		return true;
+	}
 	
 	private List<Map<String,Object>> getRequiredModels(WinVMJProduct product) 
 			throws IOException, CoreException {
@@ -91,44 +102,51 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return models;
 	}
 	
-	private List<Map<String,Object>> getRequiredBindings(WinVMJProduct product) 
+	private List<List<Map<String, Object>>> getRequiredBindings(WinVMJProduct product) 
 			throws IOException, CoreException {
-		List<Map<String,Object>> bindings = new ArrayList<>();
+		List<List<Map<String, Object>>> bindings = new ArrayList<>();
 		
 		for (String module: product.getModuleNames()) {
-			Map<String, Object> bindingSpec = constructBindingSpec(module);
+			List<Map<String, Object>> bindingSpec = constructBindingSpec(module);
 			if (bindingSpec != null) bindings.add(bindingSpec);
 		}
 		return bindings;
 	}
 	
-	private Map<String, Object> constructBindingSpec(String module) 
+	private List<Map<String, Object>> constructBindingSpec(String module) 
 			throws IOException, CoreException {
-		String implClass = getModuleImplClass(module, CONTROLLER_FOLDERNAME);
-		if (implClass == null) return null;
+		List<String> listImplClass = getListModuleImplClass(module, CONTROLLER_FOLDERNAME);
+		if (listImplClass == null) return null;
 		
-		Map<String, Object> bindingSpec = new HashMap<>();
-		
-		bindingSpec.put("factory", getModuleControllerFactoryClass(getCoreByModule(module)));
-		bindingSpec.put("module", module);
-		bindingSpec.put("class", getModuleInterface(module, CONTROLLER_FOLDERNAME));
-		bindingSpec.put("implClass", implClass);
-		
-		if (!isCoreModule(module)) {
-			String coreModule = getCoreByModule(module);
-			String coreImplClass = getModuleImplClass(coreModule, CONTROLLER_FOLDERNAME);
-			if (coreImplClass != null) {
-				bindingSpec.put("coreModule", coreModule);
-				bindingSpec.put("coreImplClass", coreImplClass);
+		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
+
+		for (String implClass : listImplClass) {
+			Map<String, Object> bindingSpec = new HashMap<>();
+			String baseClass = implClass.replace("Impl", "");
+
+			bindingSpec.put("factory", baseClass + "Factory");
+			bindingSpec.put("module", module);
+			bindingSpec.put("class", baseClass);
+			bindingSpec.put("implClass", implClass);
+			
+			if (!isCoreModule(module)) {
+				String coreModule = getCoreByModule(module);
+				String coreImplClass = getModuleImplClass(coreModule, implClass, CONTROLLER_FOLDERNAME);
+				if (coreImplClass != null) {
+					bindingSpec.put("coreModule", coreModule);
+					bindingSpec.put("coreImplClass", coreImplClass);
+				}
 			}
+			
+			String[] splittedModuleName = module.split("\\.");
+			String variableName = module.endsWith(".core") ? 
+					splittedModuleName[1] : splittedModuleName[2];
+			bindingSpec.put("variableName", variableName + baseClass);
+
+			listBindingSpec.add(bindingSpec);
 		}
 		
-		String[] splittedModuleName = module.split("\\.");
-		String variableName = module.endsWith(".core") ? 
-				splittedModuleName[1] : splittedModuleName[2];
-		bindingSpec.put("variableName", variableName);
-		
-		return bindingSpec;
+		return listBindingSpec;
 	}
 	
 	private List<String> getAllClassInModule(String module, 
@@ -158,22 +176,26 @@ public class ProductClassRenderer extends TemplateRenderer {
 		List<String> modulesToImport = new ArrayList<>();
 		String coreModule = getCoreByModule(module);
 		String mainModule = coreModule.replace(".core", "");
-		modulesToImport.add(mainModule + "." + getModuleControllerFactoryClass(module));
-		modulesToImport.add(coreModule + "." + getModuleInterface(module, CONTROLLER_FOLDERNAME));
+		for (String moduleInterface : getListModuleInterface(module, CONTROLLER_FOLDERNAME)) {
+			modulesToImport.add(mainModule + "." + moduleInterface + "Factory");
+			modulesToImport.add(coreModule + "." + moduleInterface);
+		}
 		return modulesToImport;
 	}
-	
-	private String getJavaCompOnModuleByContentPattern(IFolder module,
-			String pattern) throws IOException, CoreException {
-		for (IResource moduleResource: module.members()) {
-			if (moduleResource instanceof IFile && moduleResource.getName().endsWith(".java")) {
-				IFile javaFile = (IFile) moduleResource;
-				String fileContent = new String(javaFile.getContents().readAllBytes());
-				if (fileContent.matches(pattern))
-					return FilenameUtils.getBaseName(javaFile.getName());
+
+	private List<String> getListJavaCompOnModuleByContentPattern(IFolder module, String pattern) {
+		List<String> fileResources = new ArrayList<>();
+		try {
+			for (IResource moduleResource: module.members()) {
+				if (moduleResource instanceof IFile && moduleResource.getName().endsWith(".java")) {
+					IFile javaFile = (IFile) moduleResource;
+					String fileContent = new String(javaFile.getContents().readAllBytes());
+					if (fileContent.matches(pattern))
+						fileResources.add(FilenameUtils.getBaseName(javaFile.getName()));
+				}
 			}
-		}
-		return null;
+		} catch (IOException | CoreException e) { }
+		return fileResources;
 	}
 	
 	private IFolder getArtifactDirectoryOfModule(String module, String... subDirectories) {
@@ -185,23 +207,25 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return moduleFolder;
 	}
 	
-	private String getModuleInterface(String module, String... subDirectories) 
-			throws IOException, CoreException {
+	private List<String> getListModuleInterface(String module, String... subDirectories) {
 		String coreModule = getCoreByModule(module);
 		IFolder moduleFolder = getArtifactDirectoryOfModule(coreModule, subDirectories);
-		String interfaceName = getJavaCompOnModuleByContentPattern(moduleFolder, INTERFACE_PATTERN);
-		if (interfaceName != null) return interfaceName;
-		interfaceName = StringUtils.capitalize(module.split("\\.")[1]);
-		WinVMJConsole.println("[WARNING] Interface of " + module + 
-				" module not found. Proceed to generate default interface name: " +  
-				interfaceName);
-		return interfaceName;
+		List<String> listInterfaceName = getListJavaCompOnModuleByContentPattern(moduleFolder, INTERFACE_PATTERN);
+		return listInterfaceName;
 	}
-	
-	private String getModuleImplClass(String module, String... subDirectories) 
-			throws IOException, CoreException {
-		IFolder moduleFolder =  getArtifactDirectoryOfModule(module, subDirectories);
-		return getJavaCompOnModuleByContentPattern(moduleFolder, CONCRETE_CLASS_PATTERN);
+
+	private List<String> getListModuleImplClass(String module, String... subDirectories) {
+		IFolder moduleFolder = getArtifactDirectoryOfModule(module, subDirectories);
+		return getListJavaCompOnModuleByContentPattern(moduleFolder, CONCRETE_CLASS_PATTERN);
+	}
+
+	private String getModuleImplClass(String module, String implClass, String... subDirectories) {
+		List<String> listImplName = getListModuleImplClass(module, subDirectories);
+		for (String implName : listImplName) {
+			if (implName.endsWith(implClass))
+				return implName;
+		}
+		return null;
 	}
 	
 	private boolean isCoreModule(String module) {
@@ -212,10 +236,5 @@ public class ProductClassRenderer extends TemplateRenderer {
 		String[] splittedModule = module.split("\\.");
 		splittedModule[splittedModule.length-1] = "core";
 		return String.join(".", splittedModule);
-	}
-	
-	private String getModuleControllerFactoryClass(String module) 
-			throws IOException, CoreException {
-		return getModuleInterface(module, CONTROLLER_FOLDERNAME) + "Factory";
 	}
 }
