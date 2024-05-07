@@ -27,6 +27,7 @@ import de.ovgu.featureide.core.winvmj.templates.impl.DeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixDeploymentScriptRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunAllScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.WindowsDeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.WindowsRunScriptRenderer;
@@ -90,6 +91,7 @@ public class SourceCompiler {
 		// new DeploymentScriptRenderer(project).render(product);
 		new WindowsDeploymentScriptRenderer(project).render(product);
 		new UnixDeploymentScriptRenderer(project).render(product);
+		new UnixRunAllScriptRenderer(project, dbUsername, dbPassword).render(product);
 		WinVMJConsole.println("All additional config files has been generated");
 	}
 
