@@ -275,7 +275,13 @@ public class SourceCompiler {
 			copiedFile.setContents(file.getContents(), 1, null);
 	}
 
+	private static boolean isWindows() {
+		return System.getProperty("os.name").toLowerCase().contains("win");
+	}
+
 	private static String quoteString(String str) {
+		if (isWindows())
+			return "\"" + str + "\"";
 		return "/" + str;
 	}
 
