@@ -99,8 +99,8 @@ public class ${productName} {
 		<#list listRouteSpec as routeSpec>
 		${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
 			.create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
-			<#if routeSpec['coreModule']??>,
-			${routeSpec['factory']}.create${routeSpec['class']}("${routeSpec['coreModule']}.${routeSpec['coreImplClass']}")</#if>);
+			<#if routeSpec['wrappedVariableName']??>,
+			${routeSpec['wrappedVariableName']}</#if>);
 		
 		</#list>
 		</#list>

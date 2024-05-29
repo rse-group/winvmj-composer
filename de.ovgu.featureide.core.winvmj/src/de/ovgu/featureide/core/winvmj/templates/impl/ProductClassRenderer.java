@@ -2,6 +2,7 @@ package de.ovgu.featureide.core.winvmj.templates.impl;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -113,38 +114,96 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return bindings;
 	}
 	
+//	private List<Map<String, Object>> constructBindingSpec(String module) 
+//			throws IOException, CoreException {
+////		get list nama file didalam resources yang merupakan class
+////		nama file tanpa ekstensi
+//		List<String> listImplClass = getListModuleImplClass(module, CONTROLLER_FOLDERNAME);
+//		if (listImplClass == null) return null;
+//		
+//		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
+//		WinVMJConsole.println(String.format("Module: %s", module));
+//		for (String implClass : listImplClass) {
+//			WinVMJConsole.println(String.format("implClass: %s", implClass));
+//			Map<String, Object> bindingSpec = new HashMap<>();
+//			String baseClass = implClass.replace("Impl", "");
+//
+//			bindingSpec.put("factory", baseClass + "Factory");
+//			bindingSpec.put("module", module);
+//			bindingSpec.put("class", baseClass);
+//			bindingSpec.put("implClass", implClass);
+//			
+//			if (!isCoreModule(module)) {
+//				
+//				String upperLevelModule = getUpperLevelModuleName(module);
+//				
+//				if (upperLevelModule != null) {
+//					bindingSpec.put("wrappedVariableName", upperLevelModule + baseClass);
+//				}
+//				
+////				String coreModule = getCoreByModule(module);
+////				String coreImplClass = getModuleImplClass(coreModule, implClass, CONTROLLER_FOLDERNAME);
+////				if (coreImplClass != null) {
+////					bindingSpec.put("coreModule", coreModule);
+////					bindingSpec.put("coreImplClass", coreImplClass);
+////				}
+//			}
+//			
+//			String[] splittedModuleName = module.split("\\.");
+//			String variableName = module.endsWith(".core") ? 
+//					splittedModuleName[splittedModuleName.length - 2] : splittedModuleName[splittedModuleName.length - 1];
+//			bindingSpec.put("variableName", variableName + baseClass);
+//
+//			listBindingSpec.add(bindingSpec);
+//		}
+//		
+//		return listBindingSpec;
+//	}
+	
+	
 	private List<Map<String, Object>> constructBindingSpec(String module) 
 			throws IOException, CoreException {
-		List<String> listImplClass = getListModuleImplClass(module, CONTROLLER_FOLDERNAME);
-		if (listImplClass == null) return null;
+		
+		String implClass = getCoreImplClass(module);
+		if (implClass == null) return null;
+		
+		List<String> fileNames = getListModuleImplClass(module, CONTROLLER_FOLDERNAME);
+		if (fileNames.size() == 0) return null;
+		String fileName = fileNames.get(0);
 		
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
-		for (String implClass : listImplClass) {
-			Map<String, Object> bindingSpec = new HashMap<>();
-			String baseClass = implClass.replace("Impl", "");
+		Map<String, Object> bindingSpec = new HashMap<>();
+		String baseClass = implClass.replace("Impl", "");
 
-			bindingSpec.put("factory", baseClass + "Factory");
-			bindingSpec.put("module", module);
-			bindingSpec.put("class", baseClass);
-			bindingSpec.put("implClass", implClass);
-			
-			if (!isCoreModule(module)) {
-				String coreModule = getCoreByModule(module);
-				String coreImplClass = getModuleImplClass(coreModule, implClass, CONTROLLER_FOLDERNAME);
-				if (coreImplClass != null) {
-					bindingSpec.put("coreModule", coreModule);
-					bindingSpec.put("coreImplClass", coreImplClass);
-				}
+		bindingSpec.put("factory", baseClass + "Factory");
+		bindingSpec.put("module", module);
+		bindingSpec.put("class", baseClass);
+		bindingSpec.put("implClass", fileName);
+
+		if (!isCoreModule(module)) {
+
+			String upperLevelModule = getUpperLevelModuleName(module);
+
+			if (upperLevelModule != null) {
+				bindingSpec.put("wrappedVariableName", upperLevelModule + baseClass);
 			}
-			
-			String[] splittedModuleName = module.split("\\.");
-			String variableName = module.endsWith(".core") ? 
-					splittedModuleName[1] : splittedModuleName[2];
-			bindingSpec.put("variableName", variableName + baseClass);
 
-			listBindingSpec.add(bindingSpec);
+			//				String coreModule = getCoreByModule(module);
+			//				String coreImplClass = getModuleImplClass(coreModule, implClass, CONTROLLER_FOLDERNAME);
+			//				if (coreImplClass != null) {
+			//					bindingSpec.put("coreModule", coreModule);
+			//					bindingSpec.put("coreImplClass", coreImplClass);
+			//				}
 		}
+
+		String[] splittedModuleName = module.split("\\.");
+		String variableName = module.endsWith(".core") ? 
+				splittedModuleName[splittedModuleName.length - 2] : splittedModuleName[splittedModuleName.length - 1];
+		bindingSpec.put("variableName", variableName + baseClass);
+
+		listBindingSpec.add(bindingSpec);
+		
 		
 		return listBindingSpec;
 	}
@@ -183,6 +242,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return modulesToImport;
 	}
 
+//	returns nama file java tanpa extensi 
 	private List<String> getListJavaCompOnModuleByContentPattern(IFolder module, String pattern) {
 		List<String> fileResources = new ArrayList<>();
 		try {
@@ -215,7 +275,9 @@ public class ProductClassRenderer extends TemplateRenderer {
 	}
 
 	private List<String> getListModuleImplClass(String module, String... subDirectories) {
+//		get folder folder subdirectories
 		IFolder moduleFolder = getArtifactDirectoryOfModule(module, subDirectories);
+//		return nama file java tanpa ekstensi
 		return getListJavaCompOnModuleByContentPattern(moduleFolder, CONCRETE_CLASS_PATTERN);
 	}
 
@@ -224,7 +286,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		for (String implName : listImplName) {
 			if (implName.endsWith(implClass))
 				return implName;
-		}
+		}  
 		return null;
 	}
 	
@@ -232,9 +294,50 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return module.endsWith(".core");
 	}
 	
+//	Remove modul paling belakang, replace jadi .core
+//	ex: paymentgateway.payment.ewallet jadi paymentgateway.payment.core
 	private String getCoreByModule(String module) {
 		String[] splittedModule = module.split("\\.");
 		splittedModule[splittedModule.length-1] = "core";
 		return String.join(".", splittedModule);
+	}
+	
+	private String getUpperLevelModuleName(String module) {
+		String withCore = getCoreByModule(module);
+		if (isModuleExist(withCore)) {
+			String[] splittedModule = withCore.split("\\.");
+			return splittedModule[splittedModule.length-2];
+		}
+		String[] splittedModule = module.split("\\.");
+		String[] upperLevelArray = Arrays.copyOfRange(splittedModule, 0, splittedModule.length-1);
+		if (isModuleExist(String.join(".", upperLevelArray))) {
+			return upperLevelArray[upperLevelArray.length-1];
+		}
+		return null;
+	}
+	
+	private boolean isModuleExist(String module) {
+		return project.getBuildFolder().getFolder(module).exists();
+	}
+	
+	private String getCoreImplClass(String module) {
+		try {
+			WinVMJConsole.println("Getting coreImpl for" + module);
+			if (module.endsWith(".core"))
+				return getListModuleImplClass(module, CONTROLLER_FOLDERNAME).get(0);
+			String[] splittedModule = module.split("\\.");
+			while (true) {   
+				String coreModule = getCoreByModule(String.join(".", splittedModule));
+				if (isModuleExist(coreModule)) {
+					return getListModuleImplClass(coreModule, CONTROLLER_FOLDERNAME).get(0);
+				}
+				splittedModule = Arrays.copyOfRange(splittedModule, 0, splittedModule.length-1);
+				if (splittedModule.length < 3) break;
+			}
+			return null;
+		} catch (Exception e) {
+			return null;
+		}
+		
 	}
 }
