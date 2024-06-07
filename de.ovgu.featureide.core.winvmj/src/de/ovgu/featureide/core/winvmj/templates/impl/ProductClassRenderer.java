@@ -165,7 +165,14 @@ public class ProductClassRenderer extends TemplateRenderer {
 			throws IOException, CoreException {
 		
 		String implClass = getCoreImplClass(module);
-		if (implClass == null) return null;
+		boolean isCoreConstructed = true;
+
+		if (implClass == null) {
+			List<String> listImplClass = getListModuleImplClass(module, CONTROLLER_FOLDERNAME);
+			if (listImplClass.size() == 0) return null;
+			isCoreConstructed = false;
+			implClass = listImplClass.get(0);
+		}
 		
 		List<String> fileNames = getListModuleImplClass(module, CONTROLLER_FOLDERNAME);
 		if (fileNames.size() == 0) return null;
@@ -181,7 +188,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		bindingSpec.put("class", baseClass);
 		bindingSpec.put("implClass", fileName);
 
-		if (!isCoreModule(module)) {
+		if (!isCoreModule(module) && isCoreConstructed) {
 
 			String upperLevelModule = getUpperLevelModuleName(module);
 
