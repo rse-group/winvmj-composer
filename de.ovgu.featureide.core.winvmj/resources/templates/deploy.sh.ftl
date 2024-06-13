@@ -14,6 +14,7 @@ product_name="${productName}"
 echo "Deploying PRICES-IDE product '$product_name' to Amanah server."
 echo
 
+echo "Enter the local directory path of the product (ensure the folder is archived as .zip with correct file structure): "
 read -p "Enter the local directory path of the product (ensure the folder is archived as .zip with correct file structure): " product_local_directory
 echo "Product directory: $product_local_directory"
 

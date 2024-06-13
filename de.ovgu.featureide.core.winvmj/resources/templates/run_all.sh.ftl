@@ -8,6 +8,7 @@ cleanup() {
 
 trap cleanup SIGINT
 
+echo "Enter the path to the frontend directory: "
 read -p "Enter the path to the frontend directory: " frontend_dir
 
 echo "SELECT 'CREATE DATABASE ${dbname}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${dbname}') \gexec" | psql "postgresql://${dbUsername}:${dbPassword}@localhost"
