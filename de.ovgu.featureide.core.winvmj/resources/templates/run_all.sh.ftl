@@ -1,4 +1,5 @@
 #!/bin/bash
+source ~/.zshrc  
 
 cleanup() {
     echo "Exiting script..."
