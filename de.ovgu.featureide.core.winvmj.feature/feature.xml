@@ -185,17 +185,14 @@ Library.
       <import plugin="org.eclipse.core.runtime" version="3.20.0" match="greaterOrEqual"/>
       <import plugin="org.eclipse.core.resources" version="3.13.900" match="greaterOrEqual"/>
       <import plugin="org.eclipse.ui.console" version="3.10.0" match="greaterOrEqual"/>
-      <import plugin="de.ovgu.featureide.core" version="3.8.1" match="greaterOrEqual"/>
-      <import plugin="de.ovgu.featureide.fm.core" version="3.8.1" match="greaterOrEqual"/>
-      <import plugin="de.ovgu.featureide.ui" version="3.8.1" match="greaterOrEqual"/>
-      <import plugin="de.ovgu.featureide.fm.ui" version="3.8.1" match="greaterOrEqual"/>
+      <import plugin="de.ovgu.featureide.core" version="3.11.1" match="greaterOrEqual"/>
+      <import plugin="de.ovgu.featureide.fm.core" version="3.11.1" match="greaterOrEqual"/>
+      <import plugin="de.ovgu.featureide.ui" version="3.11.1" match="greaterOrEqual"/>
+      <import plugin="de.ovgu.featureide.fm.ui" version="3.11.1" match="greaterOrEqual"/>
    </requires>
 
    <plugin
          id="de.ovgu.featureide.core.winvmj"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
+         version="0.0.0"/>
 
 </feature>
