@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?> 
+<cheatsheet title="First FeatureIDE Project" id="de.ovgu.featureide.ui.doc.setup">
+	<intro>
+		<description>
+It is now time to compile and run the product. 
+</description>
+</intro>
+	
+ <item
+       title="Compiling a product">
+    <description>
+    <b>Compiling a Product</b><br/><br/>
+    If you feel that the generated product is ready, you can compile it by following these steps:<br/><br/>
+    <b>1.</b> Right-click on the project folder.<br/>
+    <b>2.</b> Select <b>FeatureIDE &gt; WinVMJ &gt; Compile</b>.<br/>
+    <b>3.</b> Please wait until the compilation process is completed. You can check the <b>WinVMJ Console</b> to track this process.<br/>
+</description>
+
+ </item>
+ <item
+       title="Running a product">
+    <description>
+       <b>Running the Product</b><br/><br/>
+    We can run the product by following these steps:<br/><br/>
+    <b>1.</b> On the top toolbar, click on <b>Run &gt; External Tools &gt; External Tool Configuration</b>.<br/>
+    <b>2.</b> Select the script location at <b>src-gen/[Product Name]/run.[bat (Windows) / sh (Linux / Mac)]</b>.<br/>
+    <b>3.</b> Select the working directory at <b>src-gen/[Product Name]/</b>.<br/>
+    <b>4.</b> Click <b>Run</b>.<br/>
+    </description>
+ </item>
+ 
+</cheatsheet>
