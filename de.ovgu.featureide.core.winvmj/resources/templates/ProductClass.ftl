@@ -1,6 +1,9 @@
 package ${productPackage};
 
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import com.google.gson.Gson;
 
 import vmj.routing.route.VMJServer;
 import vmj.routing.route.Router;
@@ -62,6 +65,27 @@ public class ${productName} {
 		</#list>
 		</#list>
 
+		Map<String, String[]> foreignKeyRules = new HashMap<>();
+
+		<#list foreignKeys as fk>
+		foreignKeyRules.put(
+            ${fk['core']}.class.getSimpleName(),
+            new String[] {
+				<#list fk['deltas'] as delta>
+				<#if delta?index != (fk['deltas']?size - 1)>
+				${delta}.class.getSimpleName(),
+				<#else>
+				${delta}.class.getSimpleName()
+				</#if>
+				</#list>
+			}
+        );
+		</#list>
+
+		Gson gson = new Gson();
+        String foreignKeyRulesMap = gson.toJson(foreignKeyRules);
+		
+        configuration.setProperty("custom.foreign.key.rules", foreignKeyRulesMap);
 		configuration.buildMappings();
 		HibernateUtil.buildSessionFactory(configuration);
 
@@ -93,17 +117,26 @@ public class ${productName} {
 	        .createUserResource("vmj.auth.model.passworded.UserResourceImpl"
 			,
 		    UserResourceFactory.createUserResource("vmj.auth.model.core.UserResourceImpl"));
-
 		</#if>
-		<#list routings as listRouteSpec>
-		<#list listRouteSpec as routeSpec>
-		${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
-			.create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
-			<#if routeSpec['coreModule']??>,
-			${routeSpec['factory']}.create${routeSpec['class']}("${routeSpec['coreModule']}.${routeSpec['coreImplClass']}")</#if>);
-		
-		</#list>
-		</#list>
+
+		<#list routings as moduleRoutings>
+            <#list moduleRoutings as routeSpec>
+                <#if routeSpec['componentType'] == "service">
+        ${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
+            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
+            	<#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Service</#if>);		
+                </#if>
+            </#list>
+
+            <#list moduleRoutings as routeSpec>
+                <#if routeSpec['componentType'] == "resource">
+        ${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
+            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
+                <#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Resource, ${routeSpec['wrappedVariableName']}Service</#if>);
+                </#if>
+            </#list>
+			
+        </#list>
 
 		<#list routings?reverse as listRouteSpec>
 		<#list listRouteSpec as routeSpec>

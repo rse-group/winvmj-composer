@@ -1,12 +1,20 @@
 package de.ovgu.featureide.core.winvmj.templates.impl;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -16,45 +24,55 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 
 public class ProductClassRenderer extends TemplateRenderer {
-	
-	private final static String INTERFACE_PATTERN = 
-			"([\\S\\s]*)public(\\s+)interface(\\s+)(\\S+)(\\s+)\\{([\\S\\s]*)\\}([\\S\\s]*)";
-	
-	private final static String CONCRETE_CLASS_PATTERN = 
-			"([\\S\\s]*)public(\\s+)class(\\s+)[(\\S+)(\\s+)]*\\{([\\S\\s]*)\\}([\\S\\s]*)";
-	
+
+	private final static String INTERFACE_PATTERN = "([\\S\\s]*)public(\\s+)interface(\\s+)(\\S+)(\\s+)\\{([\\S\\s]*)\\}([\\S\\s]*)";
+
+	private final static String CONCRETE_CLASS_PATTERN = "([\\S\\s]*)public(\\s+)class(\\s+)[(\\S+)(\\s+)]*\\{([\\S\\s]*)\\}([\\S\\s]*)";
+
 	private final static String CONTROLLER_FOLDERNAME = "resource";
+	private final static String SERVICE_FOLDERNAME = "service";
 	private final static String MODEL_FOLDERNAME = "model";
 
 	private final static String PREFIX_AUTH_MODEL_PRODUCT = "auth";
-	
+
+	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
+	private Map<String, List<String>> featureToModuleMap;
+	private Map<String, Integer> variableNameCounts = new HashMap<>();
+
 	public ProductClassRenderer(IFeatureProject project) {
 		super(project);
+		try {
+			loadFeatureToModuleMap(project);
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
-		
+
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("productName", product.getProductName());
 		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		try {
 			dataModel.put("imports", getImports(product));
 			dataModel.put("models", getRequiredModels(product));
+			dataModel.put("foreignKeys", getRequiredForeignKeys(product));
 			dataModel.put("routings", getRequiredBindings(product));
 		} catch (IOException | CoreException e) {
 			WinVMJConsole.println(e.getMessage());
-			for (StackTraceElement em: e.getStackTrace())
+			for (StackTraceElement em : e.getStackTrace())
 				WinVMJConsole.println(em.toString());
 			e.printStackTrace();
 		}
-		
+
 		return dataModel;
 	}
 
@@ -101,92 +119,223 @@ public class ProductClassRenderer extends TemplateRenderer {
 		}
 		return models;
 	}
-	
-	private List<List<Map<String, Object>>> getRequiredBindings(WinVMJProduct product) 
+
+	private void loadFeatureToModuleMap(IFeatureProject project) throws CoreException {
+        IFile mapFile = project.getProject().getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
+        if (mapFile.exists()) {
+            try (Reader mapReader = new InputStreamReader(mapFile.getContents())) {
+                Gson gson = new Gson();
+                featureToModuleMap = gson.fromJson(mapReader,
+                    new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.err.println("Feature to module map file does not exist");
+            featureToModuleMap = new LinkedHashMap<>();
+        }
+    }
+
+	private List<Map<String,Object>> getRequiredForeignKeys(WinVMJProduct product) 
+            throws IOException, CoreException {
+        List<Map<String,Object>> foreignKeys = new ArrayList<>();
+        
+        for (String module: product.getModuleNames()) {
+            if (getArtifactDirectoryOfModule(module, MODEL_FOLDERNAME).exists()) {
+                String featureName = getFeatureName((String) module);
+
+                if (isCoreModule(module)) {
+                    Map<String, Object> foreignKeyMap = getForeignKeyMap(foreignKeys, featureName);
+                    if (foreignKeyMap != null) {
+                        continue;
+                    } else {
+                        Map<String, Object> foreignKey = new HashMap<>();
+                        foreignKey.put("core", String.format(
+                            "%s.%s", module, getListModuleImplClass(module, MODEL_FOLDERNAME).get(0)
+                        ));
+                        foreignKey.put("deltas", new ArrayList<String>());
+                        foreignKeys.add(foreignKey);
+                    }
+                } else {
+                    Map<String, Object> foreignKeyMap = getForeignKeyMap(foreignKeys, featureName);
+                    if (foreignKeyMap != null) {
+                        List<String> deltas = (List<String>) foreignKeyMap.get("deltas");
+                        String delta = String.format("%s.%s", module, getListModuleImplClass(
+                                module, MODEL_FOLDERNAME).get(0));
+                        if (!deltas.contains(delta)) {
+                            deltas.add(delta);
+                        }
+                    }
+                }
+            }
+        }
+
+        return foreignKeys;
+    }
+
+	private List<List<Map<String, Object>>> getRequiredBindings(WinVMJProduct product)
 			throws IOException, CoreException {
 		List<List<Map<String, Object>>> bindings = new ArrayList<>();
-		
-		for (String module: product.getModuleNames()) {
-			List<Map<String, Object>> bindingSpec = constructBindingSpec(module);
-			if (bindingSpec != null) bindings.add(bindingSpec);
+
+		// Set of module names from the product to check against available modules
+		Set<String> productModules = new HashSet<>(product.getModuleNames());
+
+		// Iterate over the entries of the featureToModuleMap
+		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
+			String feature = entry.getKey();
+			List<String> modules = entry.getValue();
+			for (String module : modules) {
+				if (productModules.contains(module)) {
+					try {
+						List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
+						if (bindingSpec != null) {
+							bindings.add(bindingSpec);
+						}
+					} catch (IOException | CoreException e) {
+						e.printStackTrace();
+					}
+				}
+			}
 		}
 		return bindings;
 	}
+
 	
-	private List<Map<String, Object>> constructBindingSpec(String module) 
+	private List<Map<String, Object>> constructBindingSpec(String module, String feature)
 			throws IOException, CoreException {
-		List<String> listImplClass = getListModuleImplClass(module, CONTROLLER_FOLDERNAME);
-		if (listImplClass == null) return null;
+
+		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
+
+		Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+		if (controllerSpec != null) {
+			listBindingSpec.add(controllerSpec);
+		}
+
+		Map<String, Object> serviceSpec = constructComponentSpec(module, feature, SERVICE_FOLDERNAME);
+		if (serviceSpec != null) {
+			listBindingSpec.add(serviceSpec);
+		}
+
+		return listBindingSpec.isEmpty() ? null : listBindingSpec;
+	}
+
+	private Map<String, Object> constructComponentSpec(String module, String feature, String componentType)
+			throws IOException, CoreException {
+		String implClass = getCoreImplClass(module, componentType);
+		boolean isCoreConstructed = true;
+		String componentTypeCap = componentType.equals("service")
+									? "Service"
+									: "Resource";
+
+		if (implClass == null) {
+			List<String> listImplClass = getListModuleImplClass(module, componentType);
+			if (listImplClass.isEmpty())
+				return null;
+			isCoreConstructed = false;
+			implClass = listImplClass.get(0);
+		}
+
+		List<String> fileNames = getListModuleImplClass(module, componentType);
+		if (fileNames.isEmpty())
+			return null;
+		String fileName = fileNames.get(0);
+		
 		
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
-		for (String implClass : listImplClass) {
-			Map<String, Object> bindingSpec = new HashMap<>();
-			String baseClass = implClass.replace("Impl", "");
+		Map<String, Object> bindingSpec = new HashMap<>();
+		String baseClass = implClass.replace("Impl", ""); 
+		String featureClass = componentType.equals("service")
+				? baseClass.replace("Service", "")
+				: baseClass.replace("Resource", "");
+		bindingSpec.put("factory", baseClass + "Factory");
+		bindingSpec.put("module", module);
+		bindingSpec.put("class", baseClass);
+		bindingSpec.put("implClass", fileName);
+		bindingSpec.put("componentType", componentType);
 
-			bindingSpec.put("factory", baseClass + "Factory");
-			bindingSpec.put("module", module);
-			bindingSpec.put("class", baseClass);
-			bindingSpec.put("implClass", implClass);
-			
-			if (!isCoreModule(module)) {
+		String variableName = getVariableNameFromModule(module) + featureClass; 
+    	bindingSpec.put("variableName", addUniqueVariableName(variableName, componentTypeCap) + componentTypeCap); 
+
+		if (!isCoreModule(module) && isCoreConstructed) {
+			String upperLevelModule = getUpperLevelModuleName(feature, module);
+			if (upperLevelModule != null) {
+				String wrappedVariableName = getVariableNameFromModule(upperLevelModule) + featureClass; 
+				bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+			} else {
 				String coreModule = getCoreByModule(module);
-				String coreImplClass = getModuleImplClass(coreModule, implClass, CONTROLLER_FOLDERNAME);
-				if (coreImplClass != null) {
-					bindingSpec.put("coreModule", coreModule);
-					bindingSpec.put("coreImplClass", coreImplClass);
-				}
+				String wrappedVariableName = getVariableNameFromModule(coreModule) + featureClass; 
+				bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
 			}
-			
-			String[] splittedModuleName = module.split("\\.");
-			String variableName = module.endsWith(".core") ? 
-					splittedModuleName[1] : splittedModuleName[2];
-			bindingSpec.put("variableName", variableName + baseClass);
-
-			listBindingSpec.add(bindingSpec);
 		}
-		
-		return listBindingSpec;
+
+		return bindingSpec;
 	}
-	
-	private List<String> getAllClassInModule(String module, 
+
+	// Helps distinguish variableName if a delta is being used multiple times in creating a feature
+	private String getUniqueVariableName(String baseName, String componentType) { 
+		int count = variableNameCounts.getOrDefault(baseName + componentType, 0); 
+		return count == 1 ? baseName : baseName + count;
+	}
+
+	private String addUniqueVariableName(String baseName, String componentType) {  
+		int count = variableNameCounts.getOrDefault(baseName + componentType, 0) + 1;
+		variableNameCounts.put(baseName + componentType, count); 
+		return count == 1 ? baseName : baseName + count; 
+	}
+
+	private String getFeatureForModule(String module) {
+		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
+			if (entry.getValue().contains(module)) {
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+
+	private List<String> getAllClassInModule(String module,
 			String... subDirectories) throws CoreException {
 		IFolder moduleFolder = project.getBuildFolder().getFolder(module);
-		for (String modulePath: module.split("\\.")) {
+		for (String modulePath : module.split("\\.")) {
 			moduleFolder = moduleFolder.getFolder(modulePath);
 		}
-		for (String subDir: subDirectories) {
+		for (String subDir : subDirectories) {
 			moduleFolder = moduleFolder.getFolder(subDir);
 		}
 		List<String> classNames = new ArrayList<>();
-		for (IResource classFile: moduleFolder.members()) 
+		for (IResource classFile : moduleFolder.members())
 			classNames.add(FilenameUtils.getBaseName(classFile.getName()));
 		return classNames;
 	}
-	
+
 	private Set<String> getImports(WinVMJProduct product) throws IOException, CoreException {
 		Set<String> imports = new LinkedHashSet<>();
-		for (String module: product.getModuleNames()) {
+		for (String module : product.getModuleNames()) {
 			imports.addAll(constructImport(module));
 		}
 		return imports;
 	}
-	
-	private List<String> constructImport(String module) throws IOException, CoreException {
+
+	private List<String> constructImport(String module) throws IOException, CoreException { 
 		List<String> modulesToImport = new ArrayList<>();
-		String coreModule = getCoreByModule(module);
-		String mainModule = coreModule.replace(".core", "");
-		for (String moduleInterface : getListModuleInterface(module, CONTROLLER_FOLDERNAME)) {
+		String coreModule = getCoreByModule(module); 
+		String mainModule = coreModule.replace(".core", ""); 
+		for (String moduleInterface : getListModuleInterface(module, CONTROLLER_FOLDERNAME)) { 
+			modulesToImport.add(mainModule + "." + moduleInterface + "Factory");
+			modulesToImport.add(coreModule + "." + moduleInterface);
+		}
+		for (String moduleInterface : getListModuleInterface(module, SERVICE_FOLDERNAME)) { 
 			modulesToImport.add(mainModule + "." + moduleInterface + "Factory");
 			modulesToImport.add(coreModule + "." + moduleInterface);
 		}
 		return modulesToImport;
 	}
 
+	// returns nama file java tanpa extensi
 	private List<String> getListJavaCompOnModuleByContentPattern(IFolder module, String pattern) {
 		List<String> fileResources = new ArrayList<>();
 		try {
-			for (IResource moduleResource: module.members()) {
+			for (IResource moduleResource : module.members()) {
 				if (moduleResource instanceof IFile && moduleResource.getName().endsWith(".java")) {
 					IFile javaFile = (IFile) moduleResource;
 					String fileContent = new String(javaFile.getContents().readAllBytes());
@@ -194,22 +343,23 @@ public class ProductClassRenderer extends TemplateRenderer {
 						fileResources.add(FilenameUtils.getBaseName(javaFile.getName()));
 				}
 			}
-		} catch (IOException | CoreException e) { }
+		} catch (IOException | CoreException e) {
+		}
 		return fileResources;
 	}
-	
+
 	private IFolder getArtifactDirectoryOfModule(String module, String... subDirectories) {
 		IFolder moduleFolder = project.getBuildFolder().getFolder(module);
-		for (String modulePath: module.split("\\."))
+		for (String modulePath : module.split("\\."))
 			moduleFolder = moduleFolder.getFolder(modulePath);
-		for (String subDir: subDirectories)
+		for (String subDir : subDirectories)
 			moduleFolder = moduleFolder.getFolder(subDir);
 		return moduleFolder;
 	}
-	
-	private List<String> getListModuleInterface(String module, String... subDirectories) {
-		String coreModule = getCoreByModule(module);
-		IFolder moduleFolder = getArtifactDirectoryOfModule(coreModule, subDirectories);
+
+	private List<String> getListModuleInterface(String module, String... subDirectories) { 
+		String coreModule = getCoreByModule(module); 
+		IFolder moduleFolder = getArtifactDirectoryOfModule(coreModule, subDirectories); 
 		List<String> listInterfaceName = getListJavaCompOnModuleByContentPattern(moduleFolder, INTERFACE_PATTERN);
 		return listInterfaceName;
 	}
@@ -227,14 +377,76 @@ public class ProductClassRenderer extends TemplateRenderer {
 		}
 		return null;
 	}
-	
+
 	private boolean isCoreModule(String module) {
 		return module.endsWith(".core");
 	}
-	
+
 	private String getCoreByModule(String module) {
 		String[] splittedModule = module.split("\\.");
-		splittedModule[splittedModule.length-1] = "core";
+		splittedModule[splittedModule.length - 1] = "core";
 		return String.join(".", splittedModule);
+	}
+
+	private String getUpperLevelModuleName(String feature, String currentModule) {
+		List<String> modules = featureToModuleMap.get(feature);
+		if (modules != null && !modules.isEmpty()) {
+			int currentIndex = modules.indexOf(currentModule);
+			if (currentIndex > 0) {
+				return modules.get(currentIndex - 1);
+			}
+		}
+		return null;
+	}
+
+	private boolean isModuleExist(String module) {
+		return project.getBuildFolder().getFolder(module).exists();
+	}
+
+	private String getCoreImplClass(String module, String componentType) throws CoreException {
+		if (module.endsWith(".core")) {
+			List<String> implClasses = getListModuleImplClass(module, componentType);
+			return implClasses.isEmpty() ? null : implClasses.get(0);
+		}
+
+		String[] splittedModule = module.split("\\.");
+		while (splittedModule.length >= 3) {
+			String coreModule = getCoreByModule(String.join(".", splittedModule));
+			if (isModuleExist(coreModule)) {
+				List<String> implClasses = getListModuleImplClass(coreModule, componentType);
+				return implClasses.isEmpty() ? null : implClasses.get(0);
+			}
+			splittedModule = Arrays.copyOfRange(splittedModule, 0, splittedModule.length - 1);
+		}
+		return null;
+	}
+
+	private String getVariableNameFromModule(String module) {
+        String[] splittedModuleName = module.split("\\.");
+        return module.endsWith(".core") ?
+            splittedModuleName[splittedModuleName.length - 2] :
+            splittedModuleName[splittedModuleName.length - 1];
+    }
+
+	private String getFeatureName(String module) {
+		String[] moduleParts = module.split("\\.");
+		return moduleParts[1];
+	}
+
+	private Map<String, Object> getForeignKeyMap(
+		List<Map<String,Object>> foreignKeys, 
+		String featureName
+	) {
+		for (Map<String, Object> foreignKey: foreignKeys) {
+			if (
+				getFeatureName(
+					(String) foreignKey.get("core")
+				).equals(featureName)
+			) {
+				return foreignKey;
+			}
+		}
+
+		return null;
 	}
 }

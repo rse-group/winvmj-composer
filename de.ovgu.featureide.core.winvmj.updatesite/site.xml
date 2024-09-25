@@ -1,28 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/de.ovgu.featureide_3.9.1.202212061324.jar" id="de.ovgu.featureide" version="3.9.1.202212061324">
+   <feature url="features/de.ovgu.featureide_3.11.1.202409252258.jar" id="de.ovgu.featureide" version="3.11.1.202409252258">
       <category name="WinVMJ Composer Dependencies"/>
    </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.1.0.202303291139.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.1.0.202303291139">
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.2.0.202409252258.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.2.0.202409252258">
       <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.2.1.202305311158.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.2.1.202305311158">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.3.0.202307200929.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.3.0.202307200929">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.4.0.202307241431.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.4.0.202307241431">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.4.1.202307271022.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.4.1.202307271022">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.1.0.202409142012.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.1.0.202409142012">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide_3.11.1.202403121722.jar" id="de.ovgu.featureide" version="3.11.1.202403121722">
-      <category name="WinVMJ Composer Dependencies"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
    <category-def name="WinVMJ Composer Dependencies" label="WinVMJ Composer Dependencies"/>
