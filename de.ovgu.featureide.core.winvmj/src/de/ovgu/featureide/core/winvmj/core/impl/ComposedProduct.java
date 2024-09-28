@@ -37,7 +37,17 @@ public class ComposedProduct extends WinVMJProduct {
 		IFolder dirToClass = productModule;
 		for (String filePath: productModule.getName().split("\\."))
 			dirToClass = dirToClass.getFolder(filePath);
-		return FilenameUtils.getBaseName(dirToClass.members()[0].getName());
+		
+		IResource[] folderMembers = dirToClass.members();
+		String productFileName = "";
+		for (int i = 0; i < folderMembers.length; i++) {
+			if (folderMembers[i].getName().endsWith(".java")) {
+				productFileName = folderMembers[i].getName();
+				break;
+			}
+		}
+
+		return FilenameUtils.getBaseName(productFileName);
 	}
 	
 	private IFolder getProductModuleFromComposedProduct(IFeatureProject project)
