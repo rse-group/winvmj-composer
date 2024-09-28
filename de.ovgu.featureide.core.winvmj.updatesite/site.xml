@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.2.1.202409260011.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.2.1.202409260011">
-      <category name="WinVMJ Composer"/>
-   </feature>
    <feature url="features/de.ovgu.featureide_3.11.1.202409260011.jar" id="de.ovgu.featureide" version="3.11.1.202409260011">
       <category name="WinVMJ Composer Dependencies"/>
+   </feature>
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.2.2.202409290547.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.2.2.202409290547">
+      <category name="WinVMJ Composer"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
    <category-def name="WinVMJ Composer Dependencies" label="WinVMJ Composer Dependencies"/>
