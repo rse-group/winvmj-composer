@@ -67,6 +67,12 @@ public class ${productName} {
 
 		Map<String, String[]> foreignKeyRules = new HashMap<>();
 
+		foreignKeyRules.put(
+			vmj.auth.model.core.UserImpl.class.getSimpleName(),
+			new String[] {
+				vmj.auth.model.passworded.UserImpl.class.getSimpleName()
+			}
+		);
 		<#list foreignKeys as fk>
 		foreignKeyRules.put(
             ${fk['core']}.class.getSimpleName(),
@@ -132,7 +138,7 @@ public class ${productName} {
                 <#if routeSpec['componentType'] == "resource">
         ${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
             .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
-                <#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Resource, ${routeSpec['wrappedVariableName']}Service</#if>);
+                <#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Resource<#if routeSpec['notSingleStructured']??>, ${routeSpec['wrappedVariableName']}Service</#if></#if>);
                 </#if>
             </#list>
 			

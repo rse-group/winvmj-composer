@@ -28,6 +28,9 @@ import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+import de.ovgu.featureide.fm.core.base.IFeature;
+import de.ovgu.featureide.fm.core.configuration.Configuration;
+
 
 public class ProductClassRenderer extends TemplateRenderer {
 
@@ -43,6 +46,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	private Map<String, List<String>> featureToModuleMap;
+	private List<String> selectedFeature;
 	private Map<String, Integer> variableNameCounts = new HashMap<>();
 
 	public ProductClassRenderer(IFeatureProject project) {
@@ -52,6 +56,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		} catch (CoreException e) {
 			e.printStackTrace();
 		}
+		getSelectedFeature(project);
 	}
 
 	@Override
@@ -135,6 +140,18 @@ public class ProductClassRenderer extends TemplateRenderer {
             featureToModuleMap = new LinkedHashMap<>();
         }
     }
+	
+	private void getSelectedFeature(IFeatureProject winVmjProject) {
+		Configuration config = winVmjProject.loadCurrentConfiguration();
+	    
+	    // Print the configuration object if it has a useful toString() method
+	    System.out.println("Configuration: " + config.toString());
+	    selectedFeature = Arrays.asList(config.toString().split("\\n"));
+	    
+	    selectedFeature = selectedFeature.stream()
+	            .filter(name -> !name.trim().isEmpty())
+	            .collect(Collectors.toList());
+	}
 
 	private List<Map<String,Object>> getRequiredForeignKeys(WinVMJProduct product) 
             throws IOException, CoreException {
@@ -177,25 +194,33 @@ public class ProductClassRenderer extends TemplateRenderer {
 			throws IOException, CoreException {
 		List<List<Map<String, Object>>> bindings = new ArrayList<>();
 
-		// Set of module names from the product to check against available modules
 		Set<String> productModules = new HashSet<>(product.getModuleNames());
+		
+
+//		for (String module : productModules) {
+//			System.out.println("Module: " + module);
+//		}
+		
 
 		// Iterate over the entries of the featureToModuleMap
 		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
 			String feature = entry.getKey();
-			List<String> modules = entry.getValue();
-			for (String module : modules) {
-				if (productModules.contains(module)) {
-					try {
-						List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
-						if (bindingSpec != null) {
-							bindings.add(bindingSpec);
+	        if (selectedFeature.contains(feature)) {
+				List<String> modules = entry.getValue();
+				for (String module : modules) {
+//					System.out.println("FeatureMap: " + feature + ", ModuleMap: " + module);
+					if (productModules.contains(module)) {
+						try {
+							List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
+							if (bindingSpec != null) {
+								bindings.add(bindingSpec);
+							}
+						} catch (IOException | CoreException e) {
+							e.printStackTrace();
 						}
-					} catch (IOException | CoreException e) {
-						e.printStackTrace();
 					}
 				}
-			}
+	        }
 		}
 		return bindings;
 	}
@@ -206,16 +231,27 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
-		Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
-		if (controllerSpec != null) {
-			listBindingSpec.add(controllerSpec);
-		}
+		// Check if the controller and service folder exists before constructing the spec
+		boolean isControllerExist = checkArtifactDirectoryOfModule(module, CONTROLLER_FOLDERNAME);
+		boolean isServiceExist = checkArtifactDirectoryOfModule(module, SERVICE_FOLDERNAME);
 
-		Map<String, Object> serviceSpec = constructComponentSpec(module, feature, SERVICE_FOLDERNAME);
-		if (serviceSpec != null) {
-			listBindingSpec.add(serviceSpec);
+		if (isControllerExist && isServiceExist){
+			Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+			if (controllerSpec != null) {
+				controllerSpec.put("notSingleStructured", true);
+				listBindingSpec.add(controllerSpec);
+			}
+			Map<String, Object> serviceSpec = constructComponentSpec(module, feature, SERVICE_FOLDERNAME);
+			if (serviceSpec != null) {
+				listBindingSpec.add(serviceSpec);
+			}
+		// Only Resource structure support
+		} else if (isControllerExist) {
+			Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+			if (controllerSpec != null) {
+				listBindingSpec.add(controllerSpec);
+			}
 		}
-
 		return listBindingSpec.isEmpty() ? null : listBindingSpec;
 	}
 
@@ -355,6 +391,18 @@ public class ProductClassRenderer extends TemplateRenderer {
 		for (String subDir : subDirectories)
 			moduleFolder = moduleFolder.getFolder(subDir);
 		return moduleFolder;
+	}
+
+	// To check whether the folder of subdirectories exist or not
+	private boolean checkArtifactDirectoryOfModule(String module, String... subDirectories) {
+		IFolder moduleFolder = project.getBuildFolder().getFolder(module);
+		for (String modulePath : module.split("\\.")) {
+			moduleFolder = moduleFolder.getFolder(modulePath);
+		}
+		for (String subDir : subDirectories) {
+			moduleFolder = moduleFolder.getFolder(subDir);
+		}
+		return moduleFolder.exists();
 	}
 
 	private List<String> getListModuleInterface(String module, String... subDirectories) { 
