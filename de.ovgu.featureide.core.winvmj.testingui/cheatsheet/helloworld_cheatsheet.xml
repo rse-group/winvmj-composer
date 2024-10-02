@@ -3,9 +3,9 @@
    <taskGroup kind="set" name="First FeatureIDE with WinVMJ Project" skip="false">
       <intro>
          Welcome to the WinVMJ Composer Plugin Tutorial.
-<br/> This tutorial will guide you through building your first WinVMJ project within FeatureIDE. By the end of this tutorial, you will have created a basic software product line using WinVMJ, utilizing the Delta-Oriented Programming approach for Software Product Line Engineering (SPLE). If you encounter any issues during the steps, you can refer to the final result available through File -&gt; New -&gt; Example in the Eclipse main menu.
-<br/><br/> The first phase in setting up your product line is domain engineering. In this phase, you&apos;ll define which features your product line will include and how they will interact. WinVMJ leverages FeatureIDE&apos;s capabilities to facilitate modular and flexible product line development, incorporating feature models and delta modules.
-<br/><br/> More Information: To learn more about Delta-Oriented Programming and SPLE, visit the WinVMJ-AISCO GitLab Repository. This tutorial will also introduce you to key concepts and tools, such as configuring projects, defining features, and generating product variations.
+<br/>This tutorial will guide you through building your first WinVMJ project within FeatureIDE. By the end of this tutorial, you will have created a basic software product line using WinVMJ, utilizing the Delta-Oriented Programming approach for Software Product Line Engineering (SPLE).
+
+<br/><br/>More Information: To learn more about Delta-Oriented Programming and SPLE, visit the WinVMJ-AISCO GitLab Repository. This tutorial will also introduce you to key concepts and tools, such as configuring projects, defining features, and generating product variations.
 <br/><br/> Let&apos;s get started!
       </intro>
       <onCompletion>
@@ -76,7 +76,7 @@ Choose a composer and implement the features.
          <onCompletion>
             Great! You have implemented features!
          </onCompletion>
-         <task kind="cheatsheet" name="WinVMJ" skip="false">
+         <task kind="cheatsheet" name="How to run WinVMJ Project" skip="false">
             <intro>
                This tutorial guides you through the implementation of features using WinVMJ
             </intro>
