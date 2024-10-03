@@ -143,14 +143,10 @@ public class ProductClassRenderer extends TemplateRenderer {
 	
 	private void getSelectedFeature(IFeatureProject winVmjProject) {
 		Configuration config = winVmjProject.loadCurrentConfiguration();
+		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
+		
 	    
-	    // Print the configuration object if it has a useful toString() method
-	    System.out.println("Configuration: " + config.toString());
-	    selectedFeature = Arrays.asList(config.toString().split("\\n"));
-	    
-	    selectedFeature = selectedFeature.stream()
-	            .filter(name -> !name.trim().isEmpty())
-	            .collect(Collectors.toList());
+	    selectedFeature = new ArrayList<>(features);
 	}
 
 	private List<Map<String,Object>> getRequiredForeignKeys(WinVMJProduct product) 
@@ -195,12 +191,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 		List<List<Map<String, Object>>> bindings = new ArrayList<>();
 
 		Set<String> productModules = new HashSet<>(product.getModuleNames());
-		
-
-//		for (String module : productModules) {
-//			System.out.println("Module: " + module);
-//		}
-		
 
 		// Iterate over the entries of the featureToModuleMap
 		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
@@ -208,7 +198,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 	        if (selectedFeature.contains(feature)) {
 				List<String> modules = entry.getValue();
 				for (String module : modules) {
-//					System.out.println("FeatureMap: " + feature + ", ModuleMap: " + module);
 					if (productModules.contains(module)) {
 						try {
 							List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
@@ -339,8 +328,11 @@ public class ProductClassRenderer extends TemplateRenderer {
 			moduleFolder = moduleFolder.getFolder(subDir);
 		}
 		List<String> classNames = new ArrayList<>();
-		for (IResource classFile : moduleFolder.members())
-			classNames.add(FilenameUtils.getBaseName(classFile.getName()));
+		for (IResource classFile : moduleFolder.members()) {
+			if (classFile.getName().endsWith(".java")) {
+				classNames.add(FilenameUtils.getBaseName(classFile.getName()));
+			}
+		}
 		return classNames;
 	}
 
