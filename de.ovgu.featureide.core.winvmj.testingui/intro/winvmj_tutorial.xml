@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<introContent>
+  	<extensionContent id="deovgufeatureidecorewinvmjtestingui-introExtension" style="css/sample.css" name="Sample Extension" path="overview/@">
+		<group style-id="content-group" id="deovgufeatureidecorewinvmjtestingui-introLink-group">
+       		<link label="WinVMJ" url="http://org.eclipse.ui.intro/showStandby?partId=org.eclipse.platform.cheatsheet&amp;input=de.ovgu.featureide.core.winvmj.testingui.category1" id="deovgufeatureidecorewinvmjtestingui-introLink" style-id="content-link">
+          		
+       		<text>As web development increasingly moves towards an industrialized production model, Web-based Software Product Lines (SPLs) are becoming essential. Despite progress in tackling the specific challenges of developing program families, comprehensive tool support for web-based SPLs remains limited.
+
+WinVMJ Composer, embedded within FeatureIDE, addresses this need by providing a unified, intuitive environment specifically for web-based SPL development, employing a Delta-Oriented Programming approach. WinVMJ supports every stage of feature-oriented software development, including domain analysis, domain implementation, requirements analysis, and software generation, making it a vital tool for creating web applications in a structured and scalable manner.
+
+The plugin incorporates a range of SPL implementation techniques such as feature-oriented programming (FOP), aspect-oriented programming (AOP), delta-oriented programming (DOP), and preprocessors, with robust support for frameworks including AHEAD, FeatureC++, FeatureHouse, AspectJ, DeltaJ, Antenna, and Munge. WinVMJ expands FeatureIDE's functionality by enhancing the development of web-based SPLs through comprehensive tools and resources, including a Cheat Sheet Tutorial available under Help -> Cheat Sheets -> WinVMJ in FeatureIDE.
+				</text>
+       		</link>
+       	</group>
+  	</extensionContent>
+</introContent>
