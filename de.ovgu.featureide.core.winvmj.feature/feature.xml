@@ -2,7 +2,7 @@
 <feature
       id="de.ovgu.featureide.core.winvmj.feature"
       label="WinVMJ Composer"
-      version="3.2.3.qualifier"
+      version="3.2.4.qualifier"
       provider-name="PRICES">
 
    <description>
@@ -191,10 +191,21 @@ Library.
       <import plugin="de.ovgu.featureide.ui" version="3.11.1" match="greaterOrEqual"/>
       <import plugin="de.ovgu.featureide.fm.ui" version="3.11.1" match="greaterOrEqual"/>
       <import plugin="org.apache.commons.io" version="2.8.0" match="equivalent"/>
+      <import plugin="org.eclipse.jface.text"/>
+      <import plugin="org.eclipse.core.resources.source"/>
+      <import plugin="org.eclipse.ui.editors"/>
+      <import plugin="org.eclipse.ui.ide"/>
+      <import plugin="org.eclipse.ui.cheatsheets"/>
+      <import plugin="org.eclipse.ui.intro"/>
+      <import plugin="org.eclipse.ui.intro.universal"/>
    </requires>
 
    <plugin
          id="de.ovgu.featureide.core.winvmj"
+         version="0.0.0"/>
+
+   <plugin
+         id="de.ovgu.featureide.core.winvmj.testingui"
          version="0.0.0"/>
 
 </feature>
