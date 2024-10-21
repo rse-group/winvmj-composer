@@ -69,7 +69,8 @@ public class ProductClassRenderer extends TemplateRenderer {
 		try {
 			dataModel.put("imports", getImports(product));
 			dataModel.put("models", getRequiredModels(product));
-			dataModel.put("foreignKeys", getRequiredForeignKeys(product));
+			dataModel.put(
+				"featureTableMappings", getRequiredFeatureTableMappings(product));
 			dataModel.put("routings", getRequiredBindings(product));
 		} catch (IOException | CoreException e) {
 			WinVMJConsole.println(e.getMessage());
@@ -149,30 +150,30 @@ public class ProductClassRenderer extends TemplateRenderer {
 	    selectedFeature = new ArrayList<>(features);
 	}
 
-	private List<Map<String,Object>> getRequiredForeignKeys(WinVMJProduct product) 
+	private List<Map<String,Object>> getRequiredFeatureTableMappings(WinVMJProduct product) 
             throws IOException, CoreException {
-        List<Map<String,Object>> foreignKeys = new ArrayList<>();
+        List<Map<String,Object>> featureTableMappings = new ArrayList<>();
         
         for (String module: product.getModuleNames()) {
             if (getArtifactDirectoryOfModule(module, MODEL_FOLDERNAME).exists()) {
                 String featureName = getFeatureName((String) module);
+				Map<String, Object> featureTableMapping = getFeatureTableMapping(
+					featureTableMappings, featureName);
 
                 if (isCoreModule(module)) {
-                    Map<String, Object> foreignKeyMap = getForeignKeyMap(foreignKeys, featureName);
-                    if (foreignKeyMap != null) {
-                        continue;
-                    } else {
-                        Map<String, Object> foreignKey = new HashMap<>();
-                        foreignKey.put("core", String.format(
-                            "%s.%s", module, getListModuleImplClass(module, MODEL_FOLDERNAME).get(0)
-                        ));
-                        foreignKey.put("deltas", new ArrayList<String>());
-                        foreignKeys.add(foreignKey);
+                    if (featureTableMapping == null) {
+                        String componentClassName = featureName.substring(
+							0, 1).toUpperCase() + featureName.substring(
+								1).toLowerCase() + "Component";
+						featureTableMapping = new HashMap<>();
+                        featureTableMapping.put(
+							"component", module + "." + componentClassName);
+                        featureTableMapping.put("deltas", new ArrayList<String>());
+                        featureTableMappings.add(featureTableMapping);
                     }
                 } else {
-                    Map<String, Object> foreignKeyMap = getForeignKeyMap(foreignKeys, featureName);
-                    if (foreignKeyMap != null) {
-                        List<String> deltas = (List<String>) foreignKeyMap.get("deltas");
+                    if (featureTableMapping != null) {
+                        List<String> deltas = (List<String>) featureTableMapping.get("deltas");
                         String delta = String.format("%s.%s", module, getListModuleImplClass(
                                 module, MODEL_FOLDERNAME).get(0));
                         if (!deltas.contains(delta)) {
@@ -183,7 +184,7 @@ public class ProductClassRenderer extends TemplateRenderer {
             }
         }
 
-        return foreignKeys;
+        return featureTableMappings;
     }
 
 	private List<List<Map<String, Object>>> getRequiredBindings(WinVMJProduct product)
@@ -473,17 +474,17 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return moduleParts[1];
 	}
 
-	private Map<String, Object> getForeignKeyMap(
-		List<Map<String,Object>> foreignKeys, 
+	private Map<String, Object> getFeatureTableMapping(
+		List<Map<String,Object>> featureTableMappings, 
 		String featureName
 	) {
-		for (Map<String, Object> foreignKey: foreignKeys) {
+		for (Map<String, Object> featureTableMapping: featureTableMappings) {
 			if (
 				getFeatureName(
-					(String) foreignKey.get("core")
+					(String) featureTableMapping.get("component")
 				).equals(featureName)
 			) {
-				return foreignKey;
+				return featureTableMapping;
 			}
 		}
 

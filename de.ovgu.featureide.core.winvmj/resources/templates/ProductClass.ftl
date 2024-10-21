@@ -65,23 +65,17 @@ public class ${productName} {
 		</#list>
 		</#list>
 
-		Map<String, String[]> foreignKeyRules = new HashMap<>();
+		Map<String, String[]> featureTableMappings = new HashMap<>();
 
-		foreignKeyRules.put(
-			vmj.auth.model.core.UserImpl.class.getSimpleName(),
-			new String[] {
-				vmj.auth.model.passworded.UserImpl.class.getSimpleName()
-			}
-		);
-		<#list foreignKeys as fk>
-		foreignKeyRules.put(
-            ${fk['core']}.class.getSimpleName(),
+		<#list featureTableMappings as ftm>
+		featureTableMappings.put(
+            ${ftm['component']}.class.getName(),
             new String[] {
-				<#list fk['deltas'] as delta>
-				<#if delta?index != (fk['deltas']?size - 1)>
-				${delta}.class.getSimpleName(),
+				<#list ftm['deltas'] as delta>
+				<#if delta?index != (ftm['deltas']?size - 1)>
+				${delta}.class.getName(),
 				<#else>
-				${delta}.class.getSimpleName()
+				${delta}.class.getName()
 				</#if>
 				</#list>
 			}
@@ -89,9 +83,9 @@ public class ${productName} {
 		</#list>
 
 		Gson gson = new Gson();
-        String foreignKeyRulesMap = gson.toJson(foreignKeyRules);
+        String convertedFeatureTableMappings = gson.toJson(featureTableMappings);
 		
-        configuration.setProperty("custom.foreign.key.rules", foreignKeyRulesMap);
+        configuration.setProperty("feature.table.mappings", convertedFeatureTableMappings);
 		configuration.buildMappings();
 		HibernateUtil.buildSessionFactory(configuration);
 
