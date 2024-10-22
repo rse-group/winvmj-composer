@@ -162,9 +162,15 @@ public class ProductClassRenderer extends TemplateRenderer {
 
                 if (isCoreModule(module)) {
                     if (featureTableMapping == null) {
-                        String componentClassName = featureName.substring(
-							0, 1).toUpperCase() + featureName.substring(
-								1).toLowerCase() + "Component";
+						String componentClassName = "";
+						List<String> allClassInModelModule = getAllClassInModule(module, MODEL_FOLDERNAME);
+						for (int i = 0; i < allClassInModelModule.size(); i++) {
+							String className = allClassInModelModule.get(i);
+							if (className.endsWith("Component")) {
+								componentClassName = className;
+							}
+						}
+						
 						featureTableMapping = new HashMap<>();
                         featureTableMapping.put(
 							"component", module + "." + componentClassName);
@@ -308,15 +314,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 		int count = variableNameCounts.getOrDefault(baseName + componentType, 0) + 1;
 		variableNameCounts.put(baseName + componentType, count); 
 		return count == 1 ? baseName : baseName + count; 
-	}
-
-	private String getFeatureForModule(String module) {
-		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
-			if (entry.getValue().contains(module)) {
-				return entry.getKey();
-			}
-		}
-		return null;
 	}
 
 	private List<String> getAllClassInModule(String module,
