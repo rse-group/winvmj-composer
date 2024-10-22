@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/de.ovgu.featureide_3.11.1.202409260011.jar" id="de.ovgu.featureide" version="3.11.1.202409260011">
+   <feature url="features/de.ovgu.featureide_3.11.1.202410061546.jar" id="de.ovgu.featureide" version="3.11.1.202410061546">
       <category name="WinVMJ Composer Dependencies"/>
    </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.2.4.202410040515.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.2.4.202410040515">
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.2.5.202410220943.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.2.5.202410220943">
       <category name="WinVMJ Composer"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
