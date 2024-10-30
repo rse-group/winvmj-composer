@@ -189,6 +189,9 @@ If you feel the generated product is ready, you can compile it by:
 2. Please wait until the compilation process is completed. You can check the `WinVMJ Console` to track this process.
 
 #### Running a product
+
+> Note: If you're on MacOS/Linux, run `chmod u+x run.sh ` inside the folder containing `run.sh` in src-gen before proceeding.
+
 We can run the product by following these steps:
 1. On top toolbar, click on `Run`>`External Tools`>`External Tool Configuration`.
 2. Select the script `Location` at `src-gen/[Product Name]/run.[bat (Windows) / sh (Linux / Mac)]`.
