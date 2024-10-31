@@ -47,7 +47,7 @@ echo
 echo "Deploying product '$product_name' on Amanah server..."
 product_remote_directory="/var/www/products/$product_name"
 
-ssh -i "$private_key_amanah" "$username_amanah@localhost" -p "$local_tunnel_port" "cd /home/prices-deployment/nix-environment && nix-shell --run 'bash prices_product_deployment.sh $product_name $product_remote_directory'"
+ssh -i "$private_key_amanah" "$username_amanah@localhost" -p "$local_tunnel_port" "cd /home/prices-deployment/nix-environment && nix-shell --run 'bash prices_product_deployment.sh $product_name $product_remote_directory ${productLineName}'"
 if [ $? -eq 0 ]; then
   echo
   echo "Product '$product_name' deployed successfully!"

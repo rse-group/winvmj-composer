@@ -19,6 +19,7 @@ public class UnixDeploymentScriptRenderer extends TemplateRenderer {
         Map<String, Object> dataModel = new HashMap<>();
 
         dataModel.put("productName", product.getProductName().toLowerCase());
+        dataModel.put("productLineName", product.getSplName());
         return dataModel;
     }
 
