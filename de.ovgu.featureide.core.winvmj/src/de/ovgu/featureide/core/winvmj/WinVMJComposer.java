@@ -4,16 +4,25 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
@@ -22,6 +31,7 @@ import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelDeltaRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.io.IFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
@@ -124,6 +134,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			if (!destModule.exists()) destModule.create(false, true, null);
 			copy(sourceModule, destModule);
 		}
+		checkMultiLevelDelta(project, product);
 	}
 	
 	private boolean initExtraConfigFiles(IFeatureProject project) {
@@ -161,5 +172,53 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		}
 		
 		return true;
+	}
+
+	private void checkMultiLevelDelta(IFeatureProject project,
+			WinVMJProduct product) throws CoreException {
+		IFile featureToModuleMapper = project.getProject()
+				.getFile(FEATURE_MODULE_MAPPER_FILENAME);
+		Reader mapReader =  new InputStreamReader(featureToModuleMapper.getContents());
+		Gson gson = new Gson();
+		Map<String, List<String>> mappings;
+		try {
+			mappings = gson.fromJson(mapReader, 
+					new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+		} catch (NullPointerException e) {
+			mappings = new LinkedHashMap<String, List<String>>();
+		}
+
+		for (Entry<String, List<String>> mapping: mappings.entrySet()) {
+			if (isMultiLevelDelta(mapping)) {
+				MultiLevelDeltaRenderer multiLevelDeltaClassRenderer = new MultiLevelDeltaRenderer(project);
+				multiLevelDeltaClassRenderer.setFeatureConfiguration(mapping.getKey(), mapping.getValue());
+				multiLevelDeltaClassRenderer.render(product);
+			}
+		}
+	}
+
+	private boolean isMultiLevelDelta(Entry<String, List<String>> featureToModule) {
+		List<String> modules = featureToModule.getValue();
+		List<String> finalizedModules = modules.stream()
+				.filter(module -> !module.contains(".core"))
+				.collect(Collectors.toList());
+		
+		if (finalizedModules.size() <= 1) return false;
+		
+		String featureName = "";
+		for (String module: finalizedModules) {
+			if (featureName.equals("")) {
+				featureName = getFeatureName(module);
+			} else if (!featureName.equals(getFeatureName(module))) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private String getFeatureName(String module) {
+		String[] moduleParts = module.split("\\.");
+		return moduleParts[1];
 	}
 }
