@@ -14,7 +14,7 @@ In this section, you will explore the essential directories and files that form 
 </intro>
  <item
        title="WinVMJ Structure"
-       href="/de.ovgu.featureide.ui/html/winvmj-on-featureide.html">
+       href="/de.ovgu.featureide.core.winvmj.testingui/html/winvmj-on-featureide.html">
     <description>
        <b>The details of the WinVMJ FeatureIDE Structure can be found in the HTML document. Click the help button to open the document. </b>
     </description>

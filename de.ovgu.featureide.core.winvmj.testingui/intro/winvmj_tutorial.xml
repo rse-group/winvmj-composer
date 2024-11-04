@@ -2,7 +2,7 @@
 <introContent>
   	<extensionContent id="deovgufeatureidecorewinvmjtestingui-introExtension" style="css/sample.css" name="Sample Extension" path="overview/@">
 		<group style-id="content-group" id="deovgufeatureidecorewinvmjtestingui-introLink-group">
-       		<link label="WinVMJ" url="http://org.eclipse.ui.intro/showStandby?partId=org.eclipse.platform.cheatsheet&amp;input=de.ovgu.featureide.core.winvmj.testingui.category1" id="deovgufeatureidecorewinvmjtestingui-introLink" style-id="content-link">
+       		<link label="WinVMJ Composer" url="http://org.eclipse.ui.intro/showStandby?partId=org.eclipse.platform.cheatsheet&amp;input=de.ovgu.featureide.core.winvmj.testingui.category1" id="deovgufeatureidecorewinvmjtestingui-introLink" style-id="content-link">
           		
        		<text>As web development increasingly moves towards an industrialized production model, Web-based Software Product Lines (SPLs) are becoming essential. Despite progress in tackling the specific challenges of developing program families, comprehensive tool support for web-based SPLs remains limited.
 
