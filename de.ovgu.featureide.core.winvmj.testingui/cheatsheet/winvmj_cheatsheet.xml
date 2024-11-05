@@ -6,6 +6,13 @@ It is now time to compile and run the product.
 </description>
 </intro>
    <item
+         title="Prerequisites">
+      <description>
+         1. Generate modules from UML-DOP before proceeding to the next steps. <br/>
+2. Move the generated modules from your UML-DOP directory to the modules directory in the project where you want to generate them.
+      </description>
+   </item>
+   <item
          title="Generating a product">
       <description>
          <b>Generating the Product</b><br/><br/>
@@ -14,7 +21,7 @@ It is now time to compile and run the product.
     <b>2.</b> Right click on the project, then select <b>NEW -&gt; OTHER -&gt; FeatureIDE -&gt; Configuration File</b>.<br/>
     <b>3.</b> Define the configuration file&apos;s name to represent the product&apos;s name.<br/>
     <b>4.</b> Select the required features, then right click on the configuration file and choose <b>FeatureIDE -&gt; Set As Current Configuration</b>.<br/><br/>
-    Generated modules are available in the directory <b>src</b>.<br/><br/>
+    Generated modules are available in the directory <b>src</b>, If the generated modules do not appear, make sure you have generated the modules from the UML and placed them in the modules directory.<br/><br/>
       </description>
    </item>
 	

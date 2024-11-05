@@ -8,9 +8,9 @@ A plugin consisting the implementation of WinVMJ as a FeatureIDE Composer. Used 
 
 To use this plugin, you need to install:
 
-1. [Java 11](https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html).
-2. [Eclipse IDE 4.18 / 2020-12](https://www.eclipse.org/downloads/packages/release/2020-12/r).
-3. [FeatureIDE 3.8.1](https://featureide.github.io/).
+1. [Java 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html).
+2. [Eclipse IDE 4.30 / 2023-12](https://www.eclipse.org/downloads/packages/release/2023-12/r).
+3. [FeatureIDE 3.11.1](https://featureide.github.io/#download).
 4. [Eclipse PDE](https://www.eclipse.org/pde/) if hasn't been included on downloaded IDE.
 5. [PostgreSQL](https://www.postgresql.org/download/).
 6. DBMS to manage PostgreSQL such as [phpmyadmin](https://www.phpmyadmin.net/downloads/) or [adminer](https://www.adminer.org/).

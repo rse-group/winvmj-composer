@@ -51,23 +51,7 @@
             </param>
          </task>
       </taskGroup>
-      <taskGroup kind="set" name="Development" skip="false">
-         <intro>
-            <b>Develop your project!</b>
-         </intro>
-         <onCompletion>
-            <b>Conclusion</b>
-         </onCompletion>
-         <task kind="cheatsheet" name="Development on FeatureIDE Project" skip="false">
-            <intro>
-               <b>Introduction</b>
-            </intro>
-            <onCompletion>
-               <b>Conclusion</b>
-            </onCompletion>
-         </task>
-      </taskGroup>
-      <taskGroup kind="choice" name="Implementing features" skip="false">
+      <taskGroup kind="choice" name="Run WinVMJ Project" skip="false">
          <intro>
             &lt;description&gt;
 Choose a composer and implement the features.
