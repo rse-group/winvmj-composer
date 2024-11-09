@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WinVMJ on FeatureIDE 101</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>WinVMJ on FeatureIDE 101</h1>
+    </header>
+    <section>
+        <p>We strongly recommend visiting the <a href="https://featureide.github.io/" target="_blank">FeatureIDE GitHub Page</a> and the <a href="https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/vmj-aisco/-/tree/Hibernate-Integration" target="_blank">WinVMJ-AISCO GitLab Repository</a> to learn more about the respective framework's usage.</p>
+        
+        <h2>WinVMJ FeatureIDE Structure</h2>
+        <pre>
+root
+├── [src]
+│   ├── pl.corefeature1.core/
+│   ├── pl.corefeature1.delta1/
+│   ├── ...
+│   └── pl.product.productx/
+├── src-gen
+│   ├── pl.product.product1/
+│   ├── pl.product.product2/
+│   ├── ...
+│   └── pl.product.productn/
+├── [config]
+│   ├── config1.xml
+│   ├── config2.xml
+│   ├── ...
+│   └── confign.xml
+├── external
+│   ├── lib1.jar
+│   ├── lib2.jar
+│   ├── ...
+│   └── libn.jar
+├── modules
+│   ├── pl.corefeature1.core/
+│   ├── pl.corefeature1.delta1/
+│   ├── pl.corefeature1.delta2/
+│   ├── ...
+│   └── pl.corefeaturem.deltan/
+├── db.properties
+├── feature_to_module.json
+└── model.uvl
+        </pre>
+
+        <p>Each component can be explained as:</p>
+        <ul>
+            <li><strong>root</strong>: Project root.</li>
+            <li><strong>[src]</strong>: Generated product directory consisting of selected modules (including from other SPLs) and a generated product module. Its name can be defined by the user when creating the project. Its content changes depending on the selected configuration.</li>
+            <li><strong>src-gen</strong>: Compiled generated product directory. All compiled products will be preserved in this directory.</li>
+            <li><strong>[config]</strong>: Directory where product configurations are defined. Its name can be defined by the user when creating the project and it will determine the product's name.</li>
+            <li><strong>external</strong>: Directory where additional libraries are stored. Make sure the library's name is the same as its package name when declared in <code>module-info</code>.</li>
+            <li><strong>modules</strong>: Directory where all implementation modules are stored.</li>
+            <li><strong>db.properties</strong>: A file that defines the database credentials. This is an example of its content:
+                <pre>
+db.username=postgres
+db.password=postgres
+                </pre>
+                <p>As seen above, it consists of two properties: <code>db.username</code> that defines your <code>Postgresql</code> username and <code>db.password</code> that defines your <code>Postgresql</code> password. Please adjust it to match your current credentials.</p>
+            </li>
+            <li><strong>feature_to_module.json</strong>: A file that defines the Feature-Module mapping. This is an example of its content:
+                <pre>
+{
+    "Program": ["aisco.program.core"],
+    "Activity": ["aisco.program.activity"],
+    "Operational": ["aisco.program.operational"],
+    "Income | Expense": ["aisco.chartofaccount.core","aisco.financialreport.core"]
+}
+                </pre>
+                <p>As seen above, it consists of <code>key-value</code> pairs. The <code>key</code> is the feature condition required to apply a set of modules defined as <code>value</code>. The <code>key</code> can be a single feature or a mathematical logic with a set of features as its atoms.</p>
+            </li>
+            <li><strong>model.uvl</strong>: A file that defines the feature model.</li>
+        </ul>
+    </section>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<compositeCheatsheet name="First FeatureIDE with WinVMJ Project">
+   <taskGroup kind="set" name="First FeatureIDE with WinVMJ Project" skip="false">
+      <intro>
+         Welcome to the WinVMJ Composer Plugin Tutorial.
+<br/>This tutorial will guide you through building your first WinVMJ project within FeatureIDE. By the end of this tutorial, you will have created a basic software product line using WinVMJ, utilizing the Delta-Oriented Programming approach for Software Product Line Engineering (SPLE).
+
+<br/><br/>More Information: To learn more about Delta-Oriented Programming and SPLE, visit the WinVMJ-AISCO GitLab Repository. This tutorial will also introduce you to key concepts and tools, such as configuring projects, defining features, and generating product variations.
+<br/><br/> Let&apos;s get started!
+      </intro>
+      <onCompletion>
+         Great! You have completed the tutorial!
+      </onCompletion>
+      <task kind="cheatsheet" name="Creating a FeatureIDE project" skip="false">
+         <intro>
+            This tutorial guides you through the creation of FeatureIDE project using WinVMJ composer.
+         </intro>
+         <onCompletion>
+            You have created your first FeatureIDE project.
+         </onCompletion>
+         <param name="id" value="de.ovgu.featureide.ui.doc.cheatsheet.setup">
+         </param>
+         <param name="path" value="setup_cheatsheet.xml">
+         </param>
+      </task>
+      <task kind="cheatsheet" name="Creating a feature model" skip="false">
+         <intro>
+            This tutorial guides you through the creation a feature model.
+         </intro>
+         <onCompletion>
+            You have created your first feature model.
+         </onCompletion>
+         <param name="id" value="de.ovgu.featureide.ui.doc.cheatsheet.model">
+         </param>
+      </task>
+      <taskGroup kind="set" name="WinVMJ FeatureIDE Structure" skip="false">
+         <intro>
+            <b>Introduction</b>
+         </intro>
+         <onCompletion>
+            <b>Conclusion</b>
+         </onCompletion>
+         <task kind="cheatsheet" name="Project Structure" skip="false">
+            <intro>
+               <b>Introduction</b>
+            </intro>
+            <onCompletion>
+               <b>Conclusion</b>
+            </onCompletion>
+            <param name="path" value="featurestructure_cheatsheet.xml">
+            </param>
+         </task>
+      </taskGroup>
+      <taskGroup kind="choice" name="Run WinVMJ Project" skip="false">
+         <intro>
+            &lt;description&gt;
+Choose a composer and implement the features.
+&lt;/description&gt;
+         </intro>
+         <onCompletion>
+            Great! You have implemented features!
+         </onCompletion>
+         <task kind="cheatsheet" name="How to run WinVMJ Project" skip="false">
+            <intro>
+               This tutorial guides you through the implementation of features using WinVMJ
+            </intro>
+            <onCompletion>
+               You have implemented your first FeatureIDE project using WinVMJ
+            </onCompletion>
+            <param name="path" value="winvmj_cheatsheet.xml">
+            </param>
+         </task>
+      </taskGroup>
+      <taskGroup kind="set" name="About" skip="false">
+         <intro>
+            <b>About</b>
+         </intro>
+         <onCompletion>
+            <b>Finish</b>
+         </onCompletion>
+         <task kind="cheatsheet" name="About Authorization" skip="false">
+            <intro>
+               <b>Introduction</b>
+            </intro>
+            <onCompletion>
+               <b>Conclusion</b>
+            </onCompletion>
+            <param name="path" value="authorization_cheatsheet.xml">
+            </param>
+         </task>
+         <task kind="cheatsheet" name="Developer&apos;s Corner" skip="false">
+            <intro>
+               <b>This section explains about how to develop this plugin.</b>
+            </intro>
+            <onCompletion>
+               <b>Conclusion</b>
+            </onCompletion>
+            <param name="path" value="developers_corner_cheatsheet.xml">
+            </param>
+         </task>
+      </taskGroup>
+   </taskGroup>
+</compositeCheatsheet>

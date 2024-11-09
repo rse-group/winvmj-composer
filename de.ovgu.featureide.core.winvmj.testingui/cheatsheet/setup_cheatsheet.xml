@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?> 
+<cheatsheet title="First FeatureIDE Project" id="de.ovgu.featureide.ui.doc.setup">
+	<intro
+       href="/de.ovgu.featureide.ui.doc/html/fosd.html">
+		<description>
+Welcome to the WinVMJ Composer Plugin Tutorial
+<br/><br/> This tutorial will guide you through building your first project using the WinVMJ Composer within FeatureIDE. By the end of this tutorial, you&apos;ll have created a basic Hello World software product line using the Delta-Oriented Programming approach.
+<br/><br/> The initial phase in developing your product line is domain engineering. In this step, you&apos;ll define the features that your product will include, allowing for modular and flexible product development. For additional information on software product line engineering and how WinVMJ implements these concepts, you can refer to the documentation available via the help button. The provided visuals will help you understand the core principles of domain engineering and application engineering within the WinVMJ framework.
+<br/><br/> Let&apos;s get started!
+<br/><br/><br/> Encountering issues? If you run into any problems during a specific step, you can access the final result by navigating to File -&gt; New -&gt; Example in Eclipse’s menu bar, where you can find all the relevant Hello World projects and examples.
+<br/><br/>
+</description>
+</intro>
+
+
+	<item
+       href="/org.eclipse.platform.doc.user/concepts/concepts-4.htm"
+       skip="true"
+       title="Open the FeatureIDE Perspective">
+		<action
+			pluginId="org.eclipse.ui.cheatsheets"
+			class="org.eclipse.ui.internal.cheatsheets.actions.OpenPerspective"
+			param1="de.ovgu.featureide.ui.FeatureIDEperspective"/>
+		<description>
+     When using FeatureIDE with the WinVMJ Composer, it is best to activate the <b>FeatureIDE perspective</b>. You can switch the active perspective by using the button in the upper right corner of the workbench or by going to <b>Window -&gt; Open Perspective -&gt; Other...</b> and selecting <b>FeatureIDE</b>.<br/><br/>
+
+Next, create a new project. You can find the <b>FeatureIDE Project</b> wizard under <b>File &gt; New</b>. On the next page, choose a project name, for example, &quot;HelloWorld&quot;. Make sure to select <b>WinVMJ</b> from the <b>Composer</b> dropdown. Then, close the wizard by clicking <b>Finish</b>.<br/><br/>
+
+In the wizard, you can select <b>different composition engines</b>. For this tutorial, ensure that you select <b>WinVMJ</b> as your composition engine, as it is crucial for the steps that follow. Each composition engine works slightly differently, so <b>remember your decision</b> and stick with it throughout the tutorial.<br/><br/>
+
+<b>Info</b>: A brief introduction to alternative composition engines is available at the end of this cheat sheet for your reference.<br/><br/>
+        
+  </description>
+</item>
+ 
+ <item title="Create a new FeatureIDE Project">
+    		
+    <description>
+To create a new project, go to <b>File -&gt; New</b> and select the <b>FeatureProject</b> wizard. You can also start the wizard by clicking the button below (Click to perform).<br/><br/>
+
+In the wizard, select <b>WinVMJ</b> as the composition engine. This selection is crucial for the subsequent steps in this tutorial.<br/>
+
+On the next page, choose a project name (e.g., &quot;HelloWorld&quot;) and click <b>Finish</b> to complete the setup.<br/><br/>
+    </description>
+    <command
+          required="false"
+          serialization="org.eclipse.ui.newWizard(newWizardId=de.ovgu.featureide.ui.FeatureProjectWizard)"/>
+ </item>
+ 
+</cheatsheet>

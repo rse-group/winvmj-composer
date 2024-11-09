@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?> 
+<cheatsheet title="WinVMJ FeatureIDE Structure" id="de.ovgu.featureide.ui.doc.setup">
+	<intro
+       href="/de.ovgu.featureide.ui/html/fosd.html">
+		<description>
+<b>Introduction to WinVMJ FeatureIDE Structure</b><br/><br/>
+
+The <b>WinVMJ FeatureIDE Structure</b> provides a systematic layout for managing your Software Product Line (SPL) development using the Delta-Oriented Programming approach within FeatureIDE. This structure organizes various components of your WinVMJ projects, from core modules and configuration files to external libraries and feature mappings. Understanding this structure is crucial for effectively utilizing the WinVMJ Composer plugin to build, compile, and run your products.<br/><br/>
+
+In this section, you will explore the essential directories and files that form the backbone of a WinVMJ project. Each component serves a specific role, ensuring seamless integration and flexibility in the development process. Whether you&apos;re defining configurations, managing modules, or handling external dependencies, the WinVMJ FeatureIDE structure provides a robust framework to support your SPL projects.<br/><br/>
+
+<b>Let&apos;s dive into the components that make up the WinVMJ FeatureIDE structure!</b>
+</description>
+</intro>
+ <item
+       title="WinVMJ Structure"
+       href="/de.ovgu.featureide.core.winvmj.testingui/html/winvmj-on-featureide.html">
+    <description>
+       <b>The details of the WinVMJ FeatureIDE Structure can be found in the HTML document. Click the help button to open the document. </b>
+    </description>
+ </item>
+
+
+ 
+ 
+</cheatsheet>

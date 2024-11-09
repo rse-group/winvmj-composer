@@ -26,4 +26,8 @@ public abstract class WinVMJProduct {
 	public String getProductQualifiedName() {
 		return splName.toLowerCase() + ".product." + productName.toLowerCase();
 	}
+
+	public String getSplName() {
+		return splName;
+	}
 }

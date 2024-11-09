@@ -1,21 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/de.ovgu.featureide_3.9.1.202212061324.jar" id="de.ovgu.featureide" version="3.9.1.202212061324">
+   <feature url="features/de.ovgu.featureide_3.11.1.202410061546.jar" id="de.ovgu.featureide" version="3.11.1.202410061546">
       <category name="WinVMJ Composer Dependencies"/>
    </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.1.0.202303291139.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.1.0.202303291139">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.2.1.202305311158.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.2.1.202305311158">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.3.0.202307200929.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.3.0.202307200929">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.4.0.202307241431.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.4.0.202307241431">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_2.4.1.202307271022.jar" id="de.ovgu.featureide.core.winvmj.feature" version="2.4.1.202307271022">
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.2.6.202410221115.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.2.6.202410221115">
       <category name="WinVMJ Composer"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>

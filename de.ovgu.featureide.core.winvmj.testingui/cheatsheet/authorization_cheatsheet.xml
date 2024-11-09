@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<cheatsheet title="Authorization Guide" id="de.ovgu.featureide.core.winvmj.ui.doc.authorization">
+    <intro>
+        <description>
+            <b>About Authorization</b><br/><br/>
+            We provide auth seeding artifacts that consist of an SQL file <b>auth_seed.sql</b> on the release page:<br/>
+            <b>https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/winvmj-composer/-/releases/</b>.<br/>
+            Unpack these artifacts to <b>src-gen/[Desired Product Name]/</b>. You can use this file on your DBMS to seed the auth database.<br/>
+        </description>
+    </intro>
+    
+    <item title="Creating a New User">
+        <description>
+            To create a new user, please execute this SQL statement on your DBMS:<br/><br/>
+            <b>INSERT INTO auth_user_comp (id) VALUES ([unique integer]);</b><br/>
+            <b>INSERT INTO auth_user_impl_passworded (id,password,allowedPermissions,name,email) VALUES ([unique integer],'fd4f97ae96ed4c0268d0b275765c849ce511419d96d6290ed583b9516f8cab61dfeddf43a522167bc9fa1eaeebb72b88158a2e646d1006799eb65a0e5805341a','',[Your Name],[Your Google Email]);</b><br/><br/>
+
+            <b>For example:</b><br/>
+            <b>INSERT INTO auth_user (id,password,allowedPermissions,name,email) VALUES (5,'fd4f97ae96ed4c0268d0b275765c849ce511419d96d6290ed583b9516f8cab61dfeddf43a522167bc9fa1eaeebb72b88158a2e646d1006799eb65a0e5805341a','','Samuel Tupa Febrian','samuel.febrian@gmail.com');</b><br/><br/>
+
+            <b>Please be mindful that the id field is unique.</b><br/>
+        </description>
+    </item>
+    
+    <item title="Assigning Account Roles">
+        <description>
+            Then, please assign your account role as needed by adding:<br/><br/>
+            <b>INSERT INTO auth_user_role (id,role,user) VALUES ([unique integer],[id role],[id user]);</b><br/><br/>
+
+            <b>For example:</b><br/>
+            <b>INSERT INTO auth_user_role (id,role,user) VALUES (13,1,5);</b>
+        </description>
+    </item>
+    
+</cheatsheet>
