@@ -27,11 +27,11 @@ import com.google.gson.reflect.TypeToken;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.MultiLevelDeltaComposer;
 import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelDeltaRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.io.IFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
@@ -190,9 +190,9 @@ public class WinVMJComposer extends ComposerExtensionClass {
 
 		for (Entry<String, List<String>> mapping: mappings.entrySet()) {
 			if (isMultiLevelDelta(mapping)) {
-				MultiLevelDeltaRenderer multiLevelDeltaClassRenderer = new MultiLevelDeltaRenderer(project);
-				multiLevelDeltaClassRenderer.setFeatureConfiguration(mapping.getKey(), mapping.getValue());
-				multiLevelDeltaClassRenderer.render(product);
+				MultiLevelDeltaComposer multiLevelDeltaComposer = new MultiLevelDeltaComposer(
+					project, product, mapping.getKey(), mapping.getValue());
+				multiLevelDeltaComposer.compose();
 			}
 		}
 	}
