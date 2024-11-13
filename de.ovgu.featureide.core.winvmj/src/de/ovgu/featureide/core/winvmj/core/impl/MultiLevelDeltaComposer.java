@@ -57,6 +57,15 @@ public class MultiLevelDeltaComposer {
     }
 
 	public void compose() {
+		// Compose module-info.java
+		List<String> requiredModules = deltaModules;
+		requiredModules.add(0, coreModule);
+		MultiLevelDeltaModuleInfoRenderer moduleInfoRenderer = new MultiLevelDeltaModuleInfoRenderer(
+			project, 
+			getFeatureFullyQualifiedName(), 
+			requiredModules
+		);
+		moduleInfoRenderer.render(product);
 	}
 
     private String getFeatureName(String featurePackage) {
