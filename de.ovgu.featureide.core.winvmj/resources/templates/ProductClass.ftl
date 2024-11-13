@@ -3,7 +3,9 @@ package ${productPackage};
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.lang.reflect.Type;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import vmj.routing.route.VMJServer;
 import vmj.routing.route.Router;
@@ -65,27 +67,12 @@ public class ${productName} {
 		</#list>
 		</#list>
 
-		Map<String, String[]> featureTableMappings = new HashMap<>();
-
-		<#list featureTableMappings as ftm>
-		featureTableMappings.put(
-            ${ftm['component']}.class.getName(),
-            new String[] {
-				<#list ftm['deltas'] as delta>
-				<#if delta?index != (ftm['deltas']?size - 1)>
-				${delta}.class.getName(),
-				<#else>
-				${delta}.class.getName()
-				</#if>
-				</#list>
-			}
-        );
-		</#list>
-
+		Map<String, Object> featureModelMappings = mappingFeatureModel();
 		Gson gson = new Gson();
-        String convertedFeatureTableMappings = gson.toJson(featureTableMappings);
+		Type type = new TypeToken<Map<String, Map<String, String[]>>>(){}.getType();
+        String convertedFeatureModelMappings = gson.toJson(featureModelMappings, type);
 		
-        configuration.setProperty("feature.table.mappings", convertedFeatureTableMappings);
+        configuration.setProperty("feature.model.mappings", convertedFeatureModelMappings);
 		configuration.buildMappings();
 		HibernateUtil.buildSessionFactory(configuration);
 
@@ -151,6 +138,38 @@ public class ${productName} {
 		Router.route(roleResource);
 		Router.route(userResource);
 		</#if>
+	}
+
+	private static Map<String, Object> mappingFeatureModel() {
+		Map<String, Object> featureModelMappings = new HashMap<>();
+
+		<#list featureModelMappings as ftm>
+		featureModelMappings.put(
+            ${ftm['referenceComponent']}.class.getName(),
+			new HashMap<String, String[]>() {{
+				put("components", new String[] {
+					<#list ftm['featureModels']['components'] as component>
+					<#if component?index != (ftm['featureModels']['components']?size - 1)>
+					${component}.class.getName(),
+					<#else>
+					${component}.class.getName()
+					</#if>
+					</#list>
+				});
+				put("deltas", new String[] {
+					<#list ftm['featureModels']['deltas'] as delta>
+					<#if delta?index != (ftm['featureModels']['deltas']?size - 1)>
+					${delta}.class.getName(),
+					<#else>
+					${delta}.class.getName()
+					</#if>
+					</#list>
+				});
+			}}
+        );
+
+		</#list>
+		return featureModelMappings;
 	}
 
 	public static void setDBProperties(String varname, String typeProp, Configuration configuration) {

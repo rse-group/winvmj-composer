@@ -30,7 +30,7 @@ import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.fm.core.configuration.Configuration;
-
+import de.ovgu.featureide.core.winvmj.Utils;
 
 public class ProductClassRenderer extends TemplateRenderer {
 
@@ -70,7 +70,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 			dataModel.put("imports", getImports(product));
 			dataModel.put("models", getRequiredModels(product));
 			dataModel.put(
-				"featureTableMappings", getRequiredFeatureTableMappings(product));
+				"featureModelMappings", getRequiredFeatureTableMappings(product));
 			dataModel.put("routings", getRequiredBindings(product));
 		} catch (IOException | CoreException e) {
 			WinVMJConsole.println(e.getMessage());
@@ -118,7 +118,8 @@ public class ProductClassRenderer extends TemplateRenderer {
 		for (String module: product.getModuleNames()) {
 			if (getArtifactDirectoryOfModule(module, MODEL_FOLDERNAME).exists()) {
 				Map<String, Object> modelSpec = new HashMap<>();
-				modelSpec.put("class", getAllClassInModule(module, MODEL_FOLDERNAME));
+				modelSpec.put("class", Utils.getAllClassInModule(
+					project, module, MODEL_FOLDERNAME));
 				modelSpec.put("module", module);
 				models.add(modelSpec);
 			}
@@ -163,23 +164,32 @@ public class ProductClassRenderer extends TemplateRenderer {
                 if (isCoreModule(module)) {
                     if (featureTableMapping == null) {
 						String componentClassName = "";
-						List<String> allClassInModelModule = getAllClassInModule(module, MODEL_FOLDERNAME);
+						List<String> components = new ArrayList<>();
+						List<String> allClassInModelModule = Utils.getAllClassInModule(
+							project, module, MODEL_FOLDERNAME);
+						
 						for (int i = 0; i < allClassInModelModule.size(); i++) {
 							String className = allClassInModelModule.get(i);
 							if (className.endsWith("Component")) {
 								componentClassName = className;
+								components.add(String.format("%s.%s", module, className));
 							}
 						}
 						
+						Map<String, Object> featureModels = new HashMap<>();
+						featureModels.put("components", components);
+						featureModels.put("deltas", new ArrayList<>());
+
 						featureTableMapping = new HashMap<>();
                         featureTableMapping.put(
-							"component", module + "." + componentClassName);
-                        featureTableMapping.put("deltas", new ArrayList<String>());
+							"referenceComponent", module + "." + componentClassName);
+                        featureTableMapping.put("featureModels", featureModels);
                         featureTableMappings.add(featureTableMapping);
                     }
                 } else {
                     if (featureTableMapping != null) {
-                        List<String> deltas = (List<String>) featureTableMapping.get("deltas");
+                        Map<String, Object> featureModels = (Map<String, Object>) featureTableMapping.get("featureModels");
+						List<String> deltas = (List<String>) featureModels.get("deltas");
                         String delta = String.format("%s.%s", module, getListModuleImplClass(
                                 module, MODEL_FOLDERNAME).get(0));
                         if (!deltas.contains(delta)) {
@@ -314,24 +324,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 		int count = variableNameCounts.getOrDefault(baseName + componentType, 0) + 1;
 		variableNameCounts.put(baseName + componentType, count); 
 		return count == 1 ? baseName : baseName + count; 
-	}
-
-	private List<String> getAllClassInModule(String module,
-			String... subDirectories) throws CoreException {
-		IFolder moduleFolder = project.getBuildFolder().getFolder(module);
-		for (String modulePath : module.split("\\.")) {
-			moduleFolder = moduleFolder.getFolder(modulePath);
-		}
-		for (String subDir : subDirectories) {
-			moduleFolder = moduleFolder.getFolder(subDir);
-		}
-		List<String> classNames = new ArrayList<>();
-		for (IResource classFile : moduleFolder.members()) {
-			if (classFile.getName().endsWith(".java")) {
-				classNames.add(FilenameUtils.getBaseName(classFile.getName()));
-			}
-		}
-		return classNames;
 	}
 
 	private Set<String> getImports(WinVMJProduct product) throws IOException, CoreException {
@@ -478,7 +470,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		for (Map<String, Object> featureTableMapping: featureTableMappings) {
 			if (
 				getFeatureName(
-					(String) featureTableMapping.get("component")
+					(String) featureTableMapping.get("referenceComponent")
 				).equals(featureName)
 			) {
 				return featureTableMapping;
