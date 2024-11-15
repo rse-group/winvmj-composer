@@ -1,5 +1,6 @@
 package de.ovgu.featureide.core.winvmj.core.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
@@ -55,10 +56,10 @@ public class MultiLevelDeltaComposer {
 			e.printStackTrace();
 		}
     }
-
+	
 	public void compose() {
 		// Compose module-info.java
-		List<String> requiredModules = deltaModules;
+		List<String> requiredModules = new ArrayList<>(deltaModules);
 		requiredModules.add(0, coreModule);
 		MultiLevelDeltaModuleInfoRenderer moduleInfoRenderer = new MultiLevelDeltaModuleInfoRenderer(
 			project, 
@@ -66,6 +67,17 @@ public class MultiLevelDeltaComposer {
 			requiredModules
 		);
 		moduleInfoRenderer.render(product);
+
+		// Compose service file
+		MultiLevelDeltaServiceRenderer serviceRenderer = new MultiLevelDeltaServiceRenderer(
+			project,
+			splName,
+			featureName,
+			getFeatureFullyQualifiedName(),
+			coreModule,
+			deltaModules
+		);
+		serviceRenderer.render(product);
 	}
 
     private String getFeatureName(String featurePackage) {
