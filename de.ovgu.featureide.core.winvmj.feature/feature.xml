@@ -2,7 +2,7 @@
 <feature
       id="de.ovgu.featureide.core.winvmj.feature"
       label="WinVMJ Composer"
-      version="3.2.7.qualifier"
+      version="3.2.8.qualifier"
       provider-name="PRICES">
 
    <description>
