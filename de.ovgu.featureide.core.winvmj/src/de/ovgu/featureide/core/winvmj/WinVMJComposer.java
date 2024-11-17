@@ -134,6 +134,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			if (!destModule.exists()) destModule.create(false, true, null);
 			copy(sourceModule, destModule);
 		}
+		checkMultiLevelDelta(project, product);
 	}
 	
 	private boolean initExtraConfigFiles(IFeatureProject project) {
