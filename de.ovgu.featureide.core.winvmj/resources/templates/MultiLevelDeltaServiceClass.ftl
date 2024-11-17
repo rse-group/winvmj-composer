@@ -33,4 +33,17 @@ public class ${featureName}ServiceImpl extends ${featureName}ServiceDecorator {
 
 		record = (${featureName}ServiceComponent) RESOURCE;
 	}
+
+	<#list methods as method>
+	${method['signature']} {
+		<#if method['returnType'] == 'void'>
+		RESOURCE.${method['methodName']}(${method['parameterNames']});
+		<#else>
+		return RESOURCE.${method['methodName']}(${method['parameterNames']});
+		</#if>
+	}
+	<#if method?index != (methods?size - 1)>
+
+	</#if>
+	</#list>
 }

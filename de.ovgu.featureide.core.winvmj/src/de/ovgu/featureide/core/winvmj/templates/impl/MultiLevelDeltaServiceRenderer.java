@@ -3,6 +3,8 @@ package de.ovgu.featureide.core.winvmj.templates.impl;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.List;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -130,8 +132,9 @@ public class MultiLevelDeltaServiceRenderer extends TemplateRenderer {
 		}
 	}
 
-	private Map<String, Object> getRequiredMethods() {
-		Map<String, Object> methods = new HashMap<>();
+	private List<Map<String, Object>> getRequiredMethods() {
+		List<Map<String, Object>> methods = new ArrayList<>();
+		Map<String, Object> method;
 
 		String abstractComponentClassFqn = "src/" + coreModule + "/";
 		for (String coreModulePath: coreModule.split("\\.")) {
@@ -149,65 +152,41 @@ public class MultiLevelDeltaServiceRenderer extends TemplateRenderer {
 				content.append(buffer, 0, numRead);
 			}
 
-			WinVMJConsole.println("Isi file: " + content.toString());
+			Pattern pattern = Pattern.compile(
+				"(\\b(public|protected|private)?\\b\\s*)?abstract\\s+([\\w<>,\\s]+)\\s+(\\w+)\\((.*?)\\);"
+			);
+			Matcher matcher = pattern.matcher(content.toString());
+
+			while (matcher.find()) {
+				method = new HashMap<>();
+				String methodSignature = "";
+				String visibility = matcher.group(2) != null ? matcher.group(2) : "";
+				String returnType = matcher.group(3).trim();
+				String methodName = matcher.group(4);
+				String parameters = matcher.group(5).trim();
+
+				if (!visibility.equals("")) methodSignature += visibility + " ";
+				methodSignature += String.format(
+					"%s %s(%s)", 
+					returnType,
+					methodName,
+					parameters
+				);
+
+				method.put("signature", methodSignature);
+				method.put("returnType", returnType);
+				method.put("methodName", methodName);
+				method.put("parameterNames", getParameterNames(parameters));
+
+				methods.add(method);
+            }
+			WinVMJConsole.println();
 		} catch (Exception e) {
 			WinVMJConsole.println(e.getMessage());
 			for (StackTraceElement em : e.getStackTrace())
 				WinVMJConsole.println(em.toString());
 			e.printStackTrace();
 		}
-
-		// try {
-		// 	ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-		// 	Class<?> clazz = classLoader.loadClass(abstractComponentClassFqn);
-		// 	WinVMJConsole.println("CLASS LOADER: " + clazz.toString());
-			// Method[] declaredMethods = clazz.getDeclaredMethods();
-			// List<String> abstractMethods = new ArrayList<>();
-
-			// for (Method method : declaredMethods) {
-			// 	if (Modifier.isAbstract(method.getModifiers())) {
-			// 		StringBuilder methodSignature = new StringBuilder();
-					
-			// 		// Define method modified
-			// 		if (Modifier.isPublic(method.getModifiers())) {
-			// 			methodSignature.append("public ");
-			// 		} else if (Modifier.isProtected(method.getModifiers())) {
-			// 			methodSignature.append("protected ");
-			// 		} else if (Modifier.isPrivate(method.getModifiers())) {
-			// 			methodSignature.append("private ");
-			// 		}
-	
-			// 		// Define method return type
-			// 		methodSignature.append(method.getReturnType().getSimpleName()).append(" ");
-	
-			// 		// Define method name
-			// 		methodSignature.append(method.getName()).append("(");
-	
-			// 		// Define method parameters
-			// 		Class<?>[] parameterTypes = method.getParameterTypes();
-			// 		for (int i = 0; i < parameterTypes.length; i++) {
-			// 			methodSignature.append(parameterTypes[i].getSimpleName());
-			// 			if (i < parameterTypes.length - 1) {
-			// 				methodSignature.append(", ");
-			// 			}
-			// 		}
-
-			// 		methodSignature.append(");");
-			// 		abstractMethods.add(methodSignature.toString());
-			// 	}
-			// }
-
-			// WinVMJConsole.println("ABSTRACT METHODS:");
-			// for (String abstractMethod : abstractMethods) {
-			// 	WinVMJConsole.println(abstractMethod);
-			// }
-		// } catch (Exception e) {
-		// 	WinVMJConsole.println(e.getMessage());
-		// 	for (StackTraceElement em : e.getStackTrace())
-		// 		WinVMJConsole.println(em.toString());
-		// 	e.printStackTrace();
-		// }
-
 		return methods;
 	}
 
@@ -218,4 +197,21 @@ public class MultiLevelDeltaServiceRenderer extends TemplateRenderer {
         }
         return deltas;
     }
+
+	private String getParameterNames(String parameters) {
+		String parameterNames = "";
+		String[] splittedParameters = parameters.split(",(?![^<>]*>)");
+
+		for (int i = 0; i < splittedParameters.length; i++) {
+			String param = splittedParameters[i].trim();
+			String[] parts = param.split("\\s+");
+			String paramName = parts[parts.length - 1].replaceAll(
+				".*\\s+([\\w]+)$", "$1");
+			
+			if (i > 0) parameterNames += ", ";
+			parameterNames += paramName;
+		}
+
+		return parameterNames;
+	}
 }
