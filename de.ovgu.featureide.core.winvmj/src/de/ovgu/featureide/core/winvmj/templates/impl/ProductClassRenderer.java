@@ -228,17 +228,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 				}
 
 				if (Utils.isMultiLevelDelta(entry)) {
-					String firstDeltaModule = modules.get(0);
-					String[] splittedFirstDeltaModule = firstDeltaModule.split("\\.");
-					String multiLevelDeltaModule = String.format(
-						"%s.%s.%s", 
-						splittedFirstDeltaModule[0],
-						splittedFirstDeltaModule[1],
-						feature.toLowerCase()
-					);
-					
-					List<Map<String, Object>> bindingSpec = constructBindingSpec(
-						multiLevelDeltaModule, feature);
+					List<Map<String, Object>> bindingSpec = processMultiLevelDelta(feature, modules);
 					if (bindingSpec != null) bindings.add(bindingSpec);
 				}
 	        }
@@ -362,6 +352,26 @@ public class ProductClassRenderer extends TemplateRenderer {
 			modulesToImport.add(coreModule + "." + moduleInterface);
 		}
 		return modulesToImport;
+	}
+
+	private List<Map<String, Object>> processMultiLevelDelta(
+		String feature, List<String> modules) throws IOException, CoreException {
+		String firstDeltaModule = modules.get(0);
+		String[] splittedFirstDeltaModule = firstDeltaModule.split("\\.");
+		String splName = splittedFirstDeltaModule[0];
+		String featureName = splittedFirstDeltaModule[1];
+		String multiLevelDeltaModule = String.format(
+			"%s.%s.%s", 
+			splName,
+			featureName,
+			feature.toLowerCase()
+		);
+		
+		IFolder moduleFolder = project.getBuildFolder()
+			.getFolder(multiLevelDeltaModule + featureName);
+	    if (moduleFolder.exists()) multiLevelDeltaModule += featureName;
+
+		return constructBindingSpec(multiLevelDeltaModule, feature);
 	}
 
 	// returns nama file java tanpa extensi

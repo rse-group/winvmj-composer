@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
@@ -66,16 +67,22 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		
 		List<String> requiredModules = new ArrayList<>();
 		requiredModules.addAll(product.getModuleNames());
-
 		for (Entry<String, List<String>> mapping: multiLevelDeltaMappings.entrySet()) {
 			String firstDeltaModule = mapping.getValue().get(0);
 			String[] splittedFirstDeltaModule = firstDeltaModule.split("\\.");
+			String splName = splittedFirstDeltaModule[0];
+			String featureName = splittedFirstDeltaModule[1];
 			String multiLevelDeltaModule = String.format(
 				"%s.%s.%s", 
-				splittedFirstDeltaModule[0],
-				splittedFirstDeltaModule[1],
+				splName,
+				featureName,
 				mapping.getKey().toLowerCase()
 			);
+
+			IFolder moduleFolder = project.getBuildFolder()
+				.getFolder(multiLevelDeltaModule + featureName);
+			if (moduleFolder.exists()) multiLevelDeltaModule += featureName;
+
 			requiredModules.add(multiLevelDeltaModule);
 		}
 

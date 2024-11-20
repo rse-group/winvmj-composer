@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.resources.IFolder;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.Utils;
@@ -59,12 +60,14 @@ public class MultiLevelDeltaComposer {
     }
 	
 	public void compose() {
+		String featureFullyQualifiedName = getFeatureFullyQualifiedName();
+
 		// Compose module-info.java
 		List<String> requiredModules = new ArrayList<>(deltaModules);
 		requiredModules.add(0, coreModule);
 		MultiLevelDeltaModuleInfoRenderer moduleInfoRenderer = new MultiLevelDeltaModuleInfoRenderer(
 			project, 
-			getFeatureFullyQualifiedName(), 
+			featureFullyQualifiedName, 
 			requiredModules
 		);
 		moduleInfoRenderer.render(product);
@@ -74,7 +77,7 @@ public class MultiLevelDeltaComposer {
 			project,
 			splName,
 			featureName,
-			getFeatureFullyQualifiedName(),
+			featureFullyQualifiedName,
 			coreModule,
 			deltaModules
 		);
@@ -85,7 +88,8 @@ public class MultiLevelDeltaComposer {
 			project,
 			splName,
 			featureName,
-			getFeatureFullyQualifiedName(),
+			featureFullyQualifiedName,
+			featureVariationName,
 			coreModule
 		);
 		resourceRenderer.render(product);
@@ -97,6 +101,11 @@ public class MultiLevelDeltaComposer {
     }
 
 	public String getFeatureFullyQualifiedName() {
-		return splName.toLowerCase() + "." + featureName.toLowerCase() + "." + featureVariationName.toLowerCase();
+		String featureFullyQualifiedName = splName.toLowerCase() + "." + featureName.toLowerCase() + "." + featureVariationName.toLowerCase();
+		IFolder featureModuleFolder = project.getBuildFolder()
+			.getFolder(featureFullyQualifiedName);
+        if (featureModuleFolder.exists()) featureFullyQualifiedName += featureName.toLowerCase();
+
+		return featureFullyQualifiedName;
 	}
 }

@@ -19,6 +19,7 @@ import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.MultiLevelDeltaTemplateRenderer;
 
 public class MultiLevelDeltaResourceRenderer extends MultiLevelDeltaTemplateRenderer {
+    private String featureVariationName;
     private List<String> defaultLibraries = new ArrayList<>(Arrays.asList(
         "import vmj.routing.route.Route;",
         "import vmj.routing.route.VMJExchange;",
@@ -35,6 +36,7 @@ public class MultiLevelDeltaResourceRenderer extends MultiLevelDeltaTemplateRend
         String splName,
         String featureName,
         String featureFullyQualifiedName,
+        String featureVariationName,
         String coreModule
     ) {
         super(
@@ -45,6 +47,7 @@ public class MultiLevelDeltaResourceRenderer extends MultiLevelDeltaTemplateRend
             coreModule,
             "resource"
         );
+        this.featureVariationName = featureVariationName;
     }
 
     @Override
@@ -85,10 +88,7 @@ public class MultiLevelDeltaResourceRenderer extends MultiLevelDeltaTemplateRend
         requiredLibraries.addAll(defaultLibraries);
         dataModel.put("requiredLibraries", requiredLibraries);
 
-        String[] splittedFqn = featureFullyQualifiedName.split("\\.");
-        String featureVariationName = splittedFqn[splittedFqn.length - 1];
         String classContent = extractClassContent(stringifiedContent);
-
         if (!classContent.startsWith("public") && classContent.startsWith(" ")) {
             classContent = "public" + classContent;
         }
@@ -101,7 +101,6 @@ public class MultiLevelDeltaResourceRenderer extends MultiLevelDeltaTemplateRend
             String.format("call/%s", featureName.toLowerCase()),
             String.format("call/%s", featureVariationName.toLowerCase())
         );
-        
 
         String constructor = String.format(
             "    public %sResourceImpl(%sResourceComponent recordController, %sServiceComponent recordService) {\n" +

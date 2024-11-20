@@ -25,13 +25,15 @@ import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 
 public class ComposedProduct extends WinVMJProduct {
+	private IFeatureProject featureProject;
 	
 	public ComposedProduct(IFeatureProject project)
 			throws CoreException {
-		IFolder productModule = getProductModuleFromComposedProduct(project);
+		this.featureProject = project;
+		IFolder productModule = getProductModuleFromComposedProduct();
 		this.splName = productModule.getName().split(".product.")[0];
 		this.productName = getProductClassName(productModule);
-		this.modules = getModulesFromComposedProduct(project);
+		this.modules = getModulesFromComposedProduct();
 		
 	}
 	
@@ -52,25 +54,25 @@ public class ComposedProduct extends WinVMJProduct {
 		return FilenameUtils.getBaseName(productFileName);
 	}
 	
-	private IFolder getProductModuleFromComposedProduct(IFeatureProject project)
+	private IFolder getProductModuleFromComposedProduct()
 			throws CoreException {
 		IResource productModule = Stream
-				.of(project.getBuildFolder().members())
+				.of(featureProject.getBuildFolder().members())
 				.filter(module -> module.getName().contains(".product."))
 				.findFirst().get();
 		
 		return (IFolder) productModule;
 	}
 	
-	private List<IFolder> getModulesFromComposedProduct(IFeatureProject project) throws CoreException {
-		List<String> moduleOrders = getModuleOrdersByMappings(project.getProject());
+	private List<IFolder> getModulesFromComposedProduct() throws CoreException {
+		List<String> moduleOrders = getModuleOrdersByMappings(featureProject.getProject());
 		List<IFolder> orderedSourceModules = new ArrayList<>();
-		List<IFolder> sourceModules = Stream.of(project.getBuildFolder().members())
+		List<IFolder> sourceModules = Stream.of(featureProject.getBuildFolder().members())
 				.filter(m -> m instanceof IFolder)
 				.map(m -> (IFolder) m).collect(Collectors.toList());
 		for (String module: moduleOrders) {
 			if (containsModule(sourceModules, module)) 
-				orderedSourceModules.add(project.getBuildFolder().getFolder(module));
+				orderedSourceModules.add(featureProject.getBuildFolder().getFolder(module));
 		}
 			
 		return orderedSourceModules;
@@ -80,8 +82,7 @@ public class ComposedProduct extends WinVMJProduct {
 		return modules.stream().anyMatch(m -> m.getName().equals(module));
 	}
 	
-	private List<String> getModuleOrdersByMappings(IProject 
-			project) throws CoreException {
+	private List<String> getModuleOrdersByMappings(IProject project) throws CoreException {
 		List<String> moduleOrders = new ArrayList<>();
 		for (IProject externalProject: project.getReferencedProjects()) {
 			moduleOrders.addAll(getModuleOrdersByMappings(externalProject));
@@ -111,11 +112,19 @@ public class ComposedProduct extends WinVMJProduct {
 
 	private String changeDeltaModule(String module, String deltaName) {
 		String[] splittedModule = module.split("\\.");
-		return String.format(
+		String splName = splittedModule[0];
+		String featureName = splittedModule[1];
+		String multiLevelDeltaModule = String.format(
 			"%s.%s.%s", 
-			splittedModule[0],
-			splittedModule[1],
+			splName,
+			featureName,
 			deltaName
 		);
+
+		IFolder moduleFolder = featureProject.getBuildFolder()
+			.getFolder(multiLevelDeltaModule + featureName);
+	    if (moduleFolder.exists()) multiLevelDeltaModule += featureName;
+
+		return multiLevelDeltaModule;
 	}
 }
