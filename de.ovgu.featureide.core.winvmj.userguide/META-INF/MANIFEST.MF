@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Testingui
-Bundle-SymbolicName: de.ovgu.featureide.core.winvmj.testingui;singleton:=true
+Bundle-SymbolicName: de.ovgu.featureide.core.winvmj.userguide;singleton:=true
 Bundle-Version: 1.0.1.qualifier
 Require-Bundle: org.eclipse.jface.text,
  org.eclipse.core.resources,
