@@ -2,6 +2,9 @@ package de.ovgu.featureide.core.winvmj.templates.impl;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.List;
+import java.util.ArrayList;
 
 import org.eclipse.core.resources.IFile;
 
@@ -12,16 +15,29 @@ import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 public class ModuleInfoRenderer extends TemplateRenderer {
 
 	private final static String PREFIX_AUTH_MODEL_PRODUCT = "auth";
+	protected static List<String> exportedModules;
+	protected Map<String, List<String>> multiLevelDeltaMappings;
 	
 	public ModuleInfoRenderer(IFeatureProject project) {
 		super(project);
+		exportedModules = new ArrayList<>();
+	}
+
+	public ModuleInfoRenderer(
+		IFeatureProject project,
+		Map<String, List<String>> multiLevelDeltaMappings
+	) {
+		super(project);
+		exportedModules = new ArrayList<>();
+		this.multiLevelDeltaMappings = multiLevelDeltaMappings;
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
 		
 		dataModel.put("productPackage", product.getProductQualifiedName());
-		dataModel.put("requiredModules", product.getModuleNames());
+		dataModel.put("requiredModules", getRequiredModules(product));
+		dataModel.put("exportedModules", exportedModules);
 		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		
 		return dataModel;
@@ -41,5 +57,28 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 	
 	protected IFile getOutputFile(WinVMJProduct product) {
 		return project.getBuildFolder().getFolder(product.getProductQualifiedName()).getFile("module-info.java");
+	}
+
+	private List<String> getRequiredModules(WinVMJProduct product) {
+		if (multiLevelDeltaMappings == null) {
+			return product.getModuleNames();
+		} 
+		
+		List<String> requiredModules = new ArrayList<>();
+		requiredModules.addAll(product.getModuleNames());
+
+		for (Entry<String, List<String>> mapping: multiLevelDeltaMappings.entrySet()) {
+			String firstDeltaModule = mapping.getValue().get(0);
+			String[] splittedFirstDeltaModule = firstDeltaModule.split("\\.");
+			String multiLevelDeltaModule = String.format(
+				"%s.%s.%s", 
+				splittedFirstDeltaModule[0],
+				splittedFirstDeltaModule[1],
+				mapping.getKey().toLowerCase()
+			);
+			requiredModules.add(multiLevelDeltaModule);
+		}
+
+		return requiredModules;
 	}
 }

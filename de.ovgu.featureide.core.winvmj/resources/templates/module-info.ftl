@@ -11,7 +11,11 @@ module ${productPackage} {
     requires com.fasterxml.classmate;
     requires jdk.unsupported;
 
-    <#list requiredModules as module>
-    requires ${module};
+    <#list requiredModules as requiredModule>
+    requires ${requiredModule};
+    </#list>
+
+    <#list exportedModules as exportedModule>
+    exports ${exportedModule};
     </#list>
 }

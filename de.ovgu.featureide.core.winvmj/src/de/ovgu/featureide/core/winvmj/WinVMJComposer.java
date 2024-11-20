@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,10 @@ import java.util.stream.Collectors;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
+import org.logicng.datastructures.Assignment;
+import org.logicng.formulas.FormulaFactory;
+import org.logicng.io.parsers.ParserException;
+import org.logicng.io.parsers.PropositionalParser;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -33,6 +38,7 @@ import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
+import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.fm.core.io.IFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
 import de.ovgu.featureide.fm.core.job.LongRunningMethod;
@@ -83,24 +89,31 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 			@Override
 			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-				composeProduct(product);
+				composeProduct(product, config);
 				return true;
 			}
 		};
 		LongRunningWrapper.getRunner(job, "Compose Product").schedule();
 	}
 	
-	private void composeProduct(WinVMJProduct product) {
+	private void composeProduct(WinVMJProduct product, Path config) {
+		Map<String, List<String>> multiLevelDeltaMappings = null;
 		try {
 			selectModulesFromProject(featureProject, product);
+			multiLevelDeltaMappings = checkMultiLevelDelta(
+				featureProject,
+				product,
+				featureProject.loadConfiguration(config).getSelectedFeatures()
+			);
 			IFolder productModule = featureProject.getBuildFolder()
 					.getFolder(product.getProductQualifiedName());
 			if (!productModule.exists()) productModule.create(false, true, null);
-		} catch (CoreException e) {
+		} catch (CoreException | ParserException e) {
 			e.printStackTrace();
 		}
 		
-		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(featureProject);
+		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(
+			featureProject, multiLevelDeltaMappings);
 		TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
 		moduleInfoRenderer.render(product);
 		productClassRenderer.render(product);
@@ -128,13 +141,13 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return new UVLFeatureModelFormat();
 	}
 	
-	private void selectModulesFromProject(IFeatureProject project, WinVMJProduct product) throws CoreException {
+	private void selectModulesFromProject(
+		IFeatureProject project, WinVMJProduct product) throws CoreException {
 		for (IFolder sourceModule: product.getModules()) {
 			IFolder destModule = project.getBuildFolder().getFolder(sourceModule.getName());
 			if (!destModule.exists()) destModule.create(false, true, null);
 			copy(sourceModule, destModule);
 		}
-		checkMultiLevelDelta(project, product);
 	}
 	
 	private boolean initExtraConfigFiles(IFeatureProject project) {
@@ -174,10 +187,16 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return true;
 	}
 
-	private void checkMultiLevelDelta(IFeatureProject project,
-			WinVMJProduct product) throws CoreException {
+	private Map<String, List<String>> checkMultiLevelDelta(IFeatureProject project,
+			WinVMJProduct product, List<IFeature> features) throws CoreException, ParserException {
+		Map<String, List<String>> multiLevelDeltaMappings = null;
+		
 		IFile featureToModuleMapper = project.getProject()
 				.getFile(FEATURE_MODULE_MAPPER_FILENAME);
+		final FormulaFactory formulaFactory = new FormulaFactory();
+		final PropositionalParser formulaParser = new PropositionalParser(formulaFactory);
+
+		Assignment assignment = Utils.getFeatureCheckingAssignment(features, formulaFactory);
 		Reader mapReader =  new InputStreamReader(featureToModuleMapper.getContents());
 		Gson gson = new Gson();
 		Map<String, List<String>> mappings;
@@ -189,36 +208,21 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		}
 
 		for (Entry<String, List<String>> mapping: mappings.entrySet()) {
-			if (isMultiLevelDelta(mapping)) {
+			String key = mapping.getKey();
+			List<String> value = mapping.getValue();
+			if (
+				Utils.evaluate(assignment, formulaParser, key) &&
+				Utils.isMultiLevelDelta(mapping)
+			) {
 				MultiLevelDeltaComposer multiLevelDeltaComposer = new MultiLevelDeltaComposer(
-					project, product, mapping.getKey(), mapping.getValue());
+					project, product, key, value);
 				multiLevelDeltaComposer.compose();
-			}
-		}
-	}
 
-	private boolean isMultiLevelDelta(Entry<String, List<String>> featureToModule) {
-		List<String> modules = featureToModule.getValue();
-		List<String> finalizedModules = modules.stream()
-				.filter(module -> !module.contains(".core"))
-				.collect(Collectors.toList());
-		
-		if (finalizedModules.size() <= 1) return false;
-		
-		String featureName = "";
-		for (String module: finalizedModules) {
-			if (featureName.equals("")) {
-				featureName = getFeatureName(module);
-			} else if (!featureName.equals(getFeatureName(module))) {
-				return false;
+				if (multiLevelDeltaMappings == null) multiLevelDeltaMappings = new HashMap<>();
+				multiLevelDeltaMappings.put(key, value);
 			}
 		}
 
-		return true;
-	}
-
-	private String getFeatureName(String module) {
-		String[] moduleParts = module.split("\\.");
-		return moduleParts[1];
+		return multiLevelDeltaMappings;
 	}
 }

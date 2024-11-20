@@ -31,6 +31,7 @@ import com.google.gson.reflect.TypeToken;
 
 import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
@@ -100,7 +101,7 @@ public class ProductToCompose extends WinVMJProduct {
 		final FormulaFactory formulaFactory = new FormulaFactory();
 		final PropositionalParser formulaParser = new PropositionalParser(formulaFactory);
 		
-		Assignment assignment = getFeatureCheckingAssignment(features, formulaFactory);
+		Assignment assignment = Utils.getFeatureCheckingAssignment(features, formulaFactory);
 		Reader mapReader =  new InputStreamReader(featureToModuleMapper.getContents());
 		Gson gson = new Gson();
 		Map<String, List<String>> mappings;
@@ -111,7 +112,7 @@ public class ProductToCompose extends WinVMJProduct {
 			mappings = new LinkedHashMap<String, List<String>>();
 		}
 		for (Entry<String, List<String>> mapping: mappings.entrySet()) {
-			if (this.evaluate(assignment, formulaParser, mapping.getKey())) 
+			if (Utils.evaluate(assignment, formulaParser, mapping.getKey())) 
 				selectedModules.addAll(mapping.getValue().stream().map(mdl -> 
 				project.getProject().getFolder(WinVMJComposer.MODULE_FOLDERNAME)
 				.getFolder(mdl)).collect(Collectors.toList()));
@@ -156,19 +157,6 @@ public class ProductToCompose extends WinVMJProduct {
 		}
 		
 		return features.stream().distinct().collect(Collectors.toList());
-	}
-	
-	private Assignment getFeatureCheckingAssignment(List<IFeature> features, 
-			FormulaFactory formulaFactory) {
-		List<Variable> featureVariables = features.stream().map(feature -> 
-		formulaFactory.variable(feature.getName())).collect(Collectors.toList());
-		return new Assignment(featureVariables);
-	}
-	
-	private boolean evaluate(Assignment assignment, PropositionalParser formulaParser, 
-			String formulaString) throws ParserException {
-		Formula formula = formulaParser.parse(formulaString);
-		return formula.evaluate(assignment);
 	}
 	
 	private String getSplName(IFeatureProject project) {

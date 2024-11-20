@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,6 +20,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 
@@ -66,9 +68,10 @@ public class ComposedProduct extends WinVMJProduct {
 		List<IFolder> sourceModules = Stream.of(project.getBuildFolder().members())
 				.filter(m -> m instanceof IFolder)
 				.map(m -> (IFolder) m).collect(Collectors.toList());
-		for (String module: moduleOrders)
+		for (String module: moduleOrders) {
 			if (containsModule(sourceModules, module)) 
 				orderedSourceModules.add(project.getBuildFolder().getFolder(module));
+		}
 			
 		return orderedSourceModules;
 	}
@@ -89,7 +92,30 @@ public class ComposedProduct extends WinVMJProduct {
 		Gson gson = new Gson();
 		Map<String, List<String>> splMappings = gson.fromJson(mapReader,
 				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
-		splMappings.values().forEach(v -> moduleOrders.addAll(v));
+
+		for (Entry<String, List<String>> mapping: splMappings.entrySet()) {
+			String key = mapping.getKey();
+			List<String> value = mapping.getValue();
+
+			if (Utils.isMultiLevelDelta(mapping)) {
+				String multiLevelDeltaModule = changeDeltaModule(
+					value.get(0), key.toLowerCase());
+				value.add(multiLevelDeltaModule);
+			}
+
+			moduleOrders.addAll(value);
+		}
+
 		return moduleOrders.stream().distinct().collect(Collectors.toList());
+	}
+
+	private String changeDeltaModule(String module, String deltaName) {
+		String[] splittedModule = module.split("\\.");
+		return String.format(
+			"%s.%s.%s", 
+			splittedModule[0],
+			splittedModule[1],
+			deltaName
+		);
 	}
 }

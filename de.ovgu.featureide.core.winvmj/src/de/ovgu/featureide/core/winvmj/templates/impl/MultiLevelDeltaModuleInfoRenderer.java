@@ -28,9 +28,12 @@ public class MultiLevelDeltaModuleInfoRenderer extends ModuleInfoRenderer {
     @Override
     protected Map<String, Object> extractDataModel(WinVMJProduct product) {
         Map<String, Object> dataModel = new HashMap<>();
-		
+		requiredModules.add("java.logging");
+        exportedModules.add(featureFullyQualifiedName);
+        
 		dataModel.put("productPackage", featureFullyQualifiedName);
 		dataModel.put("requiredModules", requiredModules);
+        dataModel.put("exportedModules", exportedModules);
 		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		
 		return dataModel;

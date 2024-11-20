@@ -9,11 +9,7 @@ import java.util.List;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.lang.ClassLoader;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
-import org.checkerframework.checker.units.qual.cd;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
@@ -22,12 +18,9 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
-import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+import de.ovgu.featureide.core.winvmj.templates.MultiLevelDeltaTemplateRenderer;
 
-public class MultiLevelDeltaServiceRenderer extends TemplateRenderer {
-	private String splName;
-	private String featureName;
-    private String featureFullyQualifiedName;
+public class MultiLevelDeltaServiceRenderer extends MultiLevelDeltaTemplateRenderer {
 	private String coreModule;
 	private List<String> deltaModules;
 	private String baseComponent;
@@ -41,10 +34,14 @@ public class MultiLevelDeltaServiceRenderer extends TemplateRenderer {
 		String coreModule,
 		List<String> deltaModules
 	) {
-		super(project);
-		this.splName = splName;
-		this.featureName = featureName;
-		this.featureFullyQualifiedName = featureFullyQualifiedName;
+		super(
+			project,
+			splName,
+			featureName,
+			featureFullyQualifiedName,
+			coreModule,
+			"service"
+		);
 		this.coreModule = coreModule;
 		this.deltaModules = deltaModules;
 	}
@@ -53,58 +50,22 @@ public class MultiLevelDeltaServiceRenderer extends TemplateRenderer {
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
 		
-		dataModel.put("splName", splName);
-		dataModel.put("featureName", featureName);
 		dataModel.put("package", featureFullyQualifiedName);
+		dataModel.put("splName", splName);
+		dataModel.put("loweredFeatureName", featureName.toLowerCase());
+		dataModel.put("featureName", featureName);
+		dataModel.put("coreModule", coreModule);
 		dataModel.put("deltas", getRequiredDeltas());
 		dataModel.put("methods", getRequiredMethods());
 
-		getRequiredBindings();
+		getBaseComponentAndInitialDeltaIndex();
 		dataModel.put("baseComponent", baseComponent);
 		dataModel.put("initialDeltaIndex", initialDeltaIndex);
 
 		return dataModel;
 	}
 
-    @Override
-	protected String loadTemplateFilename() {
-		return "MultiLevelDeltaServiceClass";
-	}
-
-	@Override
-	protected IFile getOutputFile(WinVMJProduct product) {
-		IFolder featureModuleFolder = project.getBuildFolder()
-				.getFolder(featureFullyQualifiedName);
-		
-		if (!featureModuleFolder.exists())
-			try {
-				featureModuleFolder.create(false, true, null);
-			} catch (CoreException e) {
-				e.printStackTrace();
-			}
-		
-		for (String modulePath: featureFullyQualifiedName.split("\\.")) {
-			featureModuleFolder = featureModuleFolder.getFolder(modulePath);
-			if (!featureModuleFolder.exists())
-				try {
-					featureModuleFolder.create(false, true, null);
-				} catch (CoreException e) {
-					e.printStackTrace();
-				}
-		}
-		
-		featureModuleFolder = featureModuleFolder.getFolder("service");
-		if (!featureModuleFolder.exists())
-			try {
-				featureModuleFolder.create(false, true, null);
-			} catch (CoreException e) {
-				e.printStackTrace();
-			}
-		
-		return featureModuleFolder.getFile(featureName + "ServiceImpl.java");
-	}
-
-	private void getRequiredBindings() {
+	private void getBaseComponentAndInitialDeltaIndex() {
 		try {
 			String corePackage = splName + "." + featureName.toLowerCase() + ".core";
 			List<String> coreClasses = Utils.getAllClassInModule(
@@ -187,6 +148,7 @@ public class MultiLevelDeltaServiceRenderer extends TemplateRenderer {
 				WinVMJConsole.println(em.toString());
 			e.printStackTrace();
 		}
+		
 		return methods;
 	}
 

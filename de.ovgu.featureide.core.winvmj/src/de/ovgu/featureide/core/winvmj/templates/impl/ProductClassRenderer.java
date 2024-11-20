@@ -226,6 +226,21 @@ public class ProductClassRenderer extends TemplateRenderer {
 						}
 					}
 				}
+
+				if (Utils.isMultiLevelDelta(entry)) {
+					String firstDeltaModule = modules.get(0);
+					String[] splittedFirstDeltaModule = firstDeltaModule.split("\\.");
+					String multiLevelDeltaModule = String.format(
+						"%s.%s.%s", 
+						splittedFirstDeltaModule[0],
+						splittedFirstDeltaModule[1],
+						feature.toLowerCase()
+					);
+					
+					List<Map<String, Object>> bindingSpec = constructBindingSpec(
+						multiLevelDeltaModule, feature);
+					if (bindingSpec != null) bindings.add(bindingSpec);
+				}
 	        }
 		}
 		return bindings;

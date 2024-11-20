@@ -10,6 +10,7 @@ import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelDeltaModuleInfoRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelDeltaResourceRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelDeltaServiceRenderer;
 
 public class MultiLevelDeltaComposer {
@@ -68,7 +69,7 @@ public class MultiLevelDeltaComposer {
 		);
 		moduleInfoRenderer.render(product);
 
-		// Compose service file
+		// Compose service layer
 		MultiLevelDeltaServiceRenderer serviceRenderer = new MultiLevelDeltaServiceRenderer(
 			project,
 			splName,
@@ -78,6 +79,16 @@ public class MultiLevelDeltaComposer {
 			deltaModules
 		);
 		serviceRenderer.render(product);
+
+		// Compose resource layer
+		MultiLevelDeltaResourceRenderer resourceRenderer = new MultiLevelDeltaResourceRenderer(
+			project,
+			splName,
+			featureName,
+			getFeatureFullyQualifiedName(),
+			coreModule
+		);
+		resourceRenderer.render(product);
 	}
 
     private String getFeatureName(String featurePackage) {
