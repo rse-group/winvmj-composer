@@ -126,18 +126,16 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		moduleInfoRenderer.render(product);
 		productClassRenderer.render(product);
 	}
-
-	@Override
-	public void buildPartialFeatureProjectAssets(IFolder sourceFolder, ArrayList<String> removedFeatures,
-			ArrayList<String> mandatoryFeatures) throws IOException, CoreException {
-		// TODO Auto-generated method stub
-
-	}
-
+	
 	@Override
 	public boolean supportsPartialFeatureProject() {
-		return false;
+		return true;
 	}
+	
+	@Override
+	public void buildPartialFeatureProjectAssets(IFolder sourceFolder, ArrayList<String> removedFeatures, ArrayList<String> mandatoryFeatures)
+			throws IOException, CoreException {}
+
 	
 	@Override
 	public boolean hasFeatureFolder() {
