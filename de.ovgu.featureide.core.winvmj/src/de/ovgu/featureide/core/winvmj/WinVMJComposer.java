@@ -15,8 +15,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.checkerframework.checker.units.qual.kmPERh;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
@@ -29,6 +32,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
+import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
@@ -39,6 +43,9 @@ import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.base.IFeature;
+import de.ovgu.featureide.fm.core.base.impl.Feature;
+import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel;
+import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel.UsedModel;
 import de.ovgu.featureide.fm.core.io.IFeatureModelFormat;
 import de.ovgu.featureide.fm.core.io.uvl.UVLFeatureModelFormat;
 import de.ovgu.featureide.fm.core.job.LongRunningMethod;
@@ -55,6 +62,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	public static String INTERFACES_FOLDERNAME = "interfaces";
 	private Path previousConfig = null;
 	private Set<String> previousFeatures = null;
+	private Map<String, List<String>> multiLevelDeltaMappings;
 
 	@Override
 	public boolean initialize(IFeatureProject project) {
@@ -85,6 +93,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		if (isSameConfig()) return;
 		updatePreviousConfig();
 		
+		multiLevelDeltaMappings = null;
 		WinVMJProduct product = new ProductToCompose(featureProject, config);
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 			@Override
@@ -97,10 +106,9 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	}
 	
 	private void composeProduct(WinVMJProduct product, Path config) {
-		Map<String, List<String>> multiLevelDeltaMappings = null;
 		try {
 			selectModulesFromProject(featureProject, product);
-			multiLevelDeltaMappings = checkMultiLevelDelta(
+			checkMultiLevelDelta(
 				featureProject,
 				product,
 				featureProject.loadConfiguration(config).getSelectedFeatures()
@@ -187,10 +195,52 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return true;
 	}
 
-	private Map<String, List<String>> checkMultiLevelDelta(IFeatureProject project,
-			WinVMJProduct product, List<IFeature> features) throws CoreException, ParserException {
-		Map<String, List<String>> multiLevelDeltaMappings = null;
+	private void checkMultiLevelDelta(
+		IFeatureProject project,
+		WinVMJProduct product,
+		List<IFeature> features
+	) throws CoreException, ParserException {
+		checkExternalMultiLevelDelta(project, product, features);
+		processMultiLevelDelta(project, product, features);
+	}
+
+	private void checkExternalMultiLevelDelta(
+		IFeatureProject project,
+		WinVMJProduct product,
+		List<IFeature> features
+	) throws CoreException, ParserException {
+		CorePlugin.getDefault();
+		Map<String, IFeatureProject> refProjectMap =
+				Stream.of(project.getProject().getReferencedProjects())
+				.map(pr -> CorePlugin.getFeatureProject(pr))
+				.collect(Collectors.toMap(pr -> Utils.getSplName(pr), Function.identity()));
 		
+		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
+		if (multiFetureModel.isMultiProductLineModel()) {
+			for (Entry<String, UsedModel> interfaceModel: multiFetureModel
+					.getExternalModels().entrySet()) {
+				String externalSplName = interfaceModel.getValue()
+						 .getModelName().replace("interfaces.", "");
+				IFeatureProject refProject = refProjectMap.get(externalSplName);
+				List<IFeature> externalFeatures = features.stream()
+					    .filter(f -> f.getName().startsWith(interfaceModel.getKey() + "."))
+					    .<IFeature>map(f -> new Feature(refProject.getFeatureModel(), 
+					        f.getName().replace(interfaceModel.getKey() + ".", "")))
+					    .collect(Collectors.toList());
+				List<String> relatedProducts = Utils.getRelatedProducts(
+					project, externalSplName, product.getProductName());
+				externalFeatures.addAll(Utils.selectFeaturesFromRelatedProducts(externalSplName, 
+						refProject, relatedProducts));
+				checkMultiLevelDelta(refProject, product, externalFeatures);
+			}
+		}
+	}
+
+	private void processMultiLevelDelta(
+		IFeatureProject project,
+		WinVMJProduct product,
+		List<IFeature> features
+	) throws CoreException, ParserException {
 		IFile featureToModuleMapper = project.getProject()
 				.getFile(FEATURE_MODULE_MAPPER_FILENAME);
 		final FormulaFactory formulaFactory = new FormulaFactory();
@@ -215,14 +265,12 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				Utils.isMultiLevelDelta(mapping)
 			) {
 				MultiLevelDeltaComposer multiLevelDeltaComposer = new MultiLevelDeltaComposer(
-					project, product, key, value);
+					featureProject, product, key, value);
 				multiLevelDeltaComposer.compose();
 
 				if (multiLevelDeltaMappings == null) multiLevelDeltaMappings = new HashMap<>();
 				multiLevelDeltaMappings.put(key, value);
 			}
 		}
-
-		return multiLevelDeltaMappings;
 	}
 }

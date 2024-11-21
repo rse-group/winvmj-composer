@@ -45,7 +45,7 @@ public class ProductToCompose extends WinVMJProduct {
 	
 	public ProductToCompose(IFeatureProject featureProject, Path config) {
 		this.productName = getProductName(config);
-		this.splName = getSplName(featureProject);
+		this.splName = Utils.getSplName(featureProject);
 		try {
 			this.modules = selectModules(featureProject, featureProject
 					.loadConfiguration(config).getSelectedFeatures());
@@ -68,7 +68,7 @@ public class ProductToCompose extends WinVMJProduct {
 		Map<String, IFeatureProject> refProjectMap = 
 				Stream.of(project.getProject().getReferencedProjects())
 				.map(pr -> CorePlugin.getFeatureProject(pr))
-				.collect(Collectors.toMap(pr -> getSplName(pr), Function.identity()));
+				.collect(Collectors.toMap(pr -> Utils.getSplName(pr), Function.identity()));
 		
 		List<IFolder> selectedModules = new ArrayList<>();
 		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
@@ -84,8 +84,9 @@ public class ProductToCompose extends WinVMJProduct {
 						 .map(f -> new Feature(refProject.getFeatureModel(), 
 								 f.getName().replace(interfaceModel.getKey() + ".", "")))
 						 .collect(Collectors.toList());
-				List<String> relatedProducts = getRelatedProducts(project, externalSplName);
-				externalFeatures.addAll(selectFeaturesFromRelatedProducts(externalSplName, 
+				List<String> relatedProducts = Utils.getRelatedProducts(
+					project, externalSplName, productName);
+				externalFeatures.addAll(Utils.selectFeaturesFromRelatedProducts(externalSplName, 
 						refProject, relatedProducts));
 				selectedModules.addAll(selectModules(refProject, externalFeatures));
 			}
@@ -118,49 +119,6 @@ public class ProductToCompose extends WinVMJProduct {
 				.getFolder(mdl)).collect(Collectors.toList()));
 		}
 		return selectedModules;
-	}
-	
-	private List<String> getRelatedProducts(IFeatureProject project, 
-			String externalSplName) throws CoreException {
-		IFile interSplProductMapper = project.getProject()
-				.getFile(WinVMJComposer.INTER_SPL_PRODUCT_MAPPER_FILENAME);
-		Reader mapReader =  new InputStreamReader(interSplProductMapper.getContents());
-		Gson gson = new Gson();
-		Map<String, List<String>> mappings;
-		try {
-			mappings = gson.fromJson(mapReader, 
-					new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
-		} catch (NullPointerException e) {
-			mappings = new LinkedHashMap<String, List<String>>();
-		}
-		if (mappings.containsKey(productName))
-			return mappings.get(productName).stream()
-				.filter(p -> p.startsWith(externalSplName)).map(p -> 
-				p.replace(externalSplName + ":", ""))
-				.collect(Collectors.toList());
-		return new ArrayList<>();
-	}
-	
-	private List<IFeature> selectFeaturesFromRelatedProducts(String externalSplName, 
-			IFeatureProject refProject, List<String> relatedProducts) 
-					throws CoreException {
-		List<IFeature> features = new ArrayList<>();
-		for (String relatedProduct: relatedProducts) {
-			Optional<IResource> configFile = Stream.of(refProject.getConfigFolder()
-					.members()).filter(c -> c.getName().startsWith(relatedProduct))
-					.findFirst();
-			if (configFile.isPresent())
-				features.addAll(refProject.loadConfiguration(EclipseFileSystem
-						.getPath(configFile.get())).getSelectedFeatures());
-			else WinVMJConsole.println("[WARNING] Product `" + relatedProduct + 
-					"` does not exist in `" + externalSplName + "` SPL and will be ignored");
-		}
-		
-		return features.stream().distinct().collect(Collectors.toList());
-	}
-	
-	private String getSplName(IFeatureProject project) {
-		return project.getFeatureModel().getStructure().getRoot().getFeature().getName();
 	}
 	
 	private String getProductName(Path config) {
