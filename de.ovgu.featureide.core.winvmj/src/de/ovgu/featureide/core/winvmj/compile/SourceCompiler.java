@@ -3,11 +3,18 @@ package de.ovgu.featureide.core.winvmj.compile;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IFile;
@@ -16,8 +23,12 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
@@ -35,7 +46,10 @@ import de.ovgu.featureide.core.winvmj.templates.impl.WindowsRunScriptRenderer;
 public class SourceCompiler {
 
 	private static String OUTPUT_FOLDER = "src-gen";
-
+	private static String OUTPUT_MODULES_FOLDER = "internal-modules";
+	private static String MODULES_FOLDER = "modules";
+	
+	
 	private SourceCompiler() {
 	};
 
@@ -57,7 +71,28 @@ public class SourceCompiler {
 			e.printStackTrace();
 		}
 	}
-
+	
+	public static void compileModuleSource(IFeatureProject project) throws URISyntaxException {
+		try {
+			IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
+			if (!compiledModulesDir.exists())
+				compiledModulesDir.create(false, true, null);
+			IFolder modulesDir = project.getProject().getFolder(MODULES_FOLDER);
+			importWinVMJLibrariesForModules(compiledModulesDir);
+			compileInternalModules(project, compiledModulesDir, modulesDir);
+		} catch (CoreException | IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private static void importWinVMJLibrariesForModules(IFolder compiledModulesDir)
+			throws IOException, URISyntaxException, CoreException {
+		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("winvmj-libraries",
+				compiledModulesDir.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+	
 	private static List<String> parseModuleInfo(IFeatureProject project, IFolder module)
 			throws IOException, CoreException {
 		IFile moduleInfo = module.getFile("module-info.java");
@@ -132,6 +167,137 @@ public class SourceCompiler {
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
 		cleanBinaries(project);
 	}
+	
+	//Diambil dr file Coomposed Product.java
+	private static List<IFolder> getModulesFromComposedProduct(IFeatureProject featureProject) throws CoreException {
+        List<String> moduleOrders = getModuleOrdersByMappings(featureProject, featureProject.getProject());
+        List<IFolder> orderedSourceModules = new ArrayList<>();
+        for (String module: moduleOrders) {        
+        	orderedSourceModules.add(featureProject.getProject().getFolder("modules").getFolder(module));
+        }
+            
+        return orderedSourceModules;
+    }
+	
+	//Diambil dr file Coomposed Product.java
+	private static List<String> getModuleOrdersByMappings(IFeatureProject featureProject, IProject project) throws CoreException {
+		List<String> moduleOrders = new ArrayList<>();
+		
+		Reader mapReader = new InputStreamReader(project
+				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents());
+		Gson gson = new Gson();
+		Map<String, List<String>> splMappings = gson.fromJson(mapReader,
+				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+
+		for (Entry<String, List<String>> mapping: splMappings.entrySet()) {
+			String key = mapping.getKey();
+			List<String> value = mapping.getValue();
+
+			if (Utils.isMultiLevelDelta(mapping)) {
+				String multiLevelDeltaModule = changeDeltaModule(
+					value.get(0), key.toLowerCase(), featureProject);
+				value.add(multiLevelDeltaModule);
+			}
+
+			moduleOrders.addAll(value);
+		}
+
+		return moduleOrders.stream().distinct().collect(Collectors.toList());
+	}
+	
+	//Diambil dr file Coomposed Product.java
+	private static String changeDeltaModule(String module, String deltaName, IFeatureProject featureProject) {
+		String[] splittedModule = module.split("\\.");
+		String splName = splittedModule[0];
+		String featureName = splittedModule[1];
+		String multiLevelDeltaModule = String.format(
+			"%s.%s.%s", 
+			splName,
+			featureName,
+			deltaName
+		);
+
+		IFolder moduleFolder = featureProject.getBuildFolder()
+			.getFolder(multiLevelDeltaModule + featureName);
+	    if (moduleFolder.exists()) multiLevelDeltaModule += featureName;
+
+		return multiLevelDeltaModule;
+	}
+	
+	// urusin yang hanya di modules jadi kalau g ad di skip aja
+	private static void compileInternalModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir) throws CoreException, IOException {
+		IResource[] moduleResources = modulesDir.members();
+		List<IResource> externalLibraries = listAllExternalLibraries(project);
+		
+		List<IFolder> modulesFromFeatureJSON = getModulesFromComposedProduct(project);
+	
+		Set<IResource> filteredModule = new LinkedHashSet<>();
+		filteredModule.addAll(
+				modulesFromFeatureJSON.stream()
+			        .filter(folder -> Arrays.stream(moduleResources)
+			            .anyMatch(resource -> resource.getName().equals(folder.getName())))
+			        .collect(Collectors.toList())
+			);
+
+
+		filteredModule.addAll(Arrays.asList(moduleResources)); // Add all moduleResources to the list
+			
+	    for (IResource resource : filteredModule) {
+	        if (resource instanceof IFolder) { 
+	        	IFolder moduleFolder = (IFolder) resource;
+	        	
+	            
+	        	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
+						compiledModulesDir, moduleFolder);
+//	        	
+	        	// compiledModulesDir === internal-modules
+	            compileModuleForProduct(project, compiledModulesDir, moduleFolder, "");
+	            
+	        }
+	    }
+	    deleteFilesItemsFromInternalModules(project, project.getProject().getFolder("winvmj-libraries"), compiledModulesDir);
+	    deleteFilesItemsFromInternalModules(project, project.getProject().getFolder("external"), compiledModulesDir);
+		cleanBinaries(project);
+	}
+	
+	private static void deleteFilesItemsFromInternalModules(IFeatureProject project, IFolder otherDir, IFolder internalModulesDir) throws CoreException, IOException {
+	    IResource[] otherResources = otherDir.members();
+	    IResource[] internalResources = internalModulesDir.members();
+	    
+	    // Convert the external resources into a set for easier comparison
+	    Set<String> externalResourceNames = Arrays.stream(otherResources)
+	                                              .map(IResource::getName)
+	                                              .collect(Collectors.toSet());
+	    
+	    // Iterate over internal resources and delete the ones present in external resources
+	    for (IResource internalResource : internalResources) {
+	        if (externalResourceNames.contains(internalResource.getName())) {
+	            // If the internal resource is in the external folder, delete it
+	            if (internalResource.exists()) {
+	                internalResource.delete(true, null); // Delete the resource (true means recursive)
+	            }
+	        }
+	    }
+	}
+	
+	private static void importExternalLibrariesByModuleInfoForModules(IFeatureProject project,
+			List<IResource> externalLibs, IFolder compiledModulesDir,
+			IFolder module) throws IOException, CoreException {
+		List<String> requiredModules = parseModuleInfo(project, module);
+		for (String requiredModule : requiredModules) {
+			Stream.of(externalLibs).forEach(els -> {
+				els.forEach(el -> {
+					try {
+						copyFile((IFile) el, compiledModulesDir);
+					} catch (CoreException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				});
+			});
+		}
+	}
+
 
 	private static List<IResource> listAllExternalLibraries(IFeatureProject project) throws CoreException {
 		List<IResource> externalLibraries = new ArrayList<>();
@@ -167,18 +333,28 @@ public class SourceCompiler {
 
 	private static void compileModuleForProduct(IFeatureProject project, IFolder productDir,
 			IFolder module, String productModule) throws CoreException, IOException {
-		IFolder compiledProductFolder = productDir.getFolder(productModule);
+		IFolder compiledFolder;
+		
+		// productDir === internal-modules
+		// module == isi dari modules
+		if (productModule != "") {
+			compiledFolder = productDir.getFolder(productModule);
+		}
+		else {
+			compiledFolder = productDir;
+		}
+		
 		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(module.getName());
 
 		List<String> compileCommand = constructCompileCommand(
-				module, binFolder, compiledProductFolder);
+				module, binFolder, compiledFolder);
 
 		System.out.println(String.join(" ", compileCommand));
 
 		JavaCLI.execute("Compiling " + module + " module...",
 				module + " module compiled", compileCommand);
 
-		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, module.getName());
+		List<String> jarCommand = constructJARCommand(binFolder, compiledFolder, module.getName());
 
 		System.out.println(String.join(" ", jarCommand));
 
@@ -212,6 +388,9 @@ public class SourceCompiler {
 
 	private static List<String> constructCompileCommand(IFolder sourceFolder, IFolder binFolder,
 			IFolder modulePath) throws CoreException {
+		
+		// modulePath === internal-modules
+		// sourceFolder == isi dari modules
 		List<String> modulePaths = transverseModuleFilePaths(sourceFolder);
 
 		List<String> compileCommand = new ArrayList<>();
