@@ -105,7 +105,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		LongRunningWrapper.getRunner(job, "Compose Product").schedule();
 	}
 	
-	private void composeProduct(WinVMJProduct product, Path config) {
+	public void composeProduct(WinVMJProduct product, Path config) {
 		try {
 			selectModulesFromProject(featureProject, product);
 			checkMultiLevelDelta(

@@ -5,7 +5,10 @@ Bundle-SymbolicName: de.ovgu.featureide.core.winvmj;singleton:=true
 Bundle-Version: 3.2.6.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Automatic-Module-Name: de.ovgu.featureide.core.winvmj
-Export-Package: de.ovgu.featureide.core.winvmj
+Export-Package: de.ovgu.featureide.core.winvmj,
+ de.ovgu.featureide.core.winvmj.compile,
+ de.ovgu.featureide.core.winvmj.core,
+ de.ovgu.featureide.core.winvmj.core.impl
 Require-Bundle: org.eclipse.ui;bundle-version="3.118.100",
  org.eclipse.core.runtime;bundle-version="3.20.0",
  org.eclipse.core.resources;bundle-version="3.13.900",
