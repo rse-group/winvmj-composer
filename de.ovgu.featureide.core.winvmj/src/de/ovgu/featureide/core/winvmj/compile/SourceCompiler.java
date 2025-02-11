@@ -54,7 +54,7 @@ public class SourceCompiler {
 	};
 
 	public static void compileSource(IFeatureProject project) {
-		try {
+		try {	
 			WinVMJProduct sourceProduct = new ComposedProduct(project);
 			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists())
@@ -158,11 +158,19 @@ public class SourceCompiler {
 	private static void compileModules(IFeatureProject project, IFolder compiledProductDir,
 			WinVMJProduct product) throws CoreException, IOException {
 		String productModule = product.getProductQualifiedName();
+		
+		System.out.println(product.getModules());
+		
+//		IFolder internalModulesDir = new IFolder(project.getProject().getFolder("internal-modules"));
+//		Set<String> internalModules = new HashSet<>(Arrays.asList(internalModulesDir.list()));
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
 		for (IFolder module : product.getModules()) {
 			importExternalLibrariesByModuleInfo(project, externalLibraries,
 					compiledProductDir, product, module);
 			compileModuleForProduct(project, compiledProductDir, module, productModule);
+//			else {
+//
+//			}
 		}
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
 		cleanBinaries(project);
@@ -240,44 +248,47 @@ public class SourceCompiler {
 			);
 
 
-		filteredModule.addAll(Arrays.asList(moduleResources)); // Add all moduleResources to the list
+		filteredModule.addAll(Arrays.asList(moduleResources));
 			
 	    for (IResource resource : filteredModule) {
 	        if (resource instanceof IFolder) { 
 	        	IFolder moduleFolder = (IFolder) resource;
 	        	
-	            
-	        	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
-						compiledModulesDir, moduleFolder);
-//	        	
-	        	// compiledModulesDir === internal-modules
-	            compileModuleForProduct(project, compiledModulesDir, moduleFolder, "");
-	            
+	            if (!(moduleFolder.getName().contains("product.template"))) {
+		        	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
+							compiledModulesDir, moduleFolder);		        	
+		        	// compiledModulesDir === internal-modules
+		            compileModuleForProduct(project, compiledModulesDir, moduleFolder, "");
+	            }
+
 	        }
-	    }
-	    deleteFilesItemsFromInternalModules(project, project.getProject().getFolder("winvmj-libraries"), compiledModulesDir);
-	    deleteFilesItemsFromInternalModules(project, project.getProject().getFolder("external"), compiledModulesDir);
+	    }	    
+	    deleteFilesItemsFromInternalModules(project, modulesDir, project.getProject().getFolder(OUTPUT_MODULES_FOLDER));
 		cleanBinaries(project);
 	}
 	
 	private static void deleteFilesItemsFromInternalModules(IFeatureProject project, IFolder otherDir, IFolder internalModulesDir) throws CoreException, IOException {
-	    IResource[] otherResources = otherDir.members();
+	    internalModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
+		
+		IResource[] otherResources = otherDir.members();
 	    IResource[] internalResources = internalModulesDir.members();
 	    
-	    // Convert the external resources into a set for easier comparison
-	    Set<String> externalResourceNames = Arrays.stream(otherResources)
+
+	    Set<String> otherResourceNames = Arrays.stream(otherResources)
 	                                              .map(IResource::getName)
 	                                              .collect(Collectors.toSet());
-	    
-	    // Iterate over internal resources and delete the ones present in external resources
+
 	    for (IResource internalResource : internalResources) {
-	        if (externalResourceNames.contains(internalResource.getName())) {
-	            // If the internal resource is in the external folder, delete it
-	            if (internalResource.exists()) {
-	                internalResource.delete(true, null); // Delete the resource (true means recursive)
-	            }
+	    	String internalBaseName = getFileNameWithoutExtension(internalResource.getName());
+	        if (!otherResourceNames.contains(internalBaseName)) {
+	            internalResource.delete(true, null);
 	        }
 	    }
+	}
+	
+	private static String getFileNameWithoutExtension(String fileName) {
+	    int lastDotIndex = fileName.lastIndexOf(".");
+	    return (lastDotIndex == -1) ? fileName : fileName.substring(0, lastDotIndex);
 	}
 	
 	private static void importExternalLibrariesByModuleInfoForModules(IFeatureProject project,
