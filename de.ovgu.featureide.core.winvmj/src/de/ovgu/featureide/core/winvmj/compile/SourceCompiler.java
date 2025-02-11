@@ -159,22 +159,51 @@ public class SourceCompiler {
 			WinVMJProduct product) throws CoreException, IOException {
 		String productModule = product.getProductQualifiedName();
 		
-		System.out.println(product.getModules());
-		
-//		IFolder internalModulesDir = new IFolder(project.getProject().getFolder("internal-modules"));
-//		Set<String> internalModules = new HashSet<>(Arrays.asList(internalModulesDir.list()));
+		IFolder internalModulesDir = project.getProject().getFolder("internal-modules");
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
 		for (IFolder module : product.getModules()) {
-			importExternalLibrariesByModuleInfo(project, externalLibraries,
-					compiledProductDir, product, module);
-			compileModuleForProduct(project, compiledProductDir, module, productModule);
-//			else {
-//
-//			}
+			
+			boolean isJarCopied = false;
+			
+			isJarCopied = copyInternalJarsByModuleName(project, internalModulesDir, compiledProductDir, product, module);
+			
+			if (!isJarCopied) {
+				importExternalLibrariesByModuleInfo(project, externalLibraries,
+						compiledProductDir, product, module);
+				compileModuleForProduct(project, compiledProductDir, module, productModule);
+			}
+
 		}
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
 		cleanBinaries(project);
 	}
+	
+	private static boolean copyInternalJarsByModuleName(IFeatureProject project, IFolder internalModulesDir,
+	        IFolder compiledProductDir, WinVMJProduct product, IFolder module) throws CoreException, IOException {
+	    
+	    if (!internalModulesDir.exists()) {
+	        return false;
+	    }
+
+	    IResource[] internalResources = internalModulesDir.members();
+	    IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+
+	    String moduleName = module.getName();
+	    
+	    for (IResource internalResource : internalResources) {
+	        if (internalResource instanceof IFile && internalResource.getName().endsWith(".jar")) {
+	            String internalBaseName = getFileNameWithoutExtension(internalResource.getName());
+	            
+	            if (internalBaseName.equals(moduleName)) {
+	                System.out.println("Copying internal JAR: " + internalResource.getName() + " to " + productModule.getName());
+	                copyFile((IFile) internalResource, productModule);
+	                return true;
+	            }
+	        }
+	    }
+		return false;
+	}
+
 	
 	//Diambil dr file Coomposed Product.java
 	private static List<IFolder> getModulesFromComposedProduct(IFeatureProject featureProject) throws CoreException {
