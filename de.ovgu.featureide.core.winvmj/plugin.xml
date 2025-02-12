@@ -66,6 +66,13 @@
                   label="Compile Modules"
                   style="push">
             </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.compileModuleHandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.compileModuleHandler"
+                  label="Compile Module"
+                  style="push">
+            </command>
          </menu>
       </menuContribution>
    </extension>
@@ -82,6 +89,10 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileModulesHandler"
             commandId="de.ovgu.featureide.core.winvmj.compileModulesHandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileModuleHandler"
+            commandId="de.ovgu.featureide.core.winvmj.compileModuleHandler">
       </handler>
    </extension>
 

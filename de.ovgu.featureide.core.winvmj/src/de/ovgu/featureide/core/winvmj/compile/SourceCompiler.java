@@ -46,7 +46,7 @@ import de.ovgu.featureide.core.winvmj.templates.impl.WindowsRunScriptRenderer;
 public class SourceCompiler {
 
 	private static String OUTPUT_FOLDER = "src-gen";
-	private static String OUTPUT_MODULES_FOLDER = "internal-modules";
+	private static String OUTPUT_MODULES_FOLDER = "generated-modules";
 	private static String MODULES_FOLDER = "modules";
 	
 	
@@ -72,7 +72,7 @@ public class SourceCompiler {
 		}
 	}
 	
-	public static void compileModuleSource(IFeatureProject project) throws URISyntaxException {
+	public static void compileModulesSource(IFeatureProject project) throws URISyntaxException {
 		try {
 			IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
 			if (!compiledModulesDir.exists())
@@ -80,6 +80,29 @@ public class SourceCompiler {
 			IFolder modulesDir = project.getProject().getFolder(MODULES_FOLDER);
 			importWinVMJLibrariesForModules(compiledModulesDir);
 			compileInternalModules(project, compiledModulesDir, modulesDir);
+		} catch (CoreException | IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public static void compileModuleSource(IFolder moduleFromSrcFolder, IFeatureProject project) throws URISyntaxException {
+		try {
+			IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
+			if (!compiledModulesDir.exists())
+				compiledModulesDir.create(false, true, null);
+			importWinVMJLibrariesForModules(compiledModulesDir);
+			
+			List<IResource> externalLibraries = listAllExternalLibraries(project);
+			
+	    	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
+					compiledModulesDir, moduleFromSrcFolder);
+	    	
+	    	// compiledModulesDir === internal-modules
+	        compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "");
+	        
+//		    deleteFilesItemsFromInternalModules(project, modulesDir, project.getProject().getFolder(OUTPUT_MODULES_FOLDER));
+			cleanBinaries(project);
+	        
 		} catch (CoreException | IOException e) {
 			e.printStackTrace();
 		}
@@ -260,6 +283,7 @@ public class SourceCompiler {
 
 		return multiLevelDeltaModule;
 	}
+	
 	
 	// urusin yang hanya di modules jadi kalau g ad di skip aja
 	private static void compileInternalModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir) throws CoreException, IOException {
