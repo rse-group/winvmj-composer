@@ -1,12 +1,14 @@
 package de.ovgu.featureide.core.winvmj.compile;
 
 import java.io.BufferedReader;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -78,8 +80,14 @@ public class SourceCompiler {
 			if (!compiledModulesDir.exists())
 				compiledModulesDir.create(false, true, null);
 			IFolder modulesDir = project.getProject().getFolder(MODULES_FOLDER);
+			
+			IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+			IFolder externalDir = project.getProject().getFolder("external");
+			
 			importWinVMJLibrariesForModules(compiledModulesDir);
 			compileInternalModules(project, compiledModulesDir, modulesDir);
+			deleteLibraries(compiledModulesDir, librariesDir);
+	        deleteExternal(compiledModulesDir, externalDir);
 		} catch (CoreException | IOException e) {
 			e.printStackTrace();
 		}
@@ -94,19 +102,23 @@ public class SourceCompiler {
 			
 			List<IResource> externalLibraries = listAllExternalLibraries(project);
 			
+			IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+			IFolder externalDir = project.getProject().getFolder("external");
+			
 	    	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
 					compiledModulesDir, moduleFromSrcFolder);
 	    	
-	    	// compiledModulesDir === internal-modules
 	        compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "");
 	        
-//		    deleteFilesItemsFromInternalModules(project, modulesDir, project.getProject().getFolder(OUTPUT_MODULES_FOLDER));
+	        deleteLibraries(compiledModulesDir, librariesDir);
+	        deleteExternal(compiledModulesDir, externalDir);
 			cleanBinaries(project);
 	        
 		} catch (CoreException | IOException e) {
 			e.printStackTrace();
 		}
 	}
+	
 	
 	private static void importWinVMJLibrariesForModules(IFolder compiledModulesDir)
 			throws IOException, URISyntaxException, CoreException {
@@ -201,6 +213,52 @@ public class SourceCompiler {
 		cleanBinaries(project);
 	}
 	
+	public static void deleteLibraries(IFolder compiledModulesDir, IFolder winvmjLibrariesDir) throws CoreException {
+		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
+		
+	    Set<String> baseNames = new HashSet<>();
+	    for (IResource resource : winvmjLibrariesDir.members()) {
+	        if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+	            String baseName = getBaseNameFromFile(resource.getName());
+	            baseNames.add(baseName);
+	        }
+	    }
+
+	    Set<String> filesToDelete = new HashSet<>(Arrays.asList(
+	            "cas.client.jar", "commons-logging-1.2.jar", "sqlite.jdbc.jar"
+	        ));
+	    
+	    for (IResource resource : compiledModulesDir.members()) {
+	        if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+	            String baseName = getBaseNameFromFile(resource.getName());
+	            System.out.println(baseName);
+	            if (baseNames.contains(baseName) || filesToDelete.contains(resource.getName())) {
+	                resource.delete(true, null);
+	            }
+	        }
+	    }
+	}
+	
+	private static void deleteExternal(IFolder compiledModulesDir, IFolder externalDir) throws CoreException, IOException {
+		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
+		
+	    Set<String> baseNames = new HashSet<>();
+	    for (IResource resource : externalDir.members()) {
+	        if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+	            String baseName = getBaseNameFromFile(resource.getName());
+	            baseNames.add(baseName);
+	        }
+	    }
+	    for (IResource resource : compiledModulesDir.members()) {
+	        if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+	            String baseName = getBaseNameFromFile(resource.getName());
+	            if (baseNames.contains(baseName)) {
+	                resource.delete(true, null);
+	            }
+	        }
+	    }
+	}
+	
 	private static boolean copyInternalJarsByModuleName(IFeatureProject project, IFolder internalModulesDir,
 	        IFolder compiledProductDir, WinVMJProduct product, IFolder module) throws CoreException, IOException {
 	    
@@ -215,7 +273,7 @@ public class SourceCompiler {
 	    
 	    for (IResource internalResource : internalResources) {
 	        if (internalResource instanceof IFile && internalResource.getName().endsWith(".jar")) {
-	            String internalBaseName = getFileNameWithoutExtension(internalResource.getName());
+	            String internalBaseName = getBaseNameFromFile(internalResource.getName());
 	            
 	            if (internalBaseName.equals(moduleName)) {
 	                System.out.println("Copying internal JAR: " + internalResource.getName() + " to " + productModule.getName());
@@ -225,6 +283,15 @@ public class SourceCompiler {
 	        }
 	    }
 		return false;
+	}
+	
+	private static String getBaseNameFromFile(String fileName) {
+	    int dashIndex = fileName.lastIndexOf('-');
+	    int dotIndex = fileName.lastIndexOf('.');
+	    if (dashIndex > 0 && dotIndex > dashIndex) {
+	        return fileName.substring(0, dashIndex);
+	    }
+	    return fileName.substring(0, dotIndex);
 	}
 
 	
@@ -316,34 +383,10 @@ public class SourceCompiler {
 
 	        }
 	    }	    
-	    deleteFilesItemsFromInternalModules(project, modulesDir, project.getProject().getFolder(OUTPUT_MODULES_FOLDER));
+	    
 		cleanBinaries(project);
 	}
-	
-	private static void deleteFilesItemsFromInternalModules(IFeatureProject project, IFolder otherDir, IFolder internalModulesDir) throws CoreException, IOException {
-	    internalModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
 		
-		IResource[] otherResources = otherDir.members();
-	    IResource[] internalResources = internalModulesDir.members();
-	    
-
-	    Set<String> otherResourceNames = Arrays.stream(otherResources)
-	                                              .map(IResource::getName)
-	                                              .collect(Collectors.toSet());
-
-	    for (IResource internalResource : internalResources) {
-	    	String internalBaseName = getFileNameWithoutExtension(internalResource.getName());
-	        if (!otherResourceNames.contains(internalBaseName)) {
-	            internalResource.delete(true, null);
-	        }
-	    }
-	}
-	
-	private static String getFileNameWithoutExtension(String fileName) {
-	    int lastDotIndex = fileName.lastIndexOf(".");
-	    return (lastDotIndex == -1) ? fileName : fileName.substring(0, lastDotIndex);
-	}
-	
 	private static void importExternalLibrariesByModuleInfoForModules(IFeatureProject project,
 			List<IResource> externalLibs, IFolder compiledModulesDir,
 			IFolder module) throws IOException, CoreException {
