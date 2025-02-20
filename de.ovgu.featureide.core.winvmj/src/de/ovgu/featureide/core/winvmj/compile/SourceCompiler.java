@@ -98,22 +98,34 @@ public class SourceCompiler {
 			IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
 			if (!compiledModulesDir.exists())
 				compiledModulesDir.create(false, true, null);
-			importWinVMJLibrariesForModules(compiledModulesDir);
-			
-			List<IResource> externalLibraries = listAllExternalLibraries(project);
-			
-			IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
-			IFolder externalDir = project.getProject().getFolder("external");
-			
-	    	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
-					compiledModulesDir, moduleFromSrcFolder);
-	    	
-	        compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "");
-	        
-	        deleteLibraries(compiledModulesDir, librariesDir);
-	        deleteExternal(compiledModulesDir, externalDir);
-			cleanBinaries(project);
-	        
+		
+            IFile compiledJar = compiledModulesDir.getFile(moduleFromSrcFolder.getName() + ".jar");
+            
+            long moduleLastModified = getLastModifiedTime(moduleFromSrcFolder);
+            long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
+        	
+            if (compiledJar.exists() && moduleLastModified <= jarLastModified) {
+                WinVMJConsole.println("Module " + moduleFromSrcFolder.getName() + " has already been generated and is up-to-date");
+                System.out.println("Module " + moduleFromSrcFolder.getName() + " has already been generated and is up-to-date");
+            }
+            else {
+				importWinVMJLibrariesForModules(compiledModulesDir);
+				
+				List<IResource> externalLibraries = listAllExternalLibraries(project);
+				
+				IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+				IFolder externalDir = project.getProject().getFolder("external");
+				
+		    	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
+						compiledModulesDir, moduleFromSrcFolder);
+		    	
+		        compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "");
+		        
+		        deleteLibraries(compiledModulesDir, librariesDir);
+		        deleteExternal(compiledModulesDir, externalDir);
+				cleanBinaries(project);
+            }
+
 		} catch (CoreException | IOException e) {
 			e.printStackTrace();
 		}
@@ -194,15 +206,18 @@ public class SourceCompiler {
 			WinVMJProduct product) throws CoreException, IOException {
 		String productModule = product.getProductQualifiedName();
 		
-		IFolder internalModulesDir = project.getProject().getFolder("internal-modules");
+		IFolder generatedModulesDir = project.getProject().getFolder("generated-modules");
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
 		for (IFolder module : product.getModules()) {
 			
 			boolean isJarCopied = false;
 			
-			isJarCopied = copyInternalJarsByModuleName(project, internalModulesDir, compiledProductDir, product, module);
+			isJarCopied = copyInternalJarsByModuleName(project, generatedModulesDir, compiledProductDir, product, module);
 			
-			if (!isJarCopied) {
+			if (isJarCopied) {
+				WinVMJConsole.println("Module " + module.getName() + " copied to product folder");
+			}
+			else {
 				importExternalLibrariesByModuleInfo(project, externalLibraries,
 						compiledProductDir, product, module);
 				compileModuleForProduct(project, compiledProductDir, module, productModule);
@@ -259,14 +274,14 @@ public class SourceCompiler {
 	    }
 	}
 	
-	private static boolean copyInternalJarsByModuleName(IFeatureProject project, IFolder internalModulesDir,
+	private static boolean copyInternalJarsByModuleName(IFeatureProject project, IFolder generatedModulesDir,
 	        IFolder compiledProductDir, WinVMJProduct product, IFolder module) throws CoreException, IOException {
 	    
-	    if (!internalModulesDir.exists()) {
+	    if (!generatedModulesDir.exists()) {
 	        return false;
 	    }
 
-	    IResource[] internalResources = internalModulesDir.members();
+	    IResource[] internalResources = generatedModulesDir.members();
 	    IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
 
 	    String moduleName = module.getName();
@@ -295,7 +310,6 @@ public class SourceCompiler {
 	}
 
 	
-	//Diambil dr file Coomposed Product.java
 	private static List<IFolder> getModulesFromComposedProduct(IFeatureProject featureProject) throws CoreException {
         List<String> moduleOrders = getModuleOrdersByMappings(featureProject, featureProject.getProject());
         List<IFolder> orderedSourceModules = new ArrayList<>();
@@ -306,7 +320,6 @@ public class SourceCompiler {
         return orderedSourceModules;
     }
 	
-	//Diambil dr file Coomposed Product.java
 	private static List<String> getModuleOrdersByMappings(IFeatureProject featureProject, IProject project) throws CoreException {
 		List<String> moduleOrders = new ArrayList<>();
 		
@@ -332,7 +345,6 @@ public class SourceCompiler {
 		return moduleOrders.stream().distinct().collect(Collectors.toList());
 	}
 	
-	//Diambil dr file Coomposed Product.java
 	private static String changeDeltaModule(String module, String deltaName, IFeatureProject featureProject) {
 		String[] splittedModule = module.split("\\.");
 		String splName = splittedModule[0];
@@ -352,7 +364,6 @@ public class SourceCompiler {
 	}
 	
 	
-	// urusin yang hanya di modules jadi kalau g ad di skip aja
 	private static void compileInternalModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir) throws CoreException, IOException {
 		IResource[] moduleResources = modulesDir.members();
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
@@ -373,11 +384,20 @@ public class SourceCompiler {
 	    for (IResource resource : filteredModule) {
 	        if (resource instanceof IFolder) { 
 	        	IFolder moduleFolder = (IFolder) resource;
+	            IFile compiledJar = compiledModulesDir.getFile(moduleFolder.getName() + ".jar");
+	            
+	            long moduleLastModified = getLastModifiedTime(moduleFolder);
+	            long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
 	        	
-	            if (!(moduleFolder.getName().contains("product.template"))) {
+	            if (compiledJar.exists() && moduleLastModified <= jarLastModified) {
+	                WinVMJConsole.println("Module " + moduleFolder.getName() + " has already been generated and is up-to-date");
+	                System.out.println("Module " + moduleFolder.getName() + " has already been generated and is up-to-date");
+	                continue;
+	            }
+	        	
+	        	if (!(moduleFolder.getName().contains("product.template"))) {
 		        	importExternalLibrariesByModuleInfoForModules(project, externalLibraries,
 							compiledModulesDir, moduleFolder);		        	
-		        	// compiledModulesDir === internal-modules
 		            compileModuleForProduct(project, compiledModulesDir, moduleFolder, "");
 	            }
 
@@ -385,6 +405,18 @@ public class SourceCompiler {
 	    }	    
 	    
 		cleanBinaries(project);
+	}
+	
+	private static long getLastModifiedTime(IFolder folder) throws CoreException {
+	    long latestTimestamp = folder.getLocalTimeStamp();
+	    for (IResource resource : folder.members()) {
+	        if (resource instanceof IFile) {
+	            latestTimestamp = Math.max(latestTimestamp, resource.getLocalTimeStamp());
+	        } else if (resource instanceof IFolder) {
+	            latestTimestamp = Math.max(latestTimestamp, getLastModifiedTime((IFolder) resource));
+	        }
+	    }
+	    return latestTimestamp;
 	}
 		
 	private static void importExternalLibrariesByModuleInfoForModules(IFeatureProject project,
@@ -442,8 +474,6 @@ public class SourceCompiler {
 			IFolder module, String productModule) throws CoreException, IOException {
 		IFolder compiledFolder;
 		
-		// productDir === internal-modules
-		// module == isi dari modules
 		if (productModule != "") {
 			compiledFolder = productDir.getFolder(productModule);
 		}
@@ -496,8 +526,6 @@ public class SourceCompiler {
 	private static List<String> constructCompileCommand(IFolder sourceFolder, IFolder binFolder,
 			IFolder modulePath) throws CoreException {
 		
-		// modulePath === internal-modules
-		// sourceFolder == isi dari modules
 		List<String> modulePaths = transverseModuleFilePaths(sourceFolder);
 
 		List<String> compileCommand = new ArrayList<>();
