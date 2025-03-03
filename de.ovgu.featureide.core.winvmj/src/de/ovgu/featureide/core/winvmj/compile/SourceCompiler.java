@@ -48,7 +48,7 @@ import de.ovgu.featureide.core.winvmj.templates.impl.WindowsRunScriptRenderer;
 public class SourceCompiler {
 
 	private static String OUTPUT_FOLDER = "src-gen";
-	private static String OUTPUT_MODULES_FOLDER = "generated-modules";
+	private static String OUTPUT_MODULES_FOLDER = "modules-gen";
 	private static String MODULES_FOLDER = "modules";
 
 	private SourceCompiler() {
