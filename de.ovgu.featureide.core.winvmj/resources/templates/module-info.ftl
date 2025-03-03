@@ -1,4 +1,7 @@
 module ${productPackage} {
+    <#if defaultAuthModel>
+    requires vmj.auth.model;
+    </#if>
     requires vmj.routing.route;
     requires vmj.hibernate.integrator;
     
@@ -8,10 +11,11 @@ module ${productPackage} {
     requires com.fasterxml.classmate;
     requires jdk.unsupported;
 
-    <#list requiredModules as module>
-    requires ${module};
+    <#list requiredModules as requiredModule>
+    requires ${requiredModule};
     </#list>
-	
-	requires prices.auth.vmj;
-    requires prices.auth.vmj.model;
+
+    <#list exportedModules as exportedModule>
+    exports ${exportedModule};
+    </#list>
 }

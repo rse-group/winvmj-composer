@@ -8,9 +8,9 @@ A plugin consisting the implementation of WinVMJ as a FeatureIDE Composer. Used 
 
 To use this plugin, you need to install:
 
-1. [Java 11](https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html).
-2. [Eclipse IDE 4.18 / 2020-12](https://www.eclipse.org/downloads/packages/release/2020-12/r).
-3. [FeatureIDE 3.8.1](https://featureide.github.io/).
+1. [Java 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html).
+2. [Eclipse IDE 4.30 / 2023-12](https://www.eclipse.org/downloads/packages/release/2023-12/r).
+3. [FeatureIDE 3.11.1](https://featureide.github.io/#download).
 4. [Eclipse PDE](https://www.eclipse.org/pde/) if hasn't been included on downloaded IDE.
 5. [PostgreSQL](https://www.postgresql.org/download/).
 6. DBMS to manage PostgreSQL such as [phpmyadmin](https://www.phpmyadmin.net/downloads/) or [adminer](https://www.adminer.org/).
@@ -189,6 +189,9 @@ If you feel the generated product is ready, you can compile it by:
 2. Please wait until the compilation process is completed. You can check the `WinVMJ Console` to track this process.
 
 #### Running a product
+
+> Note: If you're on MacOS/Linux, run `chmod u+x run.sh ` inside the folder containing `run.sh` in src-gen before proceeding.
+
 We can run the product by following these steps:
 1. On top toolbar, click on `Run`>`External Tools`>`External Tool Configuration`.
 2. Select the script `Location` at `src-gen/[Product Name]/run.[bat (Windows) / sh (Linux / Mac)]`.

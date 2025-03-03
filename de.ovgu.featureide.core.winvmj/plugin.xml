@@ -38,8 +38,9 @@
                         ifEmpty="false"
                         operator="or">
                      <test
+                           property="de.ovgu.featureide.fm.ui.properties.composer"
                            args="de.ovgu.featureide.core.winvmj.composer"
-                           property="de.ovgu.featureide.fm.ui.properties.composer">
+                           value="de.ovgu.featureide.core.winvmj.composer">
                      </test>
                   </iterate>
                </with>

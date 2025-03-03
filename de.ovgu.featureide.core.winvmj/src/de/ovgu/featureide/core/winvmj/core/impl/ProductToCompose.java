@@ -31,6 +31,7 @@ import com.google.gson.reflect.TypeToken;
 
 import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
@@ -44,7 +45,7 @@ public class ProductToCompose extends WinVMJProduct {
 	
 	public ProductToCompose(IFeatureProject featureProject, Path config) {
 		this.productName = getProductName(config);
-		this.splName = getSplName(featureProject);
+		this.splName = Utils.getSplName(featureProject);
 		try {
 			this.modules = selectModules(featureProject, featureProject
 					.loadConfiguration(config).getSelectedFeatures());
@@ -67,7 +68,7 @@ public class ProductToCompose extends WinVMJProduct {
 		Map<String, IFeatureProject> refProjectMap = 
 				Stream.of(project.getProject().getReferencedProjects())
 				.map(pr -> CorePlugin.getFeatureProject(pr))
-				.collect(Collectors.toMap(pr -> getSplName(pr), Function.identity()));
+				.collect(Collectors.toMap(pr -> Utils.getSplName(pr), Function.identity()));
 		
 		List<IFolder> selectedModules = new ArrayList<>();
 		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
@@ -83,8 +84,9 @@ public class ProductToCompose extends WinVMJProduct {
 						 .map(f -> new Feature(refProject.getFeatureModel(), 
 								 f.getName().replace(interfaceModel.getKey() + ".", "")))
 						 .collect(Collectors.toList());
-				List<String> relatedProducts = getRelatedProducts(project, externalSplName);
-				externalFeatures.addAll(selectFeaturesFromRelatedProducts(externalSplName, 
+				List<String> relatedProducts = Utils.getRelatedProducts(
+					project, externalSplName, productName);
+				externalFeatures.addAll(Utils.selectFeaturesFromRelatedProducts(externalSplName, 
 						refProject, relatedProducts));
 				selectedModules.addAll(selectModules(refProject, externalFeatures));
 			}
@@ -100,7 +102,7 @@ public class ProductToCompose extends WinVMJProduct {
 		final FormulaFactory formulaFactory = new FormulaFactory();
 		final PropositionalParser formulaParser = new PropositionalParser(formulaFactory);
 		
-		Assignment assignment = getFeatureCheckingAssignment(features, formulaFactory);
+		Assignment assignment = Utils.getFeatureCheckingAssignment(features, formulaFactory);
 		Reader mapReader =  new InputStreamReader(featureToModuleMapper.getContents());
 		Gson gson = new Gson();
 		Map<String, List<String>> mappings;
@@ -111,68 +113,12 @@ public class ProductToCompose extends WinVMJProduct {
 			mappings = new LinkedHashMap<String, List<String>>();
 		}
 		for (Entry<String, List<String>> mapping: mappings.entrySet()) {
-			if (this.evaluate(assignment, formulaParser, mapping.getKey())) 
+			if (Utils.evaluate(assignment, formulaParser, mapping.getKey())) 
 				selectedModules.addAll(mapping.getValue().stream().map(mdl -> 
 				project.getProject().getFolder(WinVMJComposer.MODULE_FOLDERNAME)
 				.getFolder(mdl)).collect(Collectors.toList()));
 		}
 		return selectedModules;
-	}
-	
-	private List<String> getRelatedProducts(IFeatureProject project, 
-			String externalSplName) throws CoreException {
-		IFile interSplProductMapper = project.getProject()
-				.getFile(WinVMJComposer.INTER_SPL_PRODUCT_MAPPER_FILENAME);
-		Reader mapReader =  new InputStreamReader(interSplProductMapper.getContents());
-		Gson gson = new Gson();
-		Map<String, List<String>> mappings;
-		try {
-			mappings = gson.fromJson(mapReader, 
-					new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
-		} catch (NullPointerException e) {
-			mappings = new LinkedHashMap<String, List<String>>();
-		}
-		if (mappings.containsKey(productName))
-			return mappings.get(productName).stream()
-				.filter(p -> p.startsWith(externalSplName)).map(p -> 
-				p.replace(externalSplName + ":", ""))
-				.collect(Collectors.toList());
-		return new ArrayList<>();
-	}
-	
-	private List<IFeature> selectFeaturesFromRelatedProducts(String externalSplName, 
-			IFeatureProject refProject, List<String> relatedProducts) 
-					throws CoreException {
-		List<IFeature> features = new ArrayList<>();
-		for (String relatedProduct: relatedProducts) {
-			Optional<IResource> configFile = Stream.of(refProject.getConfigFolder()
-					.members()).filter(c -> c.getName().startsWith(relatedProduct))
-					.findFirst();
-			if (configFile.isPresent())
-				features.addAll(refProject.loadConfiguration(EclipseFileSystem
-						.getPath(configFile.get())).getSelectedFeatures());
-			else WinVMJConsole.println("[WARNING] Product `" + relatedProduct + 
-					"` does not exist in `" + externalSplName + "` SPL and will be ignored");
-		}
-		
-		return features.stream().distinct().collect(Collectors.toList());
-	}
-	
-	private Assignment getFeatureCheckingAssignment(List<IFeature> features, 
-			FormulaFactory formulaFactory) {
-		List<Variable> featureVariables = features.stream().map(feature -> 
-		formulaFactory.variable(feature.getName())).collect(Collectors.toList());
-		return new Assignment(featureVariables);
-	}
-	
-	private boolean evaluate(Assignment assignment, PropositionalParser formulaParser, 
-			String formulaString) throws ParserException {
-		Formula formula = formulaParser.parse(formulaString);
-		return formula.evaluate(assignment);
-	}
-	
-	private String getSplName(IFeatureProject project) {
-		return project.getFeatureModel().getStructure().getRoot().getFeature().getName();
 	}
 	
 	private String getProductName(Path config) {
