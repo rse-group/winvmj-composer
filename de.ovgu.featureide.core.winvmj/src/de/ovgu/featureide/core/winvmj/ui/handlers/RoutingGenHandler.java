@@ -49,34 +49,47 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 					}
 				}
 				
-				Display display = new Display();
-				
-				ListDialog dialog = createProjectSelectorDialog(filteredProject,
-						"Target Project Selector",
-						"Select target project to generate routes and menus files");
-				if (dialog.open() == Window.OK) {
-					Object[] result = dialog.getResult();
-					if (result.length > 0) {
-						IProject targetProject = (IProject)Platform.getAdapterManager().getAdapter(result[0], IProject.class);
+				Display.getDefault().asyncExec(new Runnable() {
+			        @Override
+			        public void run() {
 						
-						WinVMJConsole.println("Begin generating...");
-						long start = System.currentTimeMillis();
-						RoutingGenerator.generateRouting(winVmjProject, targetProject, mappingFile);
-						long finish = System.currentTimeMillis();
-						double elapsedTime = (finish-start)/1000.0;
-						WinVMJConsole.println("'SelectedFeature' file generated in " 
-								+ String.valueOf(elapsedTime) 
-								+ " seconds. Please Refresh the project "
-								+ "now and find target folder.");
-					} else {
-						WinVMJConsole.println("No target project selected.");
-					}
-				} else {
-					WinVMJConsole.println("Generating cancelled.");
-				}
+						ListDialog dialog = createProjectSelectorDialog(filteredProject,
+								"Target Project Selector",
+								"Select target project to generate routes and menus files");
+						if (dialog.open() == Window.OK) {
+							Object[] result = dialog.getResult();
+							if (result.length > 0) {
+								IProject targetProject = (IProject)Platform.getAdapterManager().getAdapter(result[0], IProject.class);
+								
+								WinVMJConsole.println("Begin generating...");
+								long start = System.currentTimeMillis();
+								try {
+									RoutingGenerator.generateRouting(winVmjProject, targetProject, mappingFile);
+									}
+									catch(Exception e) {
+										WinVMJConsole.println("Error while generating:");
+										WinVMJConsole.println(e.getMessage());
+									}
+								
+								long finish = System.currentTimeMillis();
+								double elapsedTime = (finish-start)/1000.0;
+								WinVMJConsole.println("'SelectedFeature' file generated in " 
+										+ String.valueOf(elapsedTime) 
+										+ " seconds. Please Refresh the project "
+										+ "now and find target folder.");
+							} else {
+								WinVMJConsole.println("No target project selected.");
+							}
+						} else {
+							WinVMJConsole.println("Generating cancelled.");
+						}
+						
+						dialog.close();
+			        }
+			    });
 				
-				dialog.close();
-				display.dispose();
+				
+				
 				return true;
 			}
 		};
