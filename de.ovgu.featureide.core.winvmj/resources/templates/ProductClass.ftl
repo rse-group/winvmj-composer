@@ -4,9 +4,14 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.lang.reflect.Type;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import vmj.routing.route.VMJCors;
 import vmj.routing.route.VMJServer;
 import vmj.routing.route.Router;
 import vmj.hibernate.integrator.HibernateUtil;
@@ -34,6 +39,7 @@ public class ${productName} {
 		String hostAddress= getEnvVariableHostAddress("AMANAH_HOST_BE");
         int portNum = getEnvVariablePortNumber("AMANAH_PORT_BE");
         activateServer(hostAddress, portNum);
+		setCors();
 
 		Configuration configuration = new Configuration();
 		// panggil setter setelah membuat object dari kelas Configuration
@@ -199,5 +205,25 @@ public class ${productName} {
             int portNumInt = Integer.parseInt(portNum);
             return portNumInt;
     }
+
+	public static void setCors() {
+    	Properties properties = new Properties();
+        String propertyValue = "";
+        
+        try (FileInputStream fileInput = new FileInputStream("../../cors.properties")) {
+            properties.load(fileInput);
+            propertyValue = properties.getProperty("allowedMethod");
+            VMJCors.setAllowedMethod(propertyValue);
+            
+            propertyValue = properties.getProperty("allowedOrigin");
+            VMJCors.setAllowedOrigin(propertyValue);
+            
+        } catch (IOException e) {
+			System.out.println("Buat file cors.properties terlebih dahulu pada root project dengan contoh sebagai berikut:");
+			System.out.println("allowedMethod = GET, POST");
+			System.out.println("allowedOrigin = http://example.com");
+        }
+    }
+
 
 }
