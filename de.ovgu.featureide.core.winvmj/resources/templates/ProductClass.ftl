@@ -222,7 +222,6 @@ public class ${productName} {
 			System.out.println("Buat file cors.properties terlebih dahulu pada root project dengan contoh sebagai berikut:");
 			System.out.println("allowedMethod = GET, POST");
 			System.out.println("allowedOrigin = http://example.com");
-
         }
     }
 
