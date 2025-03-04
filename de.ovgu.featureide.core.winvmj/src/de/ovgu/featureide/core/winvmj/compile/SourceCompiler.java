@@ -202,7 +202,7 @@ public class SourceCompiler {
 			throws CoreException, IOException {
 		String productModule = product.getProductQualifiedName();
 
-		IFolder generatedModulesDir = project.getProject().getFolder("generated-modules");
+		IFolder generatedModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
 		for (IFolder module : product.getModules()) {
 
