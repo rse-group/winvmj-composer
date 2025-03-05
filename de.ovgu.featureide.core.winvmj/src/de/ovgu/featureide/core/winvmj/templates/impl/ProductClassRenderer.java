@@ -146,6 +146,12 @@ public class ProductClassRenderer extends TemplateRenderer {
 	private void getSelectedFeature(IFeatureProject winVmjProject) {
 		Configuration config = winVmjProject.loadCurrentConfiguration();
 		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
+		WinVMJConsole.println("===  GetSelectedFeatures ===");
+		for (String s : features) {
+			WinVMJConsole.println(s);
+		}
+		WinVMJConsole.println("========");
+		
 		
 	    
 	    selectedFeature = new ArrayList<>(features);
@@ -203,35 +209,73 @@ public class ProductClassRenderer extends TemplateRenderer {
         return featureTableMappings;
     }
 
+
 	private List<List<Map<String, Object>>> getRequiredBindings(WinVMJProduct product)
 			throws IOException, CoreException {
 		List<List<Map<String, Object>>> bindings = new ArrayList<>();
 
 		Set<String> productModules = new HashSet<>(product.getModuleNames());
+				
+		// Distinguish Duplicate Module
+		Map<String, Integer> duplicate = new HashMap<>();
 
 		// Iterate over the entries of the featureToModuleMap
 		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
 			String feature = entry.getKey();
-	        if (selectedFeature.contains(feature)) {
-				List<String> modules = entry.getValue();
-				for (String module : modules) {
-					if (productModules.contains(module)) {
-						try {
-							List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
-							if (bindingSpec != null) {
-								bindings.add(bindingSpec);
+			WinVMJConsole.println("INi adalah feature yang masuk: " + feature);
+			if (feature.contains("|")) {
+				WinVMJConsole.println("Yang ada | adalah " + feature);
+				for (String ft : feature.replaceAll(" ", "").split("\\|")) {
+					if (selectedFeature.contains(ft)) {
+						List<String> modules = entry.getValue();
+						for (String module : modules) {
+							WinVMJConsole.println(module + " ini yang selected");
+							if ((productModules.contains(module)) && (!duplicate.containsKey(module))) {
+								try {
+									duplicate.put(module, 1);
+									WinVMJConsole.println(module + " ini yang masuk sleected");
+									List<Map<String, Object>> bindingSpec = constructBindingSpec(module, ft);
+									if (bindingSpec != null) {
+										bindings.add(bindingSpec);
+									}
+								} catch (IOException | CoreException e) {
+									e.printStackTrace();
+								}
 							}
-						} catch (IOException | CoreException e) {
-							e.printStackTrace();
+						}
+		
+						if (Utils.isMultiLevelDelta(entry)) {
+							List<Map<String, Object>> bindingSpec = processMultiLevelDelta(ft, modules);
+							if (bindingSpec != null) bindings.add(bindingSpec);
 						}
 					}
 				}
+			}
+			
+			else {
+				if (selectedFeature.contains(feature)) {
+					List<String> modules = entry.getValue();
+					for (String module : modules) {
+						WinVMJConsole.println(module + " ini yang selected");
+						if ((productModules.contains(module)) && (!duplicate.containsKey(module))) {
+							try {
+								WinVMJConsole.println(module + " ini yang masuk sleected dengann fitur "+ feature);
+								List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
+								if (bindingSpec != null) {
+									bindings.add(bindingSpec);
+								}
+							} catch (IOException | CoreException e) {
+								e.printStackTrace();
+							}
+						}
+					}
 
-				if (Utils.isMultiLevelDelta(entry)) {
-					List<Map<String, Object>> bindingSpec = processMultiLevelDelta(feature, modules);
-					if (bindingSpec != null) bindings.add(bindingSpec);
+					if (Utils.isMultiLevelDelta(entry)) {
+						List<Map<String, Object>> bindingSpec = processMultiLevelDelta(feature, modules);
+						if (bindingSpec != null) bindings.add(bindingSpec);
+					}
 				}
-	        }
+			}
 		}
 		return bindings;
 	}
@@ -242,33 +286,55 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
+		WinVMJConsole.println(module + " " + feature + " ini dari construct");
 		// Check if the controller and service folder exists before constructing the spec
 		boolean isControllerExist = checkArtifactDirectoryOfModule(module, CONTROLLER_FOLDERNAME);
+		WinVMJConsole.println(String.valueOf(isControllerExist));
 		boolean isServiceExist = checkArtifactDirectoryOfModule(module, SERVICE_FOLDERNAME);
+		WinVMJConsole.println(String.valueOf(isServiceExist));
 
 		if (isControllerExist && isServiceExist){
-			Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
-			if (controllerSpec != null) {
-				controllerSpec.put("notSingleStructured", true);
-				listBindingSpec.add(controllerSpec);
+			List<Map<String, Object>> listControllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+			if (listControllerSpec != null)
+			{
+				for (Map<String, Object> controllerSpec: constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME)) {
+					if (controllerSpec != null) {
+						controllerSpec.put("notSingleStructured", true);
+						listBindingSpec.add(controllerSpec);
+					}
+				}
 			}
-			Map<String, Object> serviceSpec = constructComponentSpec(module, feature, SERVICE_FOLDERNAME);
-			if (serviceSpec != null) {
-				listBindingSpec.add(serviceSpec);
+
+			List<Map<String, Object>> listServiceSpec = constructComponentSpec(module, feature, SERVICE_FOLDERNAME);
+			if (listServiceSpec != null)
+			{
+				for (Map<String, Object> serviceSpec : constructComponentSpec(module, feature, SERVICE_FOLDERNAME))
+				{
+					if (serviceSpec != null) {
+						listBindingSpec.add(serviceSpec);
+					}
+				}
 			}
+			
 		// Only Resource structure support
 		} else if (isControllerExist) {
-			Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
-			if (controllerSpec != null) {
-				listBindingSpec.add(controllerSpec);
+			List<Map<String, Object>> listControllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+			if (listControllerSpec != null)
+			{	for  (Map<String, Object> controllerSpec: listControllerSpec) {
+					if (controllerSpec != null) {
+						listBindingSpec.add(controllerSpec);
+					}
+				}
 			}
+			
 		}
 		return listBindingSpec.isEmpty() ? null : listBindingSpec;
 	}
 
-	private Map<String, Object> constructComponentSpec(String module, String feature, String componentType)
+	private List<Map<String, Object>> constructComponentSpec(String module, String feature, String componentType)
 			throws IOException, CoreException {
 		String implClass = getCoreImplClass(module, componentType);
+		WinVMJConsole.println(implClass);
 		boolean isCoreConstructed = true;
 		String componentTypeCap = componentType.equals("service")
 									? "Service"
@@ -285,38 +351,47 @@ public class ProductClassRenderer extends TemplateRenderer {
 		List<String> fileNames = getListModuleImplClass(module, componentType);
 		if (fileNames.isEmpty())
 			return null;
-		String fileName = fileNames.get(0);
+		
+		for (String file: fileNames) {
+			WinVMJConsole.println(file + " ini adalah isi dari file");
+		}
 		
 		
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
-		Map<String, Object> bindingSpec = new HashMap<>();
-		String baseClass = implClass.replace("Impl", ""); 
-		String featureClass = componentType.equals("service")
-				? baseClass.replace("Service", "")
-				: baseClass.replace("Resource", "");
-		bindingSpec.put("factory", baseClass + "Factory");
-		bindingSpec.put("module", module);
-		bindingSpec.put("class", baseClass);
-		bindingSpec.put("implClass", fileName);
-		bindingSpec.put("componentType", componentType);
+		for (String fileName : fileNames) {
+			Map<String, Object> bindingSpec = new HashMap<>();
+			String baseClass = fileName.replace("Impl", ""); 
+			String featureClass = componentType.equals("service")
+					? baseClass.replace("Service", "")
+					: baseClass.replace("Resource", "");
 
-		String variableName = getVariableNameFromModule(module) + featureClass; 
-    	bindingSpec.put("variableName", addUniqueVariableName(variableName, componentTypeCap) + componentTypeCap); 
+			WinVMJConsole.println("Combo untuk " + baseClass + " pada modul " + module + " dengan filename " + fileName);
+			bindingSpec.put("factory", baseClass + "Factory");
+			bindingSpec.put("module", module);
+			bindingSpec.put("class", baseClass);
+			bindingSpec.put("implClass", fileName);
+			bindingSpec.put("componentType", componentType);
 
-		if (!isCoreModule(module) && isCoreConstructed) {
-			String upperLevelModule = getUpperLevelModuleName(feature, module);
-			if (upperLevelModule != null) {
-				String wrappedVariableName = getVariableNameFromModule(upperLevelModule) + featureClass; 
-				bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
-			} else {
-				String coreModule = getCoreByModule(module);
-				String wrappedVariableName = getVariableNameFromModule(coreModule) + featureClass; 
-				bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+			String variableName = getVariableNameFromModule(module) + featureClass; 
+			bindingSpec.put("variableName", addUniqueVariableName(variableName, componentTypeCap) + componentTypeCap); 
+
+			if (!isCoreModule(module) && isCoreConstructed) {
+				String upperLevelModule = getUpperLevelModuleName(feature, module);
+				if (upperLevelModule != null) {
+					String wrappedVariableName = getVariableNameFromModule(upperLevelModule) + featureClass; 
+					bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+				} else {
+					String coreModule = getCoreByModule(module);
+					String wrappedVariableName = getVariableNameFromModule(coreModule) + featureClass; 
+					bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+				}
 			}
+			listBindingSpec.add(bindingSpec);
 		}
-
-		return bindingSpec;
+		
+		WinVMJConsole.println("Berhaisl masuk ini");
+		return listBindingSpec;
 	}
 
 	// Helps distinguish variableName if a delta is being used multiple times in creating a feature
@@ -461,11 +536,15 @@ public class ProductClassRenderer extends TemplateRenderer {
 	private String getCoreImplClass(String module, String componentType) throws CoreException {
 		if (module.endsWith(".core")) {
 			List<String> implClasses = getListModuleImplClass(module, componentType);
+			for (String elem : implClasses) {
+				WinVMJConsole.println(elem);
+			}
 			return implClasses.isEmpty() ? null : implClasses.get(0);
 		}
 
 		String[] splittedModule = module.split("\\.");
 		while (splittedModule.length >= 3) {
+			WinVMJConsole.println("Masuk suiniu");
 			String coreModule = getCoreByModule(String.join(".", splittedModule));
 			if (isModuleExist(coreModule)) {
 				List<String> implClasses = getListModuleImplClass(coreModule, componentType);
