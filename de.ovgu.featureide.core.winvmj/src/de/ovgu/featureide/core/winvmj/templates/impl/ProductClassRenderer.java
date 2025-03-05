@@ -257,10 +257,10 @@ public class ProductClassRenderer extends TemplateRenderer {
 				listBindingSpec.add(serviceSpec);
 			}
 		// Only Resource structure support
-		} else if (isControllerExist) {
-			Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+		} else if (isControllerExist) { 
+			List<Map<String, Object>> controllerSpec = constructComponentSpecMultiImpl(module, feature, CONTROLLER_FOLDERNAME);
 			if (controllerSpec != null) {
-				listBindingSpec.add(controllerSpec);
+				listBindingSpec.addAll(controllerSpec);
 			}
 		}
 		return listBindingSpec.isEmpty() ? null : listBindingSpec;
@@ -317,6 +317,72 @@ public class ProductClassRenderer extends TemplateRenderer {
 		}
 
 		return bindingSpec;
+	}
+
+	private List<Map<String, Object>> constructComponentSpecMultiImpl(String module, String feature, String componentType)
+	throws IOException, CoreException {
+
+		String componentTypeCap = componentType.equals("service")
+											? "Service"
+											: "Resource";
+
+		List<Map<String, Object>> listbindingSpec = new ArrayList<>();
+
+		List<String> fileNames = getListModuleImplClass(module, componentType);
+
+		System.out.println("Module: " + module);
+		System.out.println("Component Type: " + componentType);
+
+		for (String fileName : fileNames) {
+
+			List<String> implClassList = getCoreMultiImplClass(module, componentType);
+			boolean isCoreConstructed = true;
+
+			String implClass = null;
+			if (implClassList == null) {
+				isCoreConstructed = false;
+				implClass = fileName;
+			} else {
+				implClass = implClassList.stream().filter(name -> name.equals(fileName)).findFirst().orElse(null);
+			}
+			System.out.println("Is Core Constructed: ");
+			System.out.println(isCoreConstructed);
+			System.out.println("Is core Module: ");
+			System.out.println(isCoreModule(module));
+
+			System.out.println("File Name: " + fileName);
+			System.out.println("Impl Class: " + implClass);
+
+			Map<String, Object> bindingSpec = new HashMap<>();
+			String baseClass = implClass.replace("Impl", ""); 
+			String featureClass = componentType.equals("service")
+					? baseClass.replace("Service", "")
+					: baseClass.replace("Resource", "");
+			bindingSpec.put("factory", baseClass + "Factory");
+			bindingSpec.put("module", module);
+			bindingSpec.put("class", baseClass);
+			bindingSpec.put("implClass", fileName);
+			bindingSpec.put("componentType", componentType);
+
+			String variableName = getVariableNameFromModule(module) + featureClass; 
+			bindingSpec.put("variableName", addUniqueVariableName(variableName, componentTypeCap) + componentTypeCap); 
+
+			if (!isCoreModule(module) && isCoreConstructed) {
+				String upperLevelModule = getUpperLevelModuleName(feature, module);
+				if (upperLevelModule != null) {
+					String wrappedVariableName = getVariableNameFromModule(upperLevelModule) + featureClass; 
+					bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+				} else {
+					String coreModule = getCoreByModule(module);
+					String wrappedVariableName = getVariableNameFromModule(coreModule) + featureClass; 
+					bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+				}
+			}
+
+			listbindingSpec.add(bindingSpec);
+		}
+
+		return listbindingSpec;
 	}
 
 	// Helps distinguish variableName if a delta is being used multiple times in creating a feature
@@ -470,6 +536,24 @@ public class ProductClassRenderer extends TemplateRenderer {
 			if (isModuleExist(coreModule)) {
 				List<String> implClasses = getListModuleImplClass(coreModule, componentType);
 				return implClasses.isEmpty() ? null : implClasses.get(0);
+			}
+			splittedModule = Arrays.copyOfRange(splittedModule, 0, splittedModule.length - 1);
+		}
+		return null;
+	}
+
+	private List<String> getCoreMultiImplClass(String module, String componentType) throws CoreException {
+		if (module.endsWith(".core")) {
+			List<String> implClasses = getListModuleImplClass(module, componentType);
+			return implClasses.isEmpty() ? null : implClasses;
+		}
+
+		String[] splittedModule = module.split("\\.");
+		while (splittedModule.length >= 3) {
+			String coreModule = getCoreByModule(String.join(".", splittedModule));
+			if (isModuleExist(coreModule)) {
+				List<String> implClasses = getListModuleImplClass(coreModule, componentType);
+				return implClasses.isEmpty() ? null : implClasses;
 			}
 			splittedModule = Arrays.copyOfRange(splittedModule, 0, splittedModule.length - 1);
 		}
