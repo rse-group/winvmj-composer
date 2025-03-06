@@ -1,0 +1,12 @@
+{
+    "Catalog": ["webshop.seller.core","webshop.catalog.core"],
+    "CatalogBrand": ["webshop.catalog.brand"],
+    "CatalogFilter": ["webshop.catalog.category"],
+    "Order": ["webshop.customer.core", "webshop.order.core"],
+    "OrderUnauthorized": ["webshop.order.unauthorized"],
+    "OrderSimplified": ["webshop.order.simplified"],
+    "OrderWithCancel":["webshop.order.cancel"],
+    "PaymentOrder":["webshop.paymentorder.core"],
+    "CreditCard":["webshop.paymentorder.creditcard"],
+    "EWallet":["webshop.paymentorder.ewallet"]
+}

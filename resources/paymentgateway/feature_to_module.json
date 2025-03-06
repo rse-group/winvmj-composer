@@ -1,0 +1,63 @@
+{
+	"Vendor": [
+		"paymentgateway.config.core"
+	],
+	"Flip": [
+		"paymentgateway.config.flip"
+	],
+	"Midtrans": [
+		"paymentgateway.config.midtrans"
+	],
+	"Oy": [
+		"paymentgateway.config.oy"
+	],
+	"Xendit": [
+		"paymentgateway.config.xendit"
+	],
+	"Disbursement": [
+		"paymentgateway.disbursement.core"
+	],
+	"ExchangeRate": [
+		"paymentgateway.disbursement.international",
+		"paymentgateway.disbursement.internationaldisbursementvalidator"
+	],
+	"FixedCurrency": [
+		"paymentgateway.disbursement.special",
+		"paymentgateway.disbursement.domesticdisbursementvalidator",
+		"paymentgateway.disbursement.internationaldisbursementvalidator"
+	],
+	"Agent": [
+		"paymentgateway.disbursement.agent",
+		"paymentgateway.disbursement.domesticdisbursementvalidator"
+	],
+	"SpecifiedRecipient": [
+		"paymentgateway.disbursement.specifiedrecipient"
+	],
+	"Payment": [
+		"paymentgateway.payment.core"
+	],
+	"CreditCard": [
+		"paymentgateway.payment.creditcard"
+	],
+	"DebitCard": [
+		"paymentgateway.payment.debitcard"
+	],
+	"EWallet": [
+		"paymentgateway.payment.ewallet"
+	],
+	"Invoice": [
+		"paymentgateway.payment.invoice"
+	],
+	"PaymentLink": [
+		"paymentgateway.payment.paymentlink"
+	],
+	"PaymentRouting": [
+		"paymentgateway.payment.paymentrouting"
+	],
+	"RetailOutlet": [
+		"paymentgateway.payment.retailoutlet"
+	],
+	"VirtualAccount": [
+		"paymentgateway.payment.virtualaccount"
+	]
+}

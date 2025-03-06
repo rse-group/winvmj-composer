@@ -1,0 +1,50 @@
+{
+    "services": [
+        {
+            "productName": "ServiceCatalog",
+            "productModule": "webshop.product.servicecatalog",
+            "features": [
+                {
+                    "spl" : "webshop",
+                    "feature": "CatalogBrand"
+                },
+                {
+                    "spl" : "webshop",
+                    "feature": "CatalogFilter"
+                }
+            ]
+        },
+        {
+            "productName": "ServiceOrder",
+            "productModule": "webshop.product.serviceorder",
+            "features": [
+                {
+                    "spl" : "webshop",
+                    "feature": "Order"
+                }
+            ]
+        },
+        {
+            "productName": "ServicePaymentOrderCreditCard",
+            "productModule": "webshop.product.servicepaymentordercreditcard",
+            "features": [
+                {
+                    "spl" : "webshop",
+                    "feature": "CreditCard"
+                }
+            ]
+        },
+        {
+            "productName": "ServicePaymentOrderEWallet",
+            "productModule": "webshop.product.servicepaymentorderewallet",
+            "features": [
+                {
+                    "spl" : "webshop",
+                    "feature": "EWallet"
+                }
+            ]
+        }
+
+
+    ]
+}
