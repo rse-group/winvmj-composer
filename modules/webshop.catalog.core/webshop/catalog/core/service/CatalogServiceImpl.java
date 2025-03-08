@@ -54,23 +54,23 @@ public class CatalogServiceImpl extends CatalogServiceComponent{
             throw new FieldValidationException("Field 'price' not found in the request body.");
         }
         String priceStr = (String) body.get("price");
-		int price = Integer.parseInt(priceStr);
+        int price = Integer.parseInt(priceStr);
 
         if (!body.containsKey("availableStock")) {
             throw new FieldValidationException("Field 'availableStock' not found in the request body.");
         }
-		String availableStockStr = (String) body.get("availableStock");
-		int availableStock = Integer.parseInt(availableStockStr);
+        String availableStockStr = (String) body.get("availableStock");
+        int availableStock = Integer.parseInt(availableStockStr);
 
         if (!body.containsKey("category")) {
             throw new FieldValidationException("Field 'category' not found in the request body.");
         }
-		String category = (String) body.get("category");
+        String category = (String) body.get("category");
 
         if (!body.containsKey("pictureURL")) {
             throw new FieldValidationException("Field 'pictureURL' not found in the request body.");
         }
-		Map<String, byte[]> uploadedFile = (HashMap<String, byte[]>) body.get("pictureURL");
+        Map<String, byte[]> uploadedFile = (HashMap<String, byte[]>) body.get("pictureURL");
 
         String pictureURL = "data:" + (new String(uploadedFile.get("type"))).split(" ")[1].replaceAll("\\s+", "")
                 + ";base64," + Base64.getEncoder().encodeToString(uploadedFile.get("content"));
@@ -87,74 +87,74 @@ public class CatalogServiceImpl extends CatalogServiceComponent{
         }
         UUID catalogId = UUID.randomUUID();
         Seller seller = null;
-		if (email != null) {
-			seller = sellerService.getSellerByEmail(email);
-	    } 
-		Catalog catalog = catalogFactory.createCatalog("webshop.catalog.core.CatalogImpl", catalogId, name, description, price, pictureURL, availableStock, category, seller);
+        if (email != null) {
+            seller = sellerService.getSellerByEmail(email);
+        }
+        Catalog catalog = catalogFactory.createCatalog("webshop.catalog.core.CatalogImpl", catalogId, name, description, price, pictureURL, availableStock, category, seller);
         catalogRepository.saveObject(catalog);
 
         publishCatalogMessage(catalog, email, "create");
         return catalogRepository.getObject(catalogId);
-	}
+    }
 
     public Catalog updateCatalog(HashMap<String, Object> body){
-    	if (!body.containsKey("catalogId")) {
-    		throw new NotFoundException("Field 'catalogId' not found in the request body.");
-    	}
-    	String catalogIdStr = (String) body.get("catalogId");
-    	UUID catalogId = UUID.fromString(catalogIdStr);
-		
-		Catalog catalog = catalogRepository.getObject(catalogId);
+        if (!body.containsKey("catalogId")) {
+            throw new NotFoundException("Field 'catalogId' not found in the request body.");
+        }
+        String catalogIdStr = (String) body.get("catalogId");
+        UUID catalogId = UUID.fromString(catalogIdStr);
+
+        Catalog catalog = catalogRepository.getObject(catalogId);
         if (catalog == null) {
-	        throw new NotFoundException("Catalog with catalogId " + catalogId +" not found");
-	    } 
+            throw new NotFoundException("Catalog with catalogId " + catalogId +" not found");
+        }
         if (body.containsKey("category")) {
-        	String category = (String) body.get("category");
+            String category = (String) body.get("category");
             catalog.setCategory(category);
         }
         if (body.containsKey("name")) {
-        	String name =  (String) body.get("name");
+            String name =  (String) body.get("name");
             catalog.setName(name);
         }
         if (body.containsKey("description")) {
-        	String description = (String) body.get("description");
+            String description = (String) body.get("description");
             catalog.setDescription(description);
         }
 
-		int price = -1 ;
-		if (body.containsKey("price")) {
-			try {
-		        price = Integer.parseInt((String) body.get("price"));
-			} catch (NumberFormatException e) {
-		        throw new FieldValidationException("Price must be an integer");
-		    }
-		}
+        int price = -1 ;
+        if (body.containsKey("price")) {
+            try {
+                price = Integer.parseInt((String) body.get("price"));
+            } catch (NumberFormatException e) {
+                throw new FieldValidationException("Price must be an integer");
+            }
+        }
         if (price != -1) {
             catalog.setPrice(price);
         }
 
         int availableStock = -1 ;
         if (body.containsKey("availableStock")) {
-			try {
-		        availableStock = Integer.parseInt((String) body.get("availableStock"));
-			} catch (NumberFormatException e) {
-		        throw new FieldValidationException("Available stock must be an integer");
-		    }
-		}
+            try {
+                availableStock = Integer.parseInt((String) body.get("availableStock"));
+            } catch (NumberFormatException e) {
+                throw new FieldValidationException("Available stock must be an integer");
+            }
+        }
         if (availableStock != -1) {
             catalog.setAvailableStock(availableStock);
         }
-		
+
         if (body.containsKey("pictureURL")) {
             Object rawUploadedFile = body.get("pictureURL");
-     
+
             if (rawUploadedFile instanceof HashMap) {
                 Map<String, byte[]> uploadedFile = (HashMap<String, byte[]>) rawUploadedFile;
-                
+
                 if (uploadedFile != null) {
                     String pictureURL = "data:" + new String(uploadedFile.get("type")).split(" ")[1].replaceAll("\\s+", "")
                             + ";base64," + Base64.getEncoder().encodeToString(uploadedFile.get("content"));
-                    
+
                     // Validasi ukuran file
                     int fileSize = uploadedFile.get("content").length;
                     if (fileSize > 4000000) {
@@ -177,51 +177,55 @@ public class CatalogServiceImpl extends CatalogServiceComponent{
                 throw new IllegalArgumentException("Invalid type for 'pictureURL': Expected HashMap<String, byte[]>.");
             }
         }
-		
-		catalogRepository.updateObject(catalog);
-		catalog = catalogRepository.getObject(catalogId);
-        publishCatalogMessage(catalog, "update");
 
-		return catalog;
-	}
+        updateAndPublishCatalog(catalog);
+
+        catalog = catalogRepository.getObject(catalogId);
+        return catalog;
+    }
 
     public Catalog getCatalog(UUID catalogId){
-		Catalog catalog = catalogRepository.getObject(catalogId);
-		if (catalog.getIsDeleted()) {
-			catalog = null;
-		}
-		return catalog;
-	}
+        Catalog catalog = catalogRepository.getObject(catalogId);
+        if (catalog.getIsDeleted()) {
+            catalog = null;
+        }
+        return catalog;
+    }
 
     public List<Catalog> getAllCatalog(){
-		List<Catalog> catalogList = catalogRepository.getListObject(
-                                    "catalog_impl", "isDeleted", false);
+        List<Catalog> catalogList = catalogRepository.getListObject(
+                "catalog_impl", "isDeleted", false);
         return catalogList;
-	}
+    }
 
     public List <Catalog> getCatalogByName(String name){
         List<Catalog> filteredCatalogs = catalogRepository.getListObject("catalog_impl", "name", name);
-    	filteredCatalogs.removeIf(Catalog::getIsDeleted);  // Remove all elements with isDeleted = true
+        filteredCatalogs.removeIf(Catalog::getIsDeleted);  // Remove all elements with isDeleted = true
         return filteredCatalogs;
     }
 
     public List<Catalog> deleteCatalog(UUID catalogId){
-    	// Soft delete
-		Catalog catalog = catalogRepository.getObject(catalogId);
-		catalog.setIsDeleted(true);
-		catalogRepository.updateObject(catalog);
+        // Soft delete
+        Catalog catalog = catalogRepository.getObject(catalogId);
+        catalog.setIsDeleted(true);
+        catalogRepository.updateObject(catalog);
         publishCatalogMessage(catalog,"delete");
         return getAllCatalog();
-	}
+    }
 
     public List<HashMap<String,Object>> transformCatalogListToHashMap(List<Catalog> catalogList){
-		List<HashMap<String,Object>> resultList = new ArrayList<HashMap<String,Object>>();
+        List<HashMap<String,Object>> resultList = new ArrayList<HashMap<String,Object>>();
         for(int i = 0; i < catalogList.size(); i++) {
             resultList.add(catalogList.get(i).toHashMap());
         }
 
         return resultList;
-	}
+    }
+
+    public void updateAndPublishCatalog(Catalog catalog){
+        catalogRepository.updateObject(catalog);
+        publishCatalogMessage(catalog, "update");
+    }
 
     public void saveCatalogFromMessage(JsonObject body){
         if (!body.has("catalogId")) {

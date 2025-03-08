@@ -40,22 +40,20 @@ public class PaymentOrderServiceImpl extends PaymentOrderServiceComponent{
 		BindQueue();
 	}
 
-    public PaymentOrder createPaymentOrder(String paymentId, String paymentStatus, String paymentMethod, Order order){
+	public PaymentOrder createPaymentOrder(String paymentId, String paymentStatus, String paymentMethod, Order order){
 		UUID paymentOrderId = UUID.randomUUID();
 		PaymentOrder paymentOrder = PaymentOrderFactory.createPaymentOrder("webshop.paymentorder.core.PaymentOrderImpl", paymentOrderId, paymentId, paymentStatus, paymentMethod, order);
 		paymentOrderRepository.saveObject(paymentOrder);
 
 		order.setStatus("Paid");
-		orderRepository.updateObject(order);
-
-		publishOrderMessage(order,"update");
+		orderService.updateAndPublishOrder(order);
 		publishPaymentOrderMessage(paymentOrder,"create");
 
 		return paymentOrder;
 	}
 
 	public List<Order> getUnpaidOrderHistory(String email){
-    	List<Order> orderHistory = orderService.getOrderHistory(email);
+		List<Order> orderHistory = orderService.getOrderHistory(email);
 		orderHistory.removeIf(order -> !"Not Paid".equals(order.getStatus()));
 		return orderHistory;
 	}
@@ -181,54 +179,4 @@ public class PaymentOrderServiceImpl extends PaymentOrderServiceComponent{
 			System.out.println("Failed to publish paymentOrder message");
 		}
 	}
-
-	private void publishOrderMessage(Order order, String action) {
-		publishOrderMessage(order, null, null, action);
-	}
-
-	private void publishOrderMessage(Order order, String email, String catalogIdStr, String action) {
-		if (order instanceof OrderDecorator) {
-			order = ((OrderDecorator) order).getRecord();
-		}
-
-		Gson gson = new Gson();
-		JsonObject jsonObject = null;
-
-		if (action.equals("create")) {
-			jsonObject = gson.toJsonTree(order).getAsJsonObject();
-
-			jsonObject.remove("customer");
-			jsonObject.remove("catalog");
-
-			jsonObject.add("email", new JsonPrimitive(email));
-			jsonObject.add("catalogId", new JsonPrimitive(catalogIdStr));
-		} else if (action.equals("update")) {
-			jsonObject = new JsonObject();
-			String orderId = order.getOrderId().toString();
-			String status = order.getStatus();
-
-			jsonObject.add("orderId", new JsonPrimitive(orderId));
-			jsonObject.add("status", new JsonPrimitive(status));
-		}
-
-		jsonObject.add("action", new JsonPrimitive(action));
-
-		try {
-			String routingKey = "order";
-			String message = gson.toJson(jsonObject);
-
-			BasicProperties props = new BasicProperties.Builder()
-					.appId(appId)
-					.contentType("application/json")
-					.deliveryMode(2)
-					.build();
-
-			channel.basicPublish(BASE_EXCHANGE, routingKey, props, message.getBytes("UTF-8"));
-			System.out.println(" [x] Sent '" + routingKey + "':'" + message + "'");
-		} catch (IOException e){
-			System.out.println("Failed to publish order message");
-		}
-	}
-
-
 }

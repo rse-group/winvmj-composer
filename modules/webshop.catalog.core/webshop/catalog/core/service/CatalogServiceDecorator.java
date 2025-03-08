@@ -36,4 +36,6 @@ public abstract class CatalogServiceDecorator extends CatalogServiceComponent{
 		return record.deleteCatalog(catalogId);
 	}
 
+	public void updateAndPublishCatalog(Catalog catalog) {record.updateAndPublishCatalog(catalog);}
+
 }

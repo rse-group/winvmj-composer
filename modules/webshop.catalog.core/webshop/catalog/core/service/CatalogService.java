@@ -11,4 +11,6 @@ public interface CatalogService {
     List<Catalog> getCatalogByName(String name);
     List<Catalog> deleteCatalog(UUID catalogId);
     List<HashMap<String, Object>> transformCatalogListToHashMap(List<Catalog> catalogList);
+
+    void updateAndPublishCatalog(Catalog catalog);
 }

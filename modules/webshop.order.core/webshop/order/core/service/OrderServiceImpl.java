@@ -17,32 +17,33 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
 public class OrderServiceImpl extends OrderServiceComponent{
-    CustomerService customerService = new CustomerServiceImpl();
+	CustomerService customerService = new CustomerServiceImpl();
 
 	String BASE_EXCHANGE = "webshop";
 	String appId;
 	Channel channel;
-	String catalogQueue;
 	String orderQueue;
+
+	CatalogService catalogService;
 
 //	public OrderServiceImpl () {} // Hanya bisa mendefinisikasn 1 constructor karena di factory hanya mengambil 1 constructor saja
 
-	public OrderServiceImpl (Channel channel, String appId) {
+	public OrderServiceImpl (Channel channel, String appId, CatalogService catalogService) {
 		this.channel = channel;
 		this.appId = appId;
 
-		this.catalogQueue = appId + ".catalog";
+		this.catalogService = catalogService;
 		this.orderQueue = appId + ".order";
 		BindQueue();
-   }
+	}
 
-    public HashMap<String, Object> validateQuantity(HashMap<String, Object> body){
-    	if (!body.containsKey("catalogId")) {
+	public HashMap<String, Object> validateQuantity(HashMap<String, Object> body){
+		if (!body.containsKey("catalogId")) {
 			throw new NotFoundException("Field 'catalogId' not found in the request body.");
 		}
 		String catalogIdStr = (String) body.get("catalogId");
 		UUID catalogId = UUID.fromString(catalogIdStr);
-		
+
 		Catalog catalog = catalogRepository.getObject(catalogId);
 		if (!body.containsKey("quantity")) {
 			throw new NotFoundException("Field 'quantity' not found in the request body.");
@@ -50,15 +51,15 @@ public class OrderServiceImpl extends OrderServiceComponent{
 		String quantityStr = (String) body.get("quantity");
 		int quantity = Integer.parseInt(quantityStr);
 		if (catalog == null) {
-	        throw new NotFoundException("Catalog with id " + catalogId +" not exist.");
-	    } 
+			throw new NotFoundException("Catalog with id " + catalogId +" not exist.");
+		}
 		int availableStock = catalog.getAvailableStock();
 		if (quantity < 1){
 			throw new FieldValidationException("Quantity must be more than 0");
 		}
 		if (availableStock < quantity) {
-	        throw new FieldValidationException("The quantity you have selected exceeds the available stock. Please adjust your order accordingly.");
-	    }
+			throw new FieldValidationException("The quantity you have selected exceeds the available stock. Please adjust your order accordingly.");
+		}
 		int price = catalog.getPrice();
 		int amount = quantity * price;
 		HashMap<String, Object> responseMap = new HashMap<String,Object>();
@@ -66,17 +67,17 @@ public class OrderServiceImpl extends OrderServiceComponent{
 		responseMap.put("quantity",quantity);
 		responseMap.put("amount",amount);
 		return responseMap;
-   }
-	
-    public HashMap<String, Object> previewOrder(UUID catalogId, int quantity, int amount){
+	}
+
+	public HashMap<String, Object> previewOrder(UUID catalogId, int quantity, int amount){
 		Catalog catalog = catalogRepository.getObject(catalogId);
 		if (catalog == null) {
-	        throw new NotFoundException("Catalog with id " + catalogId +" not exist.");
-	    } 
+			throw new NotFoundException("Catalog with id " + catalogId +" not exist.");
+		}
 		int price = catalog.getPrice();
 		String pictureURL = catalog.getPictureUrl();
 		String name = catalog.getName();
-		
+
 		HashMap<String, Object> responseMap = new HashMap<String,Object>();
 		responseMap.put("catalogId", catalogId);
 		responseMap.put("name",name);
@@ -84,10 +85,10 @@ public class OrderServiceImpl extends OrderServiceComponent{
 		responseMap.put("amount",amount);
 		responseMap.put("quantity",quantity);
 		responseMap.put("pictureURL",pictureURL);
-		
+
 		return responseMap;
 	}
-	
+
 	public Order saveOrder(HashMap<String, Object> body, String email){
 		if (!body.containsKey("catalogId")) {
 			throw new NotFoundException("Field 'catalogId' not found in the request body.");
@@ -118,64 +119,69 @@ public class OrderServiceImpl extends OrderServiceComponent{
 			throw new NotFoundException("Field 'city' not found in the request body.");
 		}
 		String city = (String) body.get("city");
-		
+
 		if (!body.containsKey("street")) {
 			throw new NotFoundException("Field 'street' not found in the request body.");
 		}
 		String street = (String) body.get("street");
-		
+
 		if (!body.containsKey("state")) {
 			throw new NotFoundException("Field 'state' not found in the request body.");
 		}
 		String state = (String) body.get("state");
-		
+
 		if (!body.containsKey("country")) {
 			throw new NotFoundException("Field 'country' not found in the request body.");
 		}
 		String country = (String) body.get("country");
-		
+
 		if (!body.containsKey("zipcode")) {
 			throw new NotFoundException("Field 'zipcode' not found in the request body.");
 		}
-		int zipcode = Integer.parseInt((String) body.get("zipcode")); 
-		
-		
+		int zipcode = Integer.parseInt((String) body.get("zipcode"));
+
+
 		Customer customer = null;
 		if (email != null) {
 			customer = customerService.getCustomerByEmail(email);
-	    } 
+		}
 		String status = "Not Paid";
-		Order order = OrderFactory.createOrder("webshop.order.core.OrderImpl", 
-				status, orderId, date, amount, catalog, quantity, city, street, 
+		Order order = OrderFactory.createOrder("webshop.order.core.OrderImpl",
+				status, orderId, date, amount, catalog, quantity, city, street,
 				state, country, zipcode, customer);
 		orderRepository.saveObject(order);
 		catalog.setAvailableStock(availableStock - quantity);
-		catalogRepository.updateObject(catalog);
+		catalogService.updateAndPublishCatalog(catalog);
 
 		publishOrderMessage(order,email,catalogIdStr, "create");
-		publishCatalogMessage(catalog,"update");
 		return order;
 	}
-    
-    public Order getOrder(UUID orderId){
+
+	public Order getOrder(UUID orderId){
 		Order order = orderRepository.getObject(orderId);
 		return order;
 	}
 
-    public List<HashMap<String,Object>> transformOrderListToHashMap(List<Order> orderList){
+	public List<HashMap<String,Object>> transformOrderListToHashMap(List<Order> orderList){
 		List<HashMap<String,Object>> resultList = new ArrayList<HashMap<String,Object>>();
-        for(int i = 0; i < orderList.size(); i++) {
-            resultList.add(orderList.get(i).toHashMap());
-        }
+		for(int i = 0; i < orderList.size(); i++) {
+			resultList.add(orderList.get(i).toHashMap());
+		}
 
-        return resultList;
+		return resultList;
 	}
 
-    public List<Order> getOrderHistory(String email){
-    	Customer customer = customerService.getCustomerByEmail(email);
-    	UUID customerId = customer.getCustomerId();
-    	List<Order> orderHistory = orderRepository.getListObject("order_comp", "customer_customerid", customerId);
+	public List<Order> getOrderHistory(String email){
+		Customer customer = customerService.getCustomerByEmail(email);
+		UUID customerId = customer.getCustomerId();
+		List<Order> orderHistory = orderRepository.getListObject("order_comp", "customer_customerid", customerId);
 		return orderHistory;
+	}
+
+	public void updateAndPublishOrder(Order order){
+		orderRepository.updateObject(order);
+
+		publishOrderMessage(order,"update");
 	}
 
 	public void saveOrderFromMessage(JsonObject body){
@@ -373,49 +379,4 @@ public class OrderServiceImpl extends OrderServiceComponent{
 		}
 	}
 
-
-	private void publishCatalogMessage(Catalog catalog, String action) {
-		publishCatalogMessage(catalog, null, action);
-	}
-
-	private void publishCatalogMessage(Catalog catalog, String email, String action) {
-		if (catalog instanceof CatalogDecorator) {
-			catalog = ((CatalogDecorator) catalog).getRecord();
-		}
-
-		Gson gson = new Gson();
-		JsonObject jsonObject = gson.toJsonTree(catalog).getAsJsonObject();
-
-		jsonObject.remove("objectName");
-		jsonObject.remove("isDeleted");
-		jsonObject.remove("seller");
-
-		if (action.equals("create")) {
-			jsonObject.add("email", new JsonPrimitive(email));
-		}
-
-		if (action.equals("delete")) {
-			jsonObject = new JsonObject();
-			String catalogId = catalog.getCatalogId().toString();
-			jsonObject.add("catalogId", new JsonPrimitive(catalogId));
-		}
-
-		jsonObject.add("action", new JsonPrimitive(action));
-
-		try {
-			String routingKey = "catalog";
-			String message = gson.toJson(jsonObject);
-
-			BasicProperties props = new BasicProperties.Builder()
-					.appId(appId)
-					.contentType("application/json")
-					.deliveryMode(2)
-					.build();
-
-			channel.basicPublish(BASE_EXCHANGE, routingKey, props, message.getBytes("UTF-8"));
-			System.out.println(" [x] Sent '" + routingKey + "':'" + message + "'");
-		} catch (IOException e){
-			System.out.println("Failed to publish catalog message");
-		}
-	}
 }

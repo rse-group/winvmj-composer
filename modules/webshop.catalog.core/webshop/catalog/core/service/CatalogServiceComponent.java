@@ -18,4 +18,5 @@ public abstract class CatalogServiceComponent implements CatalogService{
     public abstract List<HashMap<String, Object>> transformCatalogListToHashMap(List<Catalog> CatalogList);
     public abstract List<Catalog> deleteCatalog(UUID catalogId);
 
+    public abstract void updateAndPublishCatalog(Catalog catalog);
 }

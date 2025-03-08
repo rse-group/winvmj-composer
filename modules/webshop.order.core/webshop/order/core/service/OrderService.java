@@ -10,4 +10,5 @@ public interface OrderService {
     Order getOrder(UUID orderId);
     List<HashMap<String, Object>> transformOrderListToHashMap(List<Order> OrderList);
     List<Order> getOrderHistory(String email);
+    void updateAndPublishOrder(Order order);
 }
