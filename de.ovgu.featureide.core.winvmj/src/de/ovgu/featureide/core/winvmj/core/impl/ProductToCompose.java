@@ -1,14 +1,20 @@
 package de.ovgu.featureide.core.winvmj.core.impl;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -17,6 +23,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.logicng.datastructures.Assignment;
@@ -50,6 +57,19 @@ public class ProductToCompose extends WinVMJProduct {
 			this.modules = selectModules(featureProject, featureProject
 					.loadConfiguration(config).getSelectedFeatures());
 		} catch (CoreException | ParserException e) {
+			this.modules = null;
+		}
+	}
+	
+	// Don't use feature selection from FeatureIDE (Micro-services)
+	public ProductToCompose(IFeatureProject featureProject, String productName, List<IFeature> features,  
+			Map<String, IFolder> allModulesMapping) {
+	    this.productName = productName;
+		this.splName = Utils.getSplName(featureProject);
+		try {
+			List<IFolder> featureModules = selectModules(featureProject, features);
+			this.modules = resolveDependencies(featureModules, allModulesMapping);
+		} catch (CoreException | ParserException | IOException e) {
 			this.modules = null;
 		}
 	}
@@ -124,4 +144,53 @@ public class ProductToCompose extends WinVMJProduct {
 	private String getProductName(Path config) {
 		return StringUtils.capitalize(FilenameUtils.getBaseName(config.getFileName().toString()));
 	}
+	
+	// Micro-services
+	public List<IFolder> resolveDependencies(List<IFolder> selectedFeatures,
+			Map<String, IFolder> allModuleMapping ) throws CoreException, IOException {
+		
+		Set<IFolder> resolvedFeatures = new HashSet<>(selectedFeatures);
+        List<IFolder> toProcess = new ArrayList<>(selectedFeatures);
+
+        while (!toProcess.isEmpty()) {
+            IFolder currentFeature = toProcess.remove(0);
+
+            IFile moduleInfoFile = currentFeature.getFile("module-info.java");
+            if (moduleInfoFile.exists()) {
+                List<String> dependencies = extractDependencies(moduleInfoFile);
+
+                // Process each dependency
+                for (String dependency : dependencies) {
+                	IFolder dependencyFolder = allModuleMapping.get(dependency);
+                    if (dependencyFolder != null && !resolvedFeatures.contains(dependencyFolder)) {
+                        resolvedFeatures.add(dependencyFolder);
+                        toProcess.add(dependencyFolder);
+                    }
+                }
+            }
+        }
+
+        return new ArrayList<>(resolvedFeatures);
+    }
+
+	// Micro-services
+    private List<String> extractDependencies(IFile moduleInfoFile) throws IOException, CoreException {
+        List<String> dependencies = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(moduleInfoFile.getContents()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.startsWith("requires vmj")) {
+                	// Stop processing once we encounter an WinVMJ Libraries dependency
+                    break;
+                } else if (line.startsWith("requires ")) {
+                    String dependency = line.split(" ")[1].replace(";", "").trim();
+                    dependencies.add(dependency);
+                }
+            }
+        }
+
+        return dependencies;
+    }
 }

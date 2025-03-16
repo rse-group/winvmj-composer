@@ -56,18 +56,29 @@ public class SourceCompiler {
 
 	public static void compileSource(IFeatureProject project) {
 		try {
-			WinVMJProduct sourceProduct = new ComposedProduct(project);
-			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
-			if (!compiledProductDir.exists())
-				compiledProductDir.create(false, true, null);
-			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
-			if (!compiledProductDir.exists())
-				compiledProductDir.create(false, true, null);
-			importWinVMJLibraries(compiledProductDir, sourceProduct);
-			importWinVMJProductConfigs(compiledProductDir);
-			generateConfigFiles(project, sourceProduct);
-			compileModules(project, compiledProductDir, sourceProduct);
-			insertSqlFolder(compiledProductDir, project);
+			// Get All Product Modules
+			List<IFolder> productModules = Stream
+				    .of(project.getBuildFolder().members())  
+				    .filter(module -> module instanceof IFolder)  
+				    .map(module -> (IFolder) module)  
+				    .filter(folder -> folder.getName().contains(".product."))
+				    .collect(Collectors.toList()); 
+			
+			
+	        for (IFolder productModule : productModules) {
+	        	WinVMJProduct sourceProduct = new ComposedProduct(project, productModule);
+	        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+				if (!compiledProductDir.exists())
+					compiledProductDir.create(false, true, null);
+				compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
+				if (!compiledProductDir.exists())
+					compiledProductDir.create(false, true, null);
+				importWinVMJLibraries(compiledProductDir, sourceProduct);
+				importWinVMJProductConfigs(compiledProductDir);
+				generateConfigFiles(project, sourceProduct);
+				compileModules(project, compiledProductDir, sourceProduct);
+				insertSqlFolder(compiledProductDir, project);
+	        }
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}

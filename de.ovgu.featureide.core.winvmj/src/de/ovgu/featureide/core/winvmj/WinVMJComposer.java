@@ -8,7 +8,9 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,8 @@ import java.util.stream.Stream;
 import org.checkerframework.checker.units.qual.kmPERh;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.logicng.datastructures.Assignment;
 import org.logicng.formulas.FormulaFactory;
@@ -98,20 +102,102 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 			@Override
 			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-				composeProduct(product, config);
+				composeProduct(product, featureProject.loadConfiguration(config).getSelectedFeatures());
 				return true;
 			}
 		};
 		LongRunningWrapper.getRunner(job, "Compose Product").schedule();
 	}
 	
-	private void composeProduct(WinVMJProduct product, Path config) {
+	// Micro-services
+	public void performFullBuildMicroservices(Map<String, List<IFeature>> serviceDefinition ) {
+		multiLevelDeltaMappings = null;
+		
+		Map<String, IFolder> allModulesMapping = null;
+		try {
+			allModulesMapping = getAllModulesMapping();
+		} catch (CoreException e) {
+			e.printStackTrace();
+			return;
+		}
+		final Map<String, IFolder> finalModulesMapping = allModulesMapping;
+		
+		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
+		    @Override
+		    public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
+		    	Map<IFolder,Integer> modulesCount = new HashMap<IFolder, Integer>();
+		    	Map<String, WinVMJProduct> serviceProductMap = new HashMap<String, WinVMJProduct>();
+		    	
+		    	for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
+					String productName = entry.getKey();
+					List<IFeature> featureList = entry.getValue();
+					
+					WinVMJProduct product = new ProductToCompose(featureProject, productName, 
+							featureList, finalModulesMapping);
+					serviceProductMap.put(productName, product);
+					
+					
+					for (IFolder module : product.getModules()) {
+						modulesCount.put(module, modulesCount.getOrDefault(module, 0) + 1);
+					}
+		        }
+		    	
+		    	Set<IFolder> duplicateModules = new HashSet<>();
+		    	for (Map.Entry<IFolder, Integer> entry : modulesCount.entrySet()) {
+		    		IFolder module = entry.getKey();
+					Integer moduleCount = entry.getValue();
+					
+					if (moduleCount >= 2) {
+						duplicateModules.add(module);
+					}
+		    	}
+		    	
+		    	// TODO : Pre-process modules
+		    	
+		    	
+		    	for (Map.Entry<String, WinVMJProduct> entry : serviceProductMap.entrySet()) {
+		    		String productName = entry.getKey();
+		    		WinVMJProduct product = entry.getValue();
+		    		List<IFeature> featureList = serviceDefinition.get(productName);
+		    		
+		    		composeProduct(product, featureList);
+		    	}
+		    	
+		        return true;
+		    }
+		};
+
+		LongRunningWrapper.getRunner(job, "Compose Products in Microservices").schedule();
+	}
+	
+	// Micro-services
+	private Map<String, IFolder> getAllModulesMapping() throws CoreException {
+		List<IProject> allProjects = new ArrayList<>();
+	    allProjects.add(featureProject.getProject()); 
+	    Collections.addAll(allProjects, featureProject.getProject().getReferencedProjects()); 
+
+	    // collect all module folders from all projects
+	    Map<String, IFolder> allModuleFolders = new HashMap<>();
+	    for (IProject p : allProjects) {
+	        IFolder moduleFolder = p.getFolder(WinVMJComposer.MODULE_FOLDERNAME);
+	        if (moduleFolder.exists()) {
+	            for (IResource resource : moduleFolder.members()) {
+	                if (resource instanceof IFolder) {
+	                    allModuleFolders.put(resource.getName(), (IFolder) resource);
+	                }
+	            }
+	        }
+	    }
+	    return allModuleFolders;
+	}
+	
+	private void composeProduct(WinVMJProduct product, List<IFeature> features) {
 		try {
 			selectModulesFromProject(featureProject, product);
 			checkMultiLevelDelta(
 				featureProject,
 				product,
-				featureProject.loadConfiguration(config).getSelectedFeatures()
+				features
 			);
 			IFolder productModule = featureProject.getBuildFolder()
 					.getFolder(product.getProductQualifiedName());

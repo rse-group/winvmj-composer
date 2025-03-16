@@ -27,14 +27,12 @@ import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 public class ComposedProduct extends WinVMJProduct {
 	private IFeatureProject featureProject;
 	
-	public ComposedProduct(IFeatureProject project)
+	public ComposedProduct(IFeatureProject project, IFolder productModule)
 			throws CoreException {
 		this.featureProject = project;
-		IFolder productModule = getProductModuleFromComposedProduct();
 		this.splName = productModule.getName().split(".product.")[0];
 		this.productName = getProductClassName(productModule);
 		this.modules = getModulesFromComposedProduct();
-		
 	}
 	
 	private String getProductClassName(IFolder productModule) throws CoreException {
@@ -52,16 +50,6 @@ public class ComposedProduct extends WinVMJProduct {
 		}
 
 		return FilenameUtils.getBaseName(productFileName);
-	}
-	
-	private IFolder getProductModuleFromComposedProduct()
-			throws CoreException {
-		IResource productModule = Stream
-				.of(featureProject.getBuildFolder().members())
-				.filter(module -> module.getName().contains(".product."))
-				.findFirst().get();
-		
-		return (IFolder) productModule;
 	}
 	
 	private List<IFolder> getModulesFromComposedProduct() throws CoreException {
