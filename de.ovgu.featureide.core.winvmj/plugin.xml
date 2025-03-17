@@ -93,6 +93,14 @@
 	                     </iterate>
 	                  </with>
 	               </visibleWhen>
+	        </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
+                  label="Open Feature Wizard"
+                  style="push"
+            >
             </command>
          </menu>
       </menuContribution>
@@ -114,6 +122,10 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileModuleHandler"
             commandId="de.ovgu.featureide.core.winvmj.compileModuleHandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.OpenFeatureWizardHandler"
+            commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler">
       </handler>
    </extension>
 </plugin>
