@@ -145,15 +145,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 	
 	private void getSelectedFeature(IFeatureProject winVmjProject) {
 		Configuration config = winVmjProject.loadCurrentConfiguration();
-		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
-		WinVMJConsole.println("===  GetSelectedFeatures ===");
-		for (String s : features) {
-			WinVMJConsole.println(s);
-		}
-		WinVMJConsole.println("========");
-		
-		
-	    
+		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();    
 	    selectedFeature = new ArrayList<>(features);
 	}
 
@@ -222,18 +214,14 @@ public class ProductClassRenderer extends TemplateRenderer {
 		// Iterate over the entries of the featureToModuleMap
 		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
 			String feature = entry.getKey();
-			WinVMJConsole.println("INi adalah feature yang masuk: " + feature);
 			if (feature.contains("|")) {
-				WinVMJConsole.println("Yang ada | adalah " + feature);
 				for (String ft : feature.replaceAll(" ", "").split("\\|")) {
 					if (selectedFeature.contains(ft)) {
 						List<String> modules = entry.getValue();
 						for (String module : modules) {
-							WinVMJConsole.println(module + " ini yang selected");
 							if ((productModules.contains(module)) && (!duplicate.containsKey(module))) {
 								try {
 									duplicate.put(module, 1);
-									WinVMJConsole.println(module + " ini yang masuk sleected");
 									List<Map<String, Object>> bindingSpec = constructBindingSpec(module, ft);
 									if (bindingSpec != null) {
 										bindings.add(bindingSpec);
@@ -256,10 +244,8 @@ public class ProductClassRenderer extends TemplateRenderer {
 				if (selectedFeature.contains(feature)) {
 					List<String> modules = entry.getValue();
 					for (String module : modules) {
-						WinVMJConsole.println(module + " ini yang selected");
 						if ((productModules.contains(module)) && (!duplicate.containsKey(module))) {
 							try {
-								WinVMJConsole.println(module + " ini yang masuk sleected dengann fitur "+ feature);
 								List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
 								if (bindingSpec != null) {
 									bindings.add(bindingSpec);
@@ -286,12 +272,9 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
-		WinVMJConsole.println(module + " " + feature + " ini dari construct");
 		// Check if the controller and service folder exists before constructing the spec
 		boolean isControllerExist = checkArtifactDirectoryOfModule(module, CONTROLLER_FOLDERNAME);
-		WinVMJConsole.println(String.valueOf(isControllerExist));
 		boolean isServiceExist = checkArtifactDirectoryOfModule(module, SERVICE_FOLDERNAME);
-		WinVMJConsole.println(String.valueOf(isServiceExist));
 
 		if (isControllerExist && isServiceExist){
 			List<Map<String, Object>> listControllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
@@ -334,7 +317,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 	private List<Map<String, Object>> constructComponentSpec(String module, String feature, String componentType)
 			throws IOException, CoreException {
 		String implClass = getCoreImplClass(module, componentType);
-		WinVMJConsole.println(implClass);
 		boolean isCoreConstructed = true;
 		String componentTypeCap = componentType.equals("service")
 									? "Service"
@@ -352,11 +334,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 		if (fileNames.isEmpty())
 			return null;
 		
-		for (String file: fileNames) {
-			WinVMJConsole.println(file + " ini adalah isi dari file");
-		}
-		
-		
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
 		for (String fileName : fileNames) {
@@ -366,7 +343,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 					? baseClass.replace("Service", "")
 					: baseClass.replace("Resource", "");
 
-			WinVMJConsole.println("Combo untuk " + baseClass + " pada modul " + module + " dengan filename " + fileName);
 			bindingSpec.put("factory", baseClass + "Factory");
 			bindingSpec.put("module", module);
 			bindingSpec.put("class", baseClass);
@@ -390,7 +366,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 			listBindingSpec.add(bindingSpec);
 		}
 		
-		WinVMJConsole.println("Berhaisl masuk ini");
 		return listBindingSpec;
 	}
 
@@ -536,15 +511,11 @@ public class ProductClassRenderer extends TemplateRenderer {
 	private String getCoreImplClass(String module, String componentType) throws CoreException {
 		if (module.endsWith(".core")) {
 			List<String> implClasses = getListModuleImplClass(module, componentType);
-			for (String elem : implClasses) {
-				WinVMJConsole.println(elem);
-			}
 			return implClasses.isEmpty() ? null : implClasses.get(0);
 		}
 
 		String[] splittedModule = module.split("\\.");
 		while (splittedModule.length >= 3) {
-			WinVMJConsole.println("Masuk suiniu");
 			String coreModule = getCoreByModule(String.join(".", splittedModule));
 			if (isModuleExist(coreModule)) {
 				List<String> implClasses = getListModuleImplClass(coreModule, componentType);
