@@ -36,10 +36,8 @@ public class EndpointsConfigRenderer extends TemplateRenderer {
 
     private List<String> extractExcludedEndpoints(WinVMJProduct product) {
         List<String> excludedEndpoints = new ArrayList<>();
-        
-        excludedEndpoints.add("call/disbursement");
-        excludedEndpoints.add("call/disbursement/list");
-        excludedEndpoints.add("call/disbursement/detail");
+
+        // TODO: Integrate with feature model and feature selection
 
         return excludedEndpoints;
     }
