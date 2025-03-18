@@ -219,6 +219,8 @@ public class ${productName} {
             VMJCors.setAllowedOrigin(propertyValue);
             
         } catch (IOException e) {
+			VMJCors.setAllowedMethod("GET, POST, PUT, PATCH, DELETE");
+			VMJCors.setAllowedOrigin("*");
 			System.out.println("Buat file cors.properties terlebih dahulu pada root project dengan contoh sebagai berikut:");
 			System.out.println("allowedMethod = GET, POST");
 			System.out.println("allowedOrigin = http://example.com");
