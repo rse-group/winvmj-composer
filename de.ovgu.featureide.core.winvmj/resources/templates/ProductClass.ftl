@@ -210,7 +210,7 @@ public class ${productName} {
     	Properties properties = new Properties();
         String propertyValue = "";
         
-        try (FileInputStream fileInput = new FileInputStream("../../cors.properties")) {
+        try (FileInputStream fileInput = new FileInputStream("cors.properties")) {
             properties.load(fileInput);
             propertyValue = properties.getProperty("allowedMethod");
             VMJCors.setAllowedMethod(propertyValue);
@@ -221,7 +221,7 @@ public class ${productName} {
         } catch (IOException e) {
 			VMJCors.setAllowedMethod("GET, POST, PUT, PATCH, DELETE");
 			VMJCors.setAllowedOrigin("*");
-			System.out.println("Buat file cors.properties terlebih dahulu pada root project dengan contoh sebagai berikut:");
+			System.out.println("Buat file cors.properties terlebih dahulu pada src-gen/(namaProduk) dengan contoh sebagai berikut:");
 			System.out.println("allowedMethod = GET, POST");
 			System.out.println("allowedOrigin = http://example.com");
         }
