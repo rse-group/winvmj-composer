@@ -36,6 +36,7 @@ import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
+import de.ovgu.featureide.core.winvmj.templates.impl.CorsPropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.DeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
@@ -166,6 +167,7 @@ public class SourceCompiler {
 		String dbPassword = dbProperties.getProperty("db.password");
 		WinVMJConsole.println("Generating additional config files for product...");
 		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
+		new CorsPropertiesRenderer(project).render(product);
 		// new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
 		new WindowsRunScriptRenderer(project, dbUsername, dbPassword).render(product);
 		new UnixRunScriptRenderer(project, dbUsername, dbPassword).render(product);

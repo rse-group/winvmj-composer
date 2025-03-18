@@ -1,2 +1,2 @@
-allowedHost = *
-allowedMethod = GET, POST, PUT, DELETE
+allowedOrigin = *
+allowedMethod = GET, POST, PUT, DELETE, PATCH
