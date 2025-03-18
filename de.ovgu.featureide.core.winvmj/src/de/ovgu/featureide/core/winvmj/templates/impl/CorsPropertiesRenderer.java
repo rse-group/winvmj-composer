@@ -18,10 +18,6 @@ public class CorsPropertiesRenderer extends TemplateRenderer {
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
 		Map<String, Object> dataModel = new HashMap<>();
-		
-		dataModel.put("allowedMethod", "GET, POST, PUT, DELETE, PATCH");
-		dataModel.put("allowedOrigin", "*");
-		
 		return dataModel;
 	}
 	
