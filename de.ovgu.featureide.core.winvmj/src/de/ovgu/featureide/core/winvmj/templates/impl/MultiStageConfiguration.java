@@ -64,7 +64,7 @@ public class MultiStageConfiguration {
         return featureModels;
     }
 
-    private static IFeatureModel loadFeatureModel(IFile file) {
+    public static IFeatureModel loadFeatureModel(IFile file) {
         Path featurePath = Paths.get(file.getLocation().toOSString());
         return FeatureModelManager.load(featurePath);
     }

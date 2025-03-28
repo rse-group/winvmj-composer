@@ -1,5 +1,6 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards;
 
+import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.ui.wizards.pages.*;
 
 import java.io.IOException;
@@ -19,6 +20,7 @@ import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 
 import org.eclipse.jface.wizard.Wizard;
+import org.eclipse.jface.wizard.IWizardPage;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizardPage;
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
@@ -29,6 +31,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizard;
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import java.lang.reflect.InvocationTargetException;
@@ -80,11 +83,17 @@ import static de.ovgu.featureide.fm.core.localization.StringTable.OPENING_FILE_F
 public class FeatureWizard extends Wizard {
 
     private ProjectNameWizardPage projectNamePage;
+	private MultiStageConfiguration multiStageConfiguration = new MultiStageConfiguration();
+	private SelectAllUvlWizardPage selectAllUvlWizardPage;
     private FeatureWizardPage featureWizardPage;
     private SelectFeaturesWizardPage selectFeaturesWizardPage;
+	private ConfirmationSelectionWizardPage confirmationSelectionWizardPage;
     private final Map<String, Object> dataMap = new HashMap<String, Object>();
     private IFeatureProject project;
-    
+	private boolean hasSetupFeatureSelection = false;
+	private ArrayList<String> selectedUvl =  new ArrayList<>();
+    private Map<String, IWizardPage> pageMap = new HashMap<String, IWizardPage>();
+	private String selectedPage;
 
     public FeatureWizard() {
         setWindowTitle("New Feature Wizard");
@@ -103,15 +112,78 @@ public class FeatureWizard extends Wizard {
         projectNamePage = new ProjectNameWizardPage();
         addPage(projectNamePage);
 
-        featureWizardPage = new FeatureWizardPage();
-        featureWizardPage.setProject(this.project);
-        addPage(featureWizardPage);
+		selectAllUvlWizardPage = new SelectAllUvlWizardPage();
+		selectAllUvlWizardPage.setProject(this.project);
+		addPage(selectAllUvlWizardPage);
 
-        selectFeaturesWizardPage = new SelectFeaturesWizardPage();
-        selectFeaturesWizardPage.setProject(this.project);
-        selectFeaturesWizardPage.setDataMap(featureWizardPage.getDataMap());
-        addPage(selectFeaturesWizardPage);
+		confirmationSelectionWizardPage = new ConfirmationSelectionWizardPage();
+		addPage(confirmationSelectionWizardPage);
+
+		// Uncomment for single feature wizard
+        // featureWizardPage = new FeatureWizardPage();
+        // featureWizardPage.setProject(this.project);
+        // addPage(featureWizardPage);
+
+        // selectFeaturesWizardPage = new SelectFeaturesWizardPage();
+        // selectFeaturesWizardPage.setProject(this.project);
+        // addPage(selectFeaturesWizardPage);
     }
+	@Override
+	public IWizardPage getNextPage(IWizardPage currentPage) {
+		// if (currentPage == featureWizardPage) {
+		// 	selectFeaturesWizardPage.setDataMap(featureWizardPage.getDataMap());
+		// 	selectFeaturesWizardPage.setSelectedFile();
+		// 	return selectFeaturesWizardPage;
+		// }
+
+
+		if ((!hasSetupFeatureSelection) && (currentPage ==  confirmationSelectionWizardPage)) {
+			for (int i = 0; i < selectAllUvlWizardPage.getSelected().size(); i++) {
+				SelectFeaturesWizardPage selectPage = new SelectFeaturesWizardPage();
+				selectPage.setProject(this.project);
+				selectPage.setSelectedFile(selectAllUvlWizardPage.getSelected().get(i));
+				if (i == 0) {
+					selectPage.setFirst();
+				}
+				addPage(selectPage);
+			}
+
+			hasSetupFeatureSelection = true;
+		}
+
+		else if ((hasSetupFeatureSelection) && (currentPage instanceof SelectFeaturesWizardPage)) {
+			SelectFeaturesWizardPage currentSelectPage = (SelectFeaturesWizardPage) currentPage;
+			
+			IWizardPage nextPage = super.getNextPage(currentPage);
+			if (nextPage instanceof SelectFeaturesWizardPage) {
+				SelectFeaturesWizardPage nextSelectPage = (SelectFeaturesWizardPage) nextPage;
+				
+				if (selectAllUvlWizardPage.getFilter()) {
+					nextSelectPage.setAllowedParent(currentSelectPage.getFeatureName());
+				}
+
+				return (IWizardPage) nextSelectPage;
+			}
+		}
+		
+		// For other cases, use the default behavior
+		return super.getNextPage(currentPage);
+	}
+
+	// @Override
+	// public IWizardPage getPreviousPage(IWizardPage currentPage) {
+	// 	IWizardPage previousPage = super.getPreviousPage(currentPage);
+	// 	System.out.println("MAsuk siini");
+	// 	System.out.println(previousPage);
+	// 	if (previousPage != null) System.out.println(previousPage.getName());
+
+	// 	if (previousPage == confirmationSelectionWizardPage) {
+	// 		System.out.println("MAsukkkkk");
+	// 		return null;
+	// 	}
+
+	// 	return previousPage;
+	// }
 
     @Override
     public boolean performFinish() {
@@ -153,7 +225,8 @@ public class FeatureWizard extends Wizard {
     private void doFinish(String fileName, FeatureModelFormula featureModel, IPersistentFormat<Configuration> format, 
 	IProgressMonitor monitor, HashSet<String> selectedFeature)
 			throws CoreException {
-		// create a sample file
+		
+		WinVMJConsole.println("Auto generating configuration file ...");
 		monitor.beginTask(CREATING + fileName, 2);
 		final IFolder configFolder = this.project.getConfigFolder();
 		final IContainer container = configFolder == null ? this.project.getProject() : configFolder;
@@ -173,6 +246,7 @@ public class FeatureWizard extends Wizard {
 		}
 		SimpleFileHandler.save(configPath.resolve(fileName), config, format);
 
+		WinVMJConsole.println("Auto select the configuration and composing ...");
 		this.project.setCurrentConfiguration(file);
 
 		monitor.worked(1);
