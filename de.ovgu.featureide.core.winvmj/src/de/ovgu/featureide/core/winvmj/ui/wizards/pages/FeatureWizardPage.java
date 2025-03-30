@@ -1,12 +1,16 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards.pages;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizardPage;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.swt.widgets.List;
 import org.eclipse.core.resources.*;
 import org.eclipse.jface.viewers.ListViewer;
@@ -23,6 +27,7 @@ public class FeatureWizardPage extends AbstractWizardPage {
     private ListViewer listViewer;
     private String selectedFile;
     private IFeatureProject project;
+    private MultiStageConfiguration multiStageConfiguration = new MultiStageConfiguration();
     private final Map<String, Object> dataMap = new HashMap<String, Object>();
 
     public FeatureWizardPage() {
@@ -51,10 +56,21 @@ public class FeatureWizardPage extends AbstractWizardPage {
         List listViewerData = listViewer.getList();
         listViewerData.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
-        List uvlFiles = findUvlFiles(container);
-        for (String file : uvlFiles.getItems()) {
+        for (String file : findUvlFiles()) {
             listViewerData.add(file);
         }
+
+        listViewerData.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                int selectedIndex = listViewerData.getSelectionIndex();
+                if (selectedIndex >= 0) {
+                    selectedFile = listViewerData.getItem(selectedIndex);
+                }
+                dataMap.put("selectedFile", selectedFile);
+            }
+        });
+        
         setPageComplete(true);
         setControl(container);
     }
@@ -62,12 +78,17 @@ public class FeatureWizardPage extends AbstractWizardPage {
     @Override
     protected void putData() {
         dataMap.put(WizardConstants.KEY_OUT_PROJECT, this.project);
-        dataMap.put("selectedUvlFile", selectedFile);
+        dataMap.put("selectedFile", selectedFile);
     }
 
-    private List findUvlFiles(Composite container) {
-        List fileList = new List(container, SWT.BORDER | SWT.V_SCROLL);
-        fileList.add(this.project.getModelFile().getName());
+    private ArrayList<String> findUvlFiles() {
+        ArrayList<String> fileList = new ArrayList<>();
+        for (IFile file : multiStageConfiguration.getAllFeatureModelNames(this.project)) {
+            fileList.add(file.getName());
+        }
+        // fileList.add(this.project.getModelFile().getName());
         return fileList;
     }
+ 
+    
 }

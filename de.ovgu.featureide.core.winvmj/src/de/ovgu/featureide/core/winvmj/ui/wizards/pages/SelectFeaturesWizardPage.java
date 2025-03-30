@@ -1,5 +1,8 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards.pages;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 
 /* FeatureIDE - A Framework for Feature-Oriented Software Development
@@ -36,13 +39,20 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.core.resources.IFile;
 
 import de.ovgu.featureide.fm.core.analysis.cnf.formula.FeatureModelFormula;
 import de.ovgu.featureide.fm.core.configuration.Configuration;
 import de.ovgu.featureide.fm.core.configuration.ConfigurationAnalyzer;
 import de.ovgu.featureide.fm.core.configuration.Selection;
+import de.ovgu.featureide.fm.core.io.manager.IFeatureModelManager;
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
+import de.ovgu.featureide.core.winvmj.ui.wizards.FeatureWizard;
+import de.ovgu.featureide.fm.core.base.IConstraint;
 import de.ovgu.featureide.fm.core.base.IFeature;
+import de.ovgu.featureide.fm.core.base.IFeatureModel;
 import de.ovgu.featureide.fm.core.base.IFeatureStructure;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizardPage;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
@@ -58,9 +68,18 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 	private IFeatureProject project;
 	private Tree featuresTree;
+	private IFile selectedFile;
+	private MultiStageConfiguration multiStageConfiguration = new MultiStageConfiguration();
 	private Map<String, Object> dataMap = new HashMap<String, Object>();
 	private final HashSet<String> featureNames = new HashSet<String>();
+	private HashSet<String> allowedParentFeatures = new HashSet<String>();
+	private boolean isFirst = false;
+	private FeatureWizard featureWizard;
 
+    public HashSet<String> getFeatureNames(){
+    	return featureNames;
+    }
+    
 	public SelectFeaturesWizardPage() {
 		super("Select Features");
 		setTitle("Select Features");
@@ -73,6 +92,39 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 	public void setDataMap(Map<String, Object> map) {
 		this.dataMap = map;
+	}
+
+	public void setFirst() {
+		isFirst = true;
+	}
+
+    
+	public void setAllowedParent(HashSet<String> allowedParent) {
+		this.allowedParentFeatures = allowedParent;
+	}
+
+	public HashSet<String> getAllowedParent() {
+		return this.featureNames;
+	}
+
+	public String getSelectedFile() {
+		return this.selectedFile.getName();
+	}
+
+	public void setSelectedFile() {
+		for (IFile file : multiStageConfiguration.getAllFeatureModelNames(this.project)) {
+			if (file.getName().equals(dataMap.get("selectedFile"))) {
+				this.selectedFile = file;
+			}
+		}
+	}
+
+	public void setSelectedFile(String selectedFile) {
+		for (IFile file : multiStageConfiguration.getAllFeatureModelNames(this.project)) {
+			if (file.getName().equals(selectedFile)) {
+				this.selectedFile = file;
+			}
+		}
 	}
 
 	@Override
@@ -101,21 +153,25 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 						featureNames.remove(item.getText());
 					}
 
-					FeatureModelFormula formula = new FeatureModelFormula(project.getFeatureModel());
+					FeatureModelFormula formula = new FeatureModelFormula(multiStageConfiguration.loadFeatureModel(selectedFile));
 					Configuration configForChecking = new Configuration(formula);
 					for (String feature : featureNames) {
 						configForChecking.setManual(feature, Selection.SELECTED);
 					}
+					
 
 					ConfigurationAnalyzer analyze = new ConfigurationAnalyzer(formula,configForChecking);
 					
 					if (!analyze.isValid()) {
-						validationLabel.setText("Configuration status: Invalid!");
+						validationLabel.setText("Local Configuration status: Invalid!");
+						validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_RED));
 						setPageComplete(false);
 					}
 
 					else {
-						validationLabel.setText("Configuration status: Valid!");
+						validationLabel.setText("Local Configuration status: Valid!");
+						validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_GREEN));
+						
 						setPageComplete(true);
 					}
 					validationLabel.getParent().layout();
@@ -151,6 +207,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		final Button deselectAllButton = new Button(buttonGroup, SWT.PUSH);
 		deselectAllButton.setText("Deselect All");
 		deselectAllButton.addSelectionListener(new SelectionListener() {
+
 
 			@Override
 			public void widgetSelected(SelectionEvent e) {
@@ -191,18 +248,45 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	public void setVisible(boolean visible) {
 		if (visible) {
 			if (featuresTree != null) {
-				featuresTree.setItemCount(0);
-				featureNames.clear();
+				featuresTree.removeAll();
 				final Object featureProject = this.project;
 				if (featureProject != null) {
-					addFeaturesToTree(((IFeatureProject) featureProject).getFeatureModel().getStructure().getRoot().getFeature());
-				} else {
+					WinVMJConsole.println(allowedParentFeatures.toString());
+					if (allowedParentFeatures.isEmpty()) {
+						addFeaturesToTree(multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature());
+					}
+
+					else {
+						HashSet<String> filteredFeatures = filteredFeaturesBasedOnConstraint(allowedParentFeatures);
+						HashSet<String> requiredParents = getRequiredParents(filteredFeatures);
+						HashSet<String> combinedFeatures = new HashSet<>(filteredFeatures);
+					    combinedFeatures.addAll(requiredParents);
+					    
+						addFilteredFeaturesToTree(multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), combinedFeatures);
+					}
+					restoreCheckedState(featuresTree.getItems());
+
+				} 
+				
+				else {
 					setErrorMessage("Please select a Project in the previous page.");
 					setPageComplete(false);
 				}
 			}
 		}
 		super.setVisible(visible);
+	}
+
+	private void restoreCheckedState(TreeItem[] items) {
+		for (TreeItem item : items) {
+			if (featureNames.contains(item.getText())) {
+				item.setChecked(true);
+			}
+
+			if (item.getItemCount() > 0) {
+				restoreCheckedState(item.getItems());
+			}
+		}
 	}
 
 	/**
@@ -216,7 +300,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		item.setData(root);
 
 		for (final IFeatureStructure feature : root.getStructure().getChildren()) {
-			addFeaturesToTree(feature.getFeature(), item);
+			addFeaturesToTree(feature.getFeature(), item, null);
 		}
 		item.setExpanded(true);
 	}
@@ -227,18 +311,107 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	 * @param root the feature to add
 	 * @param parent the parent item to add the feature as a child
 	 */
-	private void addFeaturesToTree(IFeature root, TreeItem parent) {
+	private void addFeaturesToTree(IFeature root, TreeItem parent, HashSet<String> combinedFeatures) {
 		final TreeItem item = new TreeItem(parent, SWT.NORMAL);
 		item.setText(root.getName());
 		item.setData(root);
 		item.setExpanded(true);
 
 		for (final IFeatureStructure feature : root.getStructure().getChildren()) {
-			addFeaturesToTree(feature.getFeature(), item);
+			if (combinedFeatures == null) {
+				addFeaturesToTree(feature.getFeature(), item, null);
+			}
+			else if (combinedFeatures.contains(feature.getFeature().getName())) {
+				addFeaturesToTree(feature.getFeature(), item, combinedFeatures);
+			}
 		}
 
 		item.setExpanded(true);
 	}
+
+	private void addFilteredFeaturesToTree(IFeature root, HashSet<String> combinedFeatures) {
+		if (combinedFeatures.contains(root.getName())) {
+			final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
+			item.setText(root.getName());
+			item.setData(root);
+			
+			for (final IFeatureStructure feature : root.getStructure().getChildren()) {
+				if (combinedFeatures.contains(feature.getFeature().getName())) {
+					addFeaturesToTree(feature.getFeature(), item, combinedFeatures);
+				}
+			}
+			item.setExpanded(true);
+		} 
+		else {
+			for (final IFeatureStructure feature : root.getStructure().getChildren()) {
+				addFilteredFeaturesToTree(feature.getFeature(), combinedFeatures);
+			}
+	}
+//	    if (filteredFeatures.contains(root.getName())) { 
+//	        final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
+//	        item.setText(root.getName());
+//	        item.setData(root);
+//
+//	        for (final IFeatureStructure feature : root.getStructure().getChildren()) {
+//	            if (filteredFeatures.contains(feature.getFeature().getName())) { 
+//	                addFeaturesToTree(feature.getFeature(), item);
+//	            }
+//	        }
+//	        item.setExpanded(true);
+//	    }
+
+		
+	}
+	
+	private HashSet<String> filteredFeaturesBasedOnConstraint(HashSet<String> targetFeatures) {
+		HashSet<String> selectedFeatures = new HashSet<>();
+		
+		for (IConstraint constraint : project.getFeatureModel().getConstraints()) {
+		    String node = constraint.getNode().toString();
+		    String[] parts = node.split("=>");
+
+		    if (parts.length == 2) {
+		        String leftSide = parts[0].trim();
+		        String rightSide = parts[1].trim();
+
+		        HashSet<String> rightFeatures = new HashSet<>();
+		        for (String feature : rightSide.split("\\|")) {
+		            feature = feature.trim();
+		            if (feature.contains(".")) {
+		                feature = feature.substring(feature.indexOf('.') + 1); 
+		            }
+		            rightFeatures.add(feature);
+		        }
+		        if (!Collections.disjoint(targetFeatures, rightFeatures)) {
+		            for (String feature : leftSide.split("\\|")) {
+		                feature = feature.trim();
+		                if (feature.contains(".")) {
+		                    feature = feature.substring(feature.indexOf('.') + 1); 
+		                }
+		                selectedFeatures.add(feature);
+		            }
+		        }
+		    }
+		}
+		return selectedFeatures;
+	}
+	
+	private HashSet<String> getRequiredParents(HashSet<String> filteredFeatures) {
+	    HashSet<String> requiredParents = new HashSet<>();
+	    
+	    Collection<IFeature> features = multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getFeaturesPreorder();
+	    for (IFeature feature : features) {
+	    	if (feature.getStructure().getParent() == null) {
+	    		requiredParents.add(feature.getName());
+	    	}
+	    	else if (filteredFeatures.contains(feature.getName()) && feature.getStructure().getParent() != null) {
+	            requiredParents.add(feature.getStructure().getParent().getFeature().getName());
+	        }
+	    }
+	    return requiredParents;
+	}
+
+
 
 	@Override
 	protected void putData() {
@@ -251,7 +424,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			return "Select at least one feature.";
 		}
 
-		FeatureModelFormula formula = new FeatureModelFormula(project.getFeatureModel());
+		FeatureModelFormula formula = new FeatureModelFormula(multiStageConfiguration.loadFeatureModel(selectedFile));
 		Configuration configForChecking = new Configuration(formula);
 		for (String feature : featureNames) {
 			configForChecking.setManual(feature, Selection.SELECTED);

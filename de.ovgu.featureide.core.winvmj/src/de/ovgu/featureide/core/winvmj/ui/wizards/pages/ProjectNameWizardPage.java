@@ -13,9 +13,9 @@ public class ProjectNameWizardPage extends WizardPage {
     private Text projectNameText;
     
     public ProjectNameWizardPage() {
-        super("Project Name Page");
-        setTitle("Project Name");
-        setDescription("Enter Your Project Name:");
+        super("Product Name Page");
+        setTitle("Product Name");
+        setDescription("Enter Your Product Name:");
     }
     
     @Override
@@ -24,7 +24,7 @@ public class ProjectNameWizardPage extends WizardPage {
         container.setLayout(new GridLayout(2, false));
         
         Label nameLabel = new Label(container, SWT.NONE);
-        nameLabel.setText("Project Name:");
+        nameLabel.setText("Product Name:");
         
         projectNameText = new Text(container, SWT.BORDER);
         projectNameText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
