@@ -63,12 +63,13 @@ public class ProductToCompose extends WinVMJProduct {
 	
 	// Don't use feature selection from FeatureIDE (Micro-services)
 	public ProductToCompose(IFeatureProject featureProject, String productName, List<IFeature> features,  
-			Map<String, IFolder> allModulesMapping) {
+			Map<String, IFolder> allModulesMapping, IFolder messagingModule) {
 	    this.productName = productName;
 		this.splName = Utils.getSplName(featureProject);
 		try {
 			List<IFolder> featureModules = selectModules(featureProject, features);
 			this.modules = resolveDependencies(featureModules, allModulesMapping);
+			this.modules.add(messagingModule);
 		} catch (CoreException | ParserException | IOException e) {
 			this.modules = null;
 		}

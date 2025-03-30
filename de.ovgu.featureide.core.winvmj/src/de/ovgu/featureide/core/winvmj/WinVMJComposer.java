@@ -42,8 +42,11 @@ import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.MultiLevelDeltaComposer;
 import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
+import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
+import de.ovgu.featureide.core.winvmj.microservicepreprocessor.ModulePreprocessor;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.MicroserviceProductClassRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.base.IFeature;
@@ -125,7 +128,22 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 		    @Override
 		    public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-		    	Map<IFolder,Integer> modulesCount = new HashMap<IFolder, Integer>();
+		    	// Clean src directory
+		    	IFolder buildDir = featureProject.getBuildFolder();
+		    	if (buildDir.exists()) {
+		    	    for (IResource resource : buildDir.members()) {
+		    	        resource.delete(true, null); 
+		    	    }
+		    	}
+		    	
+		    	// Add messaging module to build directory
+		    	String messagingModuleName = "vmj.messaging";
+				IFolder messagingModule = buildDir.getFolder(messagingModuleName);
+				if (!messagingModule.exists()) messagingModule.create(false, true, null);
+		        InternalResourceManager.loadResourceDirectory(messagingModuleName, 
+		        		messagingModule.getLocation().toOSString());
+		    	
+		    	Map<String,Integer> modulesCount = new HashMap<String, Integer>();
 		    	Map<String, WinVMJProduct> serviceProductMap = new HashMap<String, WinVMJProduct>();
 		    	
 		    	for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
@@ -133,35 +151,48 @@ public class WinVMJComposer extends ComposerExtensionClass {
 					List<IFeature> featureList = entry.getValue();
 					
 					WinVMJProduct product = new ProductToCompose(featureProject, productName, 
-							featureList, finalModulesMapping);
+							featureList, finalModulesMapping, messagingModule);
 					serviceProductMap.put(productName, product);
 					
 					
 					for (IFolder module : product.getModules()) {
-						modulesCount.put(module, modulesCount.getOrDefault(module, 0) + 1);
+						String moduleName = module.getName();
+						if (moduleName.equals(messagingModuleName)) {
+							continue;
+						}
+						modulesCount.put(moduleName, modulesCount.getOrDefault(moduleName, 0) + 1);
 					}
 		        }
 		    	
-		    	Set<IFolder> duplicateModules = new HashSet<>();
-		    	for (Map.Entry<IFolder, Integer> entry : modulesCount.entrySet()) {
-		    		IFolder module = entry.getKey();
+		    	Set<String> duplicateModuleNames = new HashSet<>();
+		    	for (Map.Entry<String, Integer> entry : modulesCount.entrySet()) {
+		    		String module = entry.getKey();
 					Integer moduleCount = entry.getValue();
 					
 					if (moduleCount >= 2) {
-						duplicateModules.add(module);
+						duplicateModuleNames.add(module);
 					}
 		    	}
 		    	
-		    	// TODO : Pre-process modules
-		    	
-		    	
+		    	// Compose product module and move module to build folder
 		    	for (Map.Entry<String, WinVMJProduct> entry : serviceProductMap.entrySet()) {
 		    		String productName = entry.getKey();
 		    		WinVMJProduct product = entry.getValue();
 		    		List<IFeature> featureList = serviceDefinition.get(productName);
 		    		
-		    		composeProduct(product, featureList);
+		    		composeMicroserviceProduct(product, featureList);
 		    	}
+		    	
+		    	// Pre-process duplicate module
+		    	Set<IFolder> duplicateModules = new HashSet<>();
+		    	for (String moduleName : duplicateModuleNames) {
+		    		IFolder module = featureProject.getBuildFolder().getFolder(moduleName);
+		    		duplicateModules.add(module);
+		    	}
+		    	
+		        ModulePreprocessor.modifyServiceImplClass(duplicateModules);
+		        ModulePreprocessor.modifyModuleInfo(duplicateModules);
+		        ModulePreprocessor.modifyRabbitmqManagerClass(duplicateModules,messagingModule);
 		    	
 		        return true;
 		    }
@@ -189,6 +220,30 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	        }
 	    }
 	    return allModuleFolders;
+	}
+	
+	private void composeMicroserviceProduct(WinVMJProduct product, List<IFeature> selectedFeatures) 
+	{
+		try {
+			selectModulesFromProject(featureProject, product);
+			IFolder productModule = featureProject.getBuildFolder()
+					.getFolder(product.getProductQualifiedName());
+			if (!productModule.exists()) productModule.create(false, true, null);
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+		List<String> selectedFeaturesForRouting = new ArrayList<String>();
+		for (IFeature feature : selectedFeatures) {
+			selectedFeaturesForRouting.add(feature.getName());
+		}
+		
+		TemplateRenderer productClassRenderer = new MicroserviceProductClassRenderer(featureProject, selectedFeaturesForRouting);
+		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(
+				featureProject, multiLevelDeltaMappings);
+		
+		productClassRenderer.render(product);
+		moduleInfoRenderer.render(product);
+		
 	}
 	
 	private void composeProduct(WinVMJProduct product, List<IFeature> features) {

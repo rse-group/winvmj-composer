@@ -33,6 +33,7 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ComposedMicroserviceProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
@@ -68,7 +69,15 @@ public class SourceCompiler {
 			
 			
 	        for (IFolder productModule : productModules) {
-	        	WinVMJProduct sourceProduct = new ComposedProduct(project, productModule);
+	        	boolean isMicroservices = productModules.size() > 1;
+	        	
+	        	WinVMJProduct sourceProduct;
+	        	if (isMicroservices) {
+	        		sourceProduct = new ComposedMicroserviceProduct(project, productModule);
+	        	} else {
+	        		sourceProduct = new ComposedProduct(project, productModule);
+	        	}
+	        	
 	        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 				if (!compiledProductDir.exists())
 					compiledProductDir.create(false, true, null);
@@ -77,9 +86,12 @@ public class SourceCompiler {
 					compiledProductDir.create(false, true, null);
 				importWinVMJLibraries(compiledProductDir, sourceProduct);
 				importWinVMJProductConfigs(compiledProductDir);
+				if (isMicroservices) { importRabbitmqLibraries(compiledProductDir, sourceProduct);}
 				generateConfigFiles(project, sourceProduct);
 				compileModules(project, compiledProductDir, sourceProduct);
 				insertSqlFolder(compiledProductDir, project);
+				
+
 	        }
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
@@ -213,6 +225,16 @@ public class SourceCompiler {
 			productModule.create(false, true, null);
 		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
 		InternalResourceManager.loadResourceDirectory("winvmj-libraries", productModule.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+	
+	private static void importRabbitmqLibraries(IFolder compiledProductDir, WinVMJProduct product)
+			throws IOException, URISyntaxException, CoreException {
+		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+		if (!productModule.exists())
+			productModule.create(false, true, null);
+		WinVMJConsole.println("Unpack RabbitMQ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("rabbitmq-libraries", productModule.getLocation().toOSString());
 		WinVMJConsole.println("WinVMJ Libraries unpacked");
 	}
 

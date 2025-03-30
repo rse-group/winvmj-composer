@@ -46,7 +46,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	private Map<String, List<String>> featureToModuleMap;
-	private List<String> selectedFeature;
+	protected List<String> selectedFeature;
 	private Map<String, Integer> variableNameCounts = new HashMap<>();
 
 	public ProductClassRenderer(IFeatureProject project) {
