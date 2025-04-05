@@ -10,14 +10,18 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
-
-
+import org.logicng.io.parsers.ParserException;
 
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.WinVMJComposer;
+import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.fm.core.analysis.cnf.formula.FeatureModelFormula;
 import de.ovgu.featureide.fm.core.base.IConstraint;
@@ -32,8 +36,13 @@ import de.ovgu.featureide.fm.core.configuration.Selection;
 import de.ovgu.featureide.fm.core.io.manager.FeatureModelManager;
 import de.ovgu.featureide.fm.core.io.manager.IFeatureModelManager;
 import de.ovgu.featureide.fm.core.job.LongRunningWrapper;
+import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 
-public class MultiStageConfiguration {	
+public class MultiStageConfiguration {
+	private WinVMJProduct product;
+	private WinVMJComposer composer =  new WinVMJComposer();
 	
 	public static List<IFile> getAllFeatureModelNames(IFeatureProject featureProject){
 		List<IFile> featureModelNames = new ArrayList<>();
@@ -73,9 +82,47 @@ public class MultiStageConfiguration {
         return FeatureModelManager.load(featurePath);
     }
     
-    public static void testDoang(IFeatureProject featureProject) {
-    	IFeatureModel project = featureProject.getFeatureModel();
-    	WinVMJConsole.println(project.getFeatures().toString());
+    public ArrayList<IFeature> convertSelectedFeaturesToList(Map<String, HashSet<String>> selectedFeaturesMap, IFeatureProject featureProject) {
+    	ArrayList<IFeature> featureList = new ArrayList<>();
+
+        for (Map.Entry<String, HashSet<String>> entry : selectedFeaturesMap.entrySet()) {
+            String selectedFile = entry.getKey();
+            HashSet<String> featureNames = entry.getValue();
+            
+            IFile featureFile = featureProject.getProject().getFolder("featureModels").getFile(selectedFile);
+            
+            IFeatureModel featureModel = loadFeatureModel(featureFile);
+
+            ArrayList<IFeature> features = new ArrayList<>(
+                    featureNames.stream()
+                    	.filter(name -> !name.equals("Features"))
+                        .map(name -> new Feature(featureModel, name))
+                        .collect(Collectors.toList()) 
+                );
+            
+            featureList.addAll(features);
+        }
+
+        return featureList;
+    }
+    
+    public void composeProduct(WinVMJProduct product, ArrayList<IFeature> selectedFeature, IFeatureProject featureProject) throws CoreException, ParserException {
+    	IFolder srcFolder = featureProject.getBuildFolder();
+        if (srcFolder.exists()) {
+            for (IResource member : srcFolder.members()) {
+                member.delete(true, null);
+            }
+        }
+    	composer.selectModulesFromProject(featureProject, product);
+    	composer.checkMultiLevelDelta(featureProject, product, selectedFeature);
+        IFolder productModule = featureProject.getBuildFolder()
+                .getFolder(product.getProductQualifiedName());
+        if (!productModule.exists()) productModule.create(false, true, null);
+        Map<String, List<String>> multiLevelDeltaMappings = null;
+        TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(featureProject, multiLevelDeltaMappings);
+        TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
+        moduleInfoRenderer.render(product);
+        productClassRenderer.render(product); 
     }
     
     

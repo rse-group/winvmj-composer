@@ -85,10 +85,7 @@
 	                  <with variable="activeMenuSelection">
 	                     <iterate ifEmpty="false">
 	                        <adapt type="org.eclipse.core.resources.IFolder">
-	                        	<or>
- 									<test property="org.eclipse.core.resources.path" value="*/modules/*"/>
- 									<test property="org.eclipse.core.resources.path" value="*/src/*"/>
- 								</or>
+								<test property="org.eclipse.core.resources.path" value="*/modules/*"/>
 	                        </adapt>
 	                     </iterate>
 	                  </with>
@@ -101,13 +98,6 @@
                   label="Open Feature Wizard"
                   style="push"
             >
-            </command>
-             <command
-                  commandId="de.ovgu.featureide.core.winvmj.multiStageWizard"
-                  icon="resources/icons/FeatureIconSmall.ico"
-                  id="de.ovgu.featureide.core.winvmj.multiStageWizard"
-                  label="Multi Stage"
-                  style="push">
             </command>
          </menu>
       </menuContribution>
@@ -133,10 +123,6 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.OpenFeatureWizardHandler"
             commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler">
-      </handler>
-      <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.MultiStageWizard"
-            commandId="de.ovgu.featureide.core.winvmj.multiStageWizard">
       </handler>
    </extension>
 </plugin>

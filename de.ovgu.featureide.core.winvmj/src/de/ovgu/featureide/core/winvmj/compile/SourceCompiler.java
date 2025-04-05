@@ -378,9 +378,9 @@ public class SourceCompiler {
 				.filter(folder -> Arrays.stream(moduleResources)
 						.anyMatch(resource -> resource.getName().equals(folder.getName())))
 				.collect(Collectors.toList()));
-
+		
 		filteredModule.addAll(Arrays.asList(moduleResources));
-
+		
 		for (IResource resource : filteredModule) {
 			if (resource instanceof IFolder) {
 				IFolder moduleFolder = (IFolder) resource;

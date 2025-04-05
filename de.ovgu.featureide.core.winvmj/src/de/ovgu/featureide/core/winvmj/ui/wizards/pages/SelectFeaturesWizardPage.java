@@ -75,6 +75,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	private HashSet<String> allowedParentFeatures = new HashSet<String>();
 	private boolean isFirst = false;
 	private FeatureWizard featureWizard;
+	private SelectAllUvlWizardPage selectAllUvlWizardPage;
 
     public HashSet<String> getFeatureNames(){
     	return featureNames;
@@ -276,6 +277,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		}
 		super.setVisible(visible);
 	}
+	
 
 	private void restoreCheckedState(TreeItem[] items) {
 		for (TreeItem item : items) {

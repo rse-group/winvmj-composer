@@ -1,5 +1,7 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards;
 
+import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
 import de.ovgu.featureide.core.winvmj.ui.wizards.pages.*;
@@ -60,6 +62,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.ide.IDE;
 
 import de.ovgu.featureide.core.CorePlugin;
+import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.fm.core.base.impl.ConfigFormatManager;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.fm.core.FMCorePlugin;
@@ -68,6 +71,9 @@ import de.ovgu.featureide.fm.core.configuration.Configuration;
 import de.ovgu.featureide.fm.core.io.EclipseFileSystem;
 import de.ovgu.featureide.fm.core.io.IPersistentFormat;
 import de.ovgu.featureide.fm.core.io.manager.SimpleFileHandler;
+import de.ovgu.featureide.fm.core.job.LongRunningMethod;
+import de.ovgu.featureide.fm.core.job.LongRunningWrapper;
+import de.ovgu.featureide.fm.core.job.monitor.IMonitor;
 import de.ovgu.featureide.fm.ui.handlers.base.SelectionWrapper;
 import de.ovgu.featureide.ui.UIPlugin;
 import de.ovgu.featureide.fm.core.configuration.Selection;
@@ -95,7 +101,8 @@ public class FeatureWizard extends Wizard {
 	private ArrayList<String> selectedUvl =  new ArrayList<>();
     private Map<String, IWizardPage> pageMap = new HashMap<String, IWizardPage>();
 	private String selectedPage;
-	private static HashSet<String> allFeatureNames = new HashSet<String>(); 
+	private Map<String, HashSet<String>> selectedFeatures = new HashMap<>();
+	private WinVMJProduct product;
 
     public FeatureWizard() {
         setWindowTitle("New Feature Wizard");
@@ -109,13 +116,6 @@ public class FeatureWizard extends Wizard {
         return this.dataMap;
     }
     
-//    public HashSet<String> getAllFeatureNames(){
-//    	return allFeatureNames;
-//    }
-//    
-    public static void setAllFeatureNames(HashSet<String> featureNames){
-    	allFeatureNames.addAll(featureNames);
-    }
 
     @Override
     public void addPages() {
@@ -168,11 +168,9 @@ public class FeatureWizard extends Wizard {
 			if (nextPage instanceof SelectFeaturesWizardPage) {
 				SelectFeaturesWizardPage nextSelectPage = (SelectFeaturesWizardPage) nextPage;
 				
-//				if (!currentSelectPage.getFeatureName().isEmpty()) {
-//					setAllFeatureNames
-//				}
-				
 				nextSelectPage.setAllowedParent(currentSelectPage.getFeatureName());
+				
+				selectedFeatures.put(currentSelectPage.getSelectedFile(), new HashSet<>(currentSelectPage.getFeatureName()));
 				
 				return (IWizardPage) nextSelectPage;
 			}
@@ -199,21 +197,32 @@ public class FeatureWizard extends Wizard {
 
     @Override
     public boolean performFinish() {
-        String projectName = projectNamePage.getProjectName();
-        HashSet<String> featureNames = selectFeaturesWizardPage.getFeatureName();
-		final FeatureModelFormula featureModel = this.project.getFeatureModelManager().getPersistentFormula();
-		final IPersistentFormat<Configuration> format = ConfigFormatManager.getInstance().getDefaultFormat();
-
-		final String suffix = "." + format.getSuffix();
-		final String name = projectName;
-		final String fileName = name + (name.endsWith(suffix) ? "" : suffix);
+    	IWizardPage currentPage = getContainer().getCurrentPage();
+        if (currentPage instanceof SelectFeaturesWizardPage) {
+            SelectFeaturesWizardPage lastSelectPage = (SelectFeaturesWizardPage) currentPage;
+            selectedFeatures.put(lastSelectPage.getSelectedFile(), new HashSet<>(lastSelectPage.getFeatureName()));
+        }
+        
+        String productName = projectNamePage.getProjectName();
+        
+        ArrayList<IFeature> featureList =  multiStageConfiguration.convertSelectedFeaturesToList(selectedFeatures, project);
+        
+        WinVMJConsole.println("Features " + featureList.toString());
+        
+//        HashSet<String> featureNames = selectFeaturesWizardPage.getFeatureName();
+//		final FeatureModelFormula featureModel = this.project.getFeatureModelManager().getPersistentFormula();
+//		final IPersistentFormat<Configuration> format = ConfigFormatManager.getInstance().getDefaultFormat();
+//
+//		final String suffix = "." + format.getSuffix();
+//		final String name = projectName;
+//		final String fileName = name + (name.endsWith(suffix) ? "" : suffix);
 
 		final IRunnableWithProgress op = new IRunnableWithProgress() {
 
 			@Override
 			public void run(IProgressMonitor monitor) throws InvocationTargetException {
 				try {
-					doFinish(fileName, featureModel, format, monitor, featureNames);
+					doFinish(productName, featureList);
 				} catch (final CoreException e) {
 					throw new InvocationTargetException(e);
 				} finally {
@@ -234,56 +243,78 @@ public class FeatureWizard extends Wizard {
         return true;
     }
 
-    private void doFinish(String fileName, FeatureModelFormula featureModel, IPersistentFormat<Configuration> format, 
-	IProgressMonitor monitor, HashSet<String> selectedFeature)
+    private void doFinish(String productName, ArrayList<IFeature> selectedFeature)
 			throws CoreException {
 		
-		WinVMJConsole.println("Auto generating configuration file ...");
-		monitor.beginTask(CREATING + fileName, 2);
-		final IFolder configFolder = this.project.getConfigFolder();
-		final IContainer container = configFolder == null ? this.project.getProject() : configFolder;
-		if (!container.exists()) {
-			if (this.project.getProject().isAccessible()) {
-				FMCorePlugin.createFolder(this.project.getProject(), container.getProjectRelativePath().toString());
-			} else {
-				throwCoreException(CONTAINER_DOES_NOT_EXIST_);
-			}
-		}
-		
-		
-		final Path configPath = EclipseFileSystem.getPath(container);
-		final Path file = configPath.resolve(fileName);
-		Configuration config = new Configuration(featureModel);
-		for (String feature : selectedFeature) {
-			config.setManual(feature, Selection.SELECTED);
-		}
-		SimpleFileHandler.save(configPath.resolve(fileName), config, format);
+//		WinVMJConsole.println("Auto generating configuration file ...");
+//		monitor.beginTask(CREATING + fileName, 2);
+//		final IFolder configFolder = this.project.getConfigFolder();
+//		final IContainer container = configFolder == null ? this.project.getProject() : configFolder;
+//		if (!container.exists()) {
+//			if (this.project.getProject().isAccessible()) {
+//				FMCorePlugin.createFolder(this.project.getProject(), container.getProjectRelativePath().toString());
+//			} else {
+//				throwCoreException(CONTAINER_DOES_NOT_EXIST_);
+//			}
+//		}
+//		
+//		
+//		final Path configPath = EclipseFileSystem.getPath(container);
+//		final Path file = configPath.resolve(fileName);
+//		Configuration config = new Configuration(featureModel);
+//		for (String feature : selectedFeature) {
+//			config.setManual(feature, Selection.SELECTED);
+//		}
+//		SimpleFileHandler.save(configPath.resolve(fileName), config, format);
+//
+//		WinVMJConsole.println("Auto select the configuration and composing ...");
+//		this.project.setCurrentConfiguration(file);
+    	
+        product = new ProductToCompose(project, productName, selectedFeature);
+        final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
+            @Override
+            public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
+            	multiStageConfiguration.composeProduct(product, selectedFeature, project);
+                return true;
+            }
+        };
+        LongRunningWrapper.getRunner(job, "Compose Product").schedule();
 
-		WinVMJConsole.println("Auto select the configuration and composing ...");
-		this.project.setCurrentConfiguration(file);
-
-		monitor.worked(1);
-		monitor.setTaskName(OPENING_FILE_FOR_EDITING___);
-		getShell().getDisplay().asyncExec(new Runnable() {
-
-			@Override
-			public void run() {
-				final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-				try {
-					IDE.openEditor(page, (IFile) EclipseFileSystem.getResource(file), true);
-				} catch (final PartInitException e) {}
-			}
-		});
-		monitor.worked(1);
+//		monitor.worked(1);
+//		monitor.setTaskName(OPENING_FILE_FOR_EDITING___);
+////		getShell().getDisplay().asyncExec(new Runnable() {
+////
+////			@Override
+////			public void run() {
+////				final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+////				try {
+////					IDE.openEditor(page, (IFile) EclipseFileSystem.getResource(file), true);
+////				} catch (final PartInitException e) {}
+////			}
+////		});
+//		monitor.worked(1);
 	}
+    
 
     private void throwCoreException(String message) throws CoreException {
 		final IStatus status = new Status(IStatus.ERROR, UIPlugin.PLUGIN_ID, IStatus.OK, message, null);
 		throw new CoreException(status);
 	}
 
-    @Override
-    public boolean canFinish() {
-        return getContainer().getCurrentPage() == selectFeaturesWizardPage && selectFeaturesWizardPage.isPageComplete();
-    }
+//    @Override
+//    public boolean canFinish() {
+//    	if (getContainer().getCurrentPage() instanceof SelectFeaturesWizardPage) {
+//            SelectFeaturesWizardPage currentPage = (SelectFeaturesWizardPage) getContainer().getCurrentPage();
+//            
+//            ArrayList<String> selectedFiles = new ArrayList<>(featureWizardPage.getDataMap().keySet());
+//            
+//            WinVMJConsole.println("selectedFiles" + selectedFiles.toString());
+//            if (!selectedFiles.isEmpty() && currentPage.getSelectedFile().equals(selectedFiles.get(selectedFiles.size() - 1))) {
+//                return true;
+//            }
+//        }
+//        
+//        return false;
+////        return getContainer().getCurrentPage() == selectFeaturesWizardPage && selectFeaturesWizardPage.isPageComplete();
+//    }
 }
