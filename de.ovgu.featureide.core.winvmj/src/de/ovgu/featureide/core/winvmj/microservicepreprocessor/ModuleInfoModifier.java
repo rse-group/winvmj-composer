@@ -7,8 +7,7 @@ import com.github.javaparser.ast.modules.ModuleRequiresDirective;
 import com.github.javaparser.ast.modules.ModuleOpensDirective;
 
 public class ModuleInfoModifier {
-    private static final String messagingPackage = "vmj.messaging";
-    private static final String rabbitMqPackage = "vmj.messaging.rabbitmq";
+    private static final String messagingModule = "vmj.messaging";
 
     public static void modifyModuleInfo(CompilationUnit cu){
         cu.findFirst(ModuleDeclaration.class).ifPresent(module -> {
@@ -17,11 +16,11 @@ public class ModuleInfoModifier {
             // requires
             boolean requiresExists = module.getDirectives().stream()
                     .anyMatch(d -> d instanceof ModuleRequiresDirective &&
-                            ((ModuleRequiresDirective) d).getNameAsString().equals(messagingPackage));
+                            ((ModuleRequiresDirective) d).getNameAsString().equals(messagingModule));
 
             if (!requiresExists) {
                 ModuleRequiresDirective requiresDirective = new ModuleRequiresDirective();
-                requiresDirective.setName(new Name(messagingPackage));
+                requiresDirective.setName(new Name(messagingModule));
                 module.addDirective(requiresDirective);
             }
 
@@ -34,13 +33,13 @@ public class ModuleInfoModifier {
                     .ifPresentOrElse(
                             opensDirective -> {
                                 if (opensDirective.getModuleNames().stream().noneMatch(m -> m.asString().equals(messagingPackage))) {
-                                    opensDirective.getModuleNames().add(new Name(rabbitMqPackage));
+                                    opensDirective.getModuleNames().add(new Name(messagingModule));
                                 }
                             },
                             () -> {
                                 ModuleOpensDirective newOpensDirective = new ModuleOpensDirective();
                                 newOpensDirective.setName(new Name(opensModule));
-                                newOpensDirective.getModuleNames().add(new Name(messagingPackage));
+                                newOpensDirective.getModuleNames().add(new Name(messagingModule));
                                 module.addDirective(newOpensDirective);
                             }
                     );
