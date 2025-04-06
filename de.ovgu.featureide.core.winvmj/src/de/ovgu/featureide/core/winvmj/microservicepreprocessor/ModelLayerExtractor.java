@@ -1,6 +1,5 @@
 package de.ovgu.featureide.core.winvmj.microservicepreprocessor;
 
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import org.eclipse.core.resources.IFile;
@@ -48,16 +47,13 @@ public class ModelLayerExtractor {
                 if (resource instanceof IFile) {
                     IFile file = (IFile) resource;
                     if (file.getFileExtension().equals("java")) {
-                        try {
-                            CompilationUnit cu = StaticJavaParser.parse(file.getContents());
-                            cu.findAll(ClassOrInterfaceDeclaration.class).forEach(declaration -> {
-                                if (declaration.isInterface()) {
-                                    declaration.getFullyQualifiedName().ifPresent(result::add);
-                                }
-                            });
-                        } catch (CoreException e) {
-                            System.err.println("Failed to parse: " + file.getFullPath());
-                        }
+                        CompilationUnit cu = JavaParserUtil.parse(file);
+                        
+                        cu.findAll(ClassOrInterfaceDeclaration.class).forEach(declaration -> {
+                            if (declaration.isInterface()) {
+                                declaration.getFullyQualifiedName().ifPresent(result::add);
+                            }
+                        });
                     }
                 }
             }

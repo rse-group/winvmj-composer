@@ -32,7 +32,7 @@ public class ModuleInfoModifier {
                     .findFirst()
                     .ifPresentOrElse(
                             opensDirective -> {
-                                if (opensDirective.getModuleNames().stream().noneMatch(m -> m.asString().equals(messagingPackage))) {
+                                if (opensDirective.getModuleNames().stream().noneMatch(m -> m.asString().equals(messagingModule))) {
                                     opensDirective.getModuleNames().add(new Name(messagingModule));
                                 }
                             },

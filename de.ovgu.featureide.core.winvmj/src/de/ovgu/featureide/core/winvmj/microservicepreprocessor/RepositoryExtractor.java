@@ -50,12 +50,7 @@ public class RepositoryExtractor {
     }
 
     private static void parseJavaFile(IFile file, Map<String, String> repositoryMap) {
-        CompilationUnit cu;
-        try (InputStream inputStream = file.getContents()) {
-            cu = StaticJavaParser.parse(inputStream);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    	CompilationUnit cu = JavaParserUtil.parse(file);
 
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(classDecl -> {
             classDecl.findAll(FieldDeclaration.class).forEach(field -> {

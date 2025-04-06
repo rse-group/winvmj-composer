@@ -90,9 +90,10 @@ public class RabbitMQManager {
         }
     }
 
-    public void bindQueue(String queueName, String routingKey) throws IOException {
-        Channel channel = getConsumerChannel();
+    public void bindQueue(String queueName, String routingKey)  {
         try {
+            Channel channel = getConsumerChannel();
+
             boolean durable = true;
             boolean exclusive = false;
             boolean autoDelete = false;
@@ -100,7 +101,7 @@ public class RabbitMQManager {
             channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
             channel.queueBind(queueName, BASE_EXCHANGE, routingKey);
             consumeMessage(queueName);
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.out.printf("Failed to create %s queue %s%n", queueName, e);
         }
     }
@@ -189,10 +190,22 @@ public class RabbitMQManager {
         Object domainObject;
         String domainInterface = message.type();
         if (message.tableName().isEmpty()){
-            domainObject = repositoryMap.get(domainInterface).getObject(message.id());
+            Object id = message.id();
+            if (id instanceof UUID uuid) {
+                domainObject = repositoryMap.get(domainInterface).getObject(uuid);
+            } else  { // int
+                int intId = (Integer) id;
+                domainObject = repositoryMap.get(domainInterface).getObject(intId);
+            }
         } else {
             String columnName =  domainInterface.substring(0, 1).toLowerCase() + domainInterface.substring(1) + "Id";
-            domainObject = repositoryMap.get(domainInterface).getListObject(message.tableName(),columnName,message.id()).get(0);
+            Object id = message.id();
+            if (id instanceof UUID uuid) {
+                domainObject = repositoryMap.get(domainInterface).getListObject(message.tableName(),columnName,uuid).get(0);
+            } else  { // int
+                int intId = (Integer) id;
+                domainObject = repositoryMap.get(domainInterface).getListObject(message.tableName(),columnName,intId).get(0);
+            }
         }
 
         Map<String, Object> attributes = new HashMap<>();
@@ -207,7 +220,13 @@ public class RabbitMQManager {
     }
 
     private void deleteObjectHandler(StateTransferMessage message) {
-        repositoryMap.get(message.type()).deleteObject(message.id());
+        Object id = message.id();
+        if (id instanceof UUID uuid) {
+            repositoryMap.get(message.type()).deleteObject(uuid);
+        } else  { // int
+            int intId = (Integer) id;
+            repositoryMap.get(message.type()).deleteObject(intId);
+        }
     }
 
     private Object parsingObject(Property property){
@@ -215,14 +234,19 @@ public class RabbitMQManager {
         String type = property.type();
         Object value = property.value();
 
-        if (type.equals("UUID")){
-            UUID objectId = UUID.fromString(varName);
+        if (type.equals("Object")){
             if (!varName.toLowerCase().contains("id")){
-                String domainInterface = varName.substring(0, 1).toUpperCase() + varName.substring(1);
-                value = repositoryMap.get(domainInterface).getObject(objectId);
-            } else {
-                value = objectId;
+                Object id = value;
+                if (id instanceof UUID uuid) {
+                    value = repositoryMap.get(type).getObject(uuid);
+                } else  { // int
+                    int intId = (Integer) id;
+                    value = repositoryMap.get(type).getObject(intId);
+                }
             }
+        }
+        else if (type.equals("UUID")){
+            value = UUID.fromString(varName);
         } else if (type.equals("Date")) {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
             try {

@@ -57,22 +57,22 @@ public abstract class PublishMessageTrigger {
     protected void addPublishCallStatement(MethodDeclaration method,
                                                  String objectDomainVar,
                                                  String domainInterface,
-                                                 Map<String, String> domainInterfaceVariables,
+                                                 Map<String, String> objectDomainAttributes,
                                                  Set<String> domainInterfaces,
                                                  String repositoryOperation) {
     	// Membuat instance record Property
         NodeList<Expression> propertiesList = new NodeList<>();
-        if (domainInterfaceVariables != null) {
-            for (Map.Entry<String, String> entry : domainInterfaceVariables.entrySet()) {
+        if (objectDomainAttributes != null) {
+            for (Map.Entry<String, String> entry : objectDomainAttributes.entrySet()) {
                 String varName = entry.getKey();
                 String varType = entry.getValue();
 
                 Expression valueExpression;
 
-                // Jika varType ada dalam domainInterfaces, ambil UUID dengan memanggil method get<DomainInterface>Id()
+                // Jika varType ada dalam domainInterfaces, ambil id dengan memanggil method get<DomainInterface>Id()
                 if (domainInterfaces.contains(varType)) {
                     valueExpression = new MethodCallExpr(new NameExpr(varName), "get" + varType + "Id");
-                    varType = "UUID";
+                    varType = "Object"; // UUID or int
                 } else if (varType.equals("fqn")) {
                     valueExpression = new NameExpr(varName);
                     varName = "fqn";
@@ -101,11 +101,11 @@ public abstract class PublishMessageTrigger {
 
         String objectIdVar;
         if (objectDomainVar.toLowerCase().contains("id")) {
-            objectIdVar = objectDomainVar; // UUID
+            objectIdVar = objectDomainVar;
         } else {
             objectIdVar = objectDomainVar + "Id";
             VariableDeclarator idVar = new VariableDeclarator(
-                    StaticJavaParser.parseClassOrInterfaceType("UUID"),
+                    StaticJavaParser.parseClassOrInterfaceType("Object"),
                     objectIdVar,
                     getIdCall 
             );

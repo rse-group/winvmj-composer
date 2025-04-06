@@ -1,6 +1,5 @@
 package de.ovgu.featureide.core.winvmj.microservicepreprocessor;
 
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 
@@ -30,7 +29,7 @@ public class ModulePreprocessor {
             IFile serviceImplFile = getFileByName(moduleDir, "ServiceImpl.java");
             if (serviceImplFile == null) continue;
 
-            CompilationUnit cu = parseJavaFile(serviceImplFile);
+            CompilationUnit cu = JavaParserUtil.parse(serviceImplFile);
             
             String messagingModule = "vmj.messaging";
             List<String> requiredImports = List.of(
@@ -53,7 +52,7 @@ public class ModulePreprocessor {
         IFile rabbitmqManagerFile = getFileByName(messagesModuleDir, "RabbitMQManager.java");
         if (rabbitmqManagerFile == null) return;
 
-        CompilationUnit cu = parseJavaFile(rabbitmqManagerFile);
+        CompilationUnit cu = JavaParserUtil.parse(rabbitmqManagerFile);
         ModelLayerExtractor.addModelInterfaceImportStatement(moduleDirs, cu);
         ModelFactoryExtractor.initializeObjectFactory(moduleDirs, cu);
         RepositoryExtractor.initializeRepositoryMap(moduleDirs, cu);
@@ -66,18 +65,10 @@ public class ModulePreprocessor {
             IFile moduleInfoFile = getFileByName(moduleDir, "module-info.java");
             if (moduleInfoFile == null) continue;
 
-            CompilationUnit cu = parseJavaFile(moduleInfoFile);
+            CompilationUnit cu = JavaParserUtil.parse(moduleInfoFile);
             ModuleInfoModifier.modifyModuleInfo(cu);
 
             overwriteFile(moduleInfoFile, cu);
-        }
-    }
-
-    private static CompilationUnit parseJavaFile(IFile file) {
-        try (InputStream stream = file.getContents()) {
-            return StaticJavaParser.parse(stream);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse file: " + file.getFullPath(), e);
         }
     }
 
