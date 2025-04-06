@@ -126,8 +126,9 @@ public abstract class PublishMessageTrigger {
         
         MethodCallExpr propertiesVararg = new MethodCallExpr("List.of");
         propertiesList.forEach(propertiesVararg::addArgument);
-
-        if (!modifiedMethods.contains(method.getNameAsString())) {
+        
+        String methodId = method.getSignature().asString();
+        if (!modifiedMethods.contains(methodId)) {
             // Buat deklarasi variable message
             VariableDeclarator messageVar = new VariableDeclarator(
                     new ClassOrInterfaceType(null, "StateTransferMessage"), // Tipe variabel
@@ -206,7 +207,7 @@ public abstract class PublishMessageTrigger {
                 }
             }
         });
-        modifiedMethods.add(method.getNameAsString());
+        modifiedMethods.add(methodId);
     }
     
     // Untuk mengakses objek delta menggunakan repository call getListObject
