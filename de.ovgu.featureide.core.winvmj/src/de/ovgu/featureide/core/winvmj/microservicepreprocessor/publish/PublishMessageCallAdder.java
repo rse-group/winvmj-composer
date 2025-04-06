@@ -35,7 +35,6 @@ public class PublishMessageCallAdder {
                 default -> System.out.println("Invalid repository operation");
             }
 
-            addImportStatement(cu);
         }
     }
 
@@ -79,21 +78,4 @@ public class PublishMessageCallAdder {
         return repositoryCallInfos;
     }
 
-    private void addImportStatement(CompilationUnit cu) {
-        String messagingModule = "vmj.messaging";
-        List<String> requiredImports = List.of(
-                "java.util.UUID",
-                "java.util.List",
-                messagingModule + ".StateTransferMessage",
-                messagingModule + ".Property",
-                messagingModule + ".rabbitmq.RabbitMQManager"
-        );
-
-        requiredImports.forEach(importStr -> {
-            ImportDeclaration importDecl = new ImportDeclaration(importStr, false, false);
-            if (!cu.getImports().contains(importDecl)) {
-                cu.addImport(importDecl);
-            }
-        });
-    }
 }

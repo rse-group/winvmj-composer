@@ -2,6 +2,8 @@ package de.ovgu.featureide.core.winvmj.microservicepreprocessor;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+
 import de.ovgu.featureide.core.winvmj.microservicepreprocessor.publish.PublishMessageCallAdder;
 import org.eclipse.core.resources.*;
 import org.eclipse.core.runtime.CoreException;
@@ -10,6 +12,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,6 +31,17 @@ public class ModulePreprocessor {
             if (serviceImplFile == null) continue;
 
             CompilationUnit cu = parseJavaFile(serviceImplFile);
+            
+            String messagingModule = "vmj.messaging";
+            List<String> requiredImports = List.of(
+                    "java.util.UUID",
+                    "java.util.List",
+                    messagingModule + ".StateTransferMessage",
+                    messagingModule + ".Property",
+                    messagingModule + ".rabbitmq.RabbitMQManager"
+            );
+            
+            addImportStatement(cu, requiredImports);
             QueueBindingTrigger.addQueueBindingCall(cu);
             publishMessageCallAdder.addPublishMessageCall(cu);
 
@@ -93,5 +107,14 @@ public class ModulePreprocessor {
             throw new RuntimeException("Error accessing folder: " + folder.getFullPath(), e);
         }
         return null;
+    }
+    
+    private static void addImportStatement(CompilationUnit cu, List<String> requiredImports) {
+        requiredImports.forEach(importStr -> {
+            ImportDeclaration importDecl = new ImportDeclaration(importStr, false, false);
+            if (!cu.getImports().contains(importDecl)) {
+                cu.addImport(importDecl);
+            }
+        });
     }
 }
