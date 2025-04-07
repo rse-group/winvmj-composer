@@ -94,43 +94,54 @@ public class SourceCompiler {
 	}
 
 	public static void compileModuleSource(IFolder moduleFromSrcFolder, IFeatureProject project)
-			throws URISyntaxException {
-		try {
-			IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
-			if (!compiledModulesDir.exists())
-				compiledModulesDir.create(false, true, null);
+	        throws URISyntaxException {
+        IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+        IFolder externalDir = project.getProject().getFolder("external");
+	    try {
+	        IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
+	        if (!compiledModulesDir.exists())
+	            compiledModulesDir.create(false, true, null);
 
-			IFile compiledJar = compiledModulesDir.getFile(moduleFromSrcFolder.getName() + ".jar");
+	        IFile compiledJar = compiledModulesDir.getFile(moduleFromSrcFolder.getName() + ".jar");
 
-			long moduleLastModified = getLastModifiedTime(moduleFromSrcFolder);
-			long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
+	        long moduleLastModified = getLastModifiedTime(moduleFromSrcFolder);
+	        long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
 
-			if (compiledJar.exists() && moduleLastModified <= jarLastModified) {
-				WinVMJConsole.println(
-						"Module " + moduleFromSrcFolder.getName() + " has already been generated and is up-to-date");
-				System.out.println(
-						"Module " + moduleFromSrcFolder.getName() + " has already been generated and is up-to-date");
-			} else {
-				importWinVMJLibrariesForModules(compiledModulesDir);
+	        
+	        Set<String> requirements = extractDelta(project, moduleFromSrcFolder);
+	        boolean requiresUpdate = false;
 
-				List<IResource> externalLibraries = listAllExternalLibraries(project);
+	        for (String require : requirements) {
+	            IFolder requireFolder = project.getProject().getFolder(MODULES_FOLDER).getFolder(require);
+	            if (requireFolder.exists()) {
+	                IFile generatedJar = compiledModulesDir.getFile(require + ".jar");
 
-				IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
-				IFolder externalDir = project.getProject().getFolder("external");
+	                long requireLastModified = getLastModifiedTime(requireFolder);
+	                long requireJarLastModified = generatedJar.exists() ? generatedJar.getLocalTimeStamp() : -1;
 
-				importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir,
-						moduleFromSrcFolder);
-
-				compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "");
-
-				deleteLibraries(compiledModulesDir, librariesDir);
-				deleteExternal(compiledModulesDir, externalDir);
-				cleanBinaries(project);
-			}
-
-		} catch (CoreException | IOException e) {
-			e.printStackTrace();
-		}
+	                if (!generatedJar.exists() || requireLastModified > requireJarLastModified) {
+	                    WinVMJConsole.println("Required module " + require + " is outdated. Recompiling...");
+	                    compileModuleSource(requireFolder, project);
+	                    requiresUpdate = true; 
+	                }
+	            }
+	        }
+	        if (requiresUpdate || moduleLastModified > jarLastModified) {
+	            WinVMJConsole.println("Compiling module " + moduleFromSrcFolder.getName() + "...");
+	            List<IResource> externalLibraries = listAllExternalLibraries(project);
+	            importWinVMJLibrariesForModules(compiledModulesDir);
+	            importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, moduleFromSrcFolder);
+	            compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "compileModule");
+	            cleanBinaries(project);
+	        } else {
+	            WinVMJConsole.println("Module " + moduleFromSrcFolder.getName() + " is up-to-date. Skipping compilation.");
+	        }
+	        
+            deleteLibraries(compiledModulesDir, librariesDir);
+            deleteExternal(compiledModulesDir, externalDir);
+	    } catch (CoreException | IOException e) {
+	        e.printStackTrace();
+	    }
 	}
 
 	private static void importWinVMJLibrariesForModules(IFolder compiledModulesDir)
@@ -242,7 +253,6 @@ public class SourceCompiler {
 		for (IResource resource : compiledModulesDir.members()) {
 			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
 				String baseName = getBaseNameFromFile(resource.getName());
-				System.out.println(baseName);
 				if (baseNames.contains(baseName) || filesToDelete.contains(resource.getName())) {
 					resource.delete(true, null);
 				}
@@ -368,9 +378,9 @@ public class SourceCompiler {
 				.filter(folder -> Arrays.stream(moduleResources)
 						.anyMatch(resource -> resource.getName().equals(folder.getName())))
 				.collect(Collectors.toList()));
-
+		
 		filteredModule.addAll(Arrays.asList(moduleResources));
-
+		
 		for (IResource resource : filteredModule) {
 			if (resource instanceof IFolder) {
 				IFolder moduleFolder = (IFolder) resource;
@@ -462,7 +472,7 @@ public class SourceCompiler {
 			String productModule) throws CoreException, IOException {
 		IFolder compiledFolder;
 
-		if (productModule != "") {
+		if (productModule != "" && productModule != "compileModule") {
 			compiledFolder = productDir.getFolder(productModule);
 		} else {
 			compiledFolder = productDir;
@@ -470,7 +480,7 @@ public class SourceCompiler {
 
 		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(module.getName());
 
-		List<String> compileCommand = constructCompileCommand(module, binFolder, compiledFolder);
+		List<String> compileCommand = constructCompileCommand(project, module, binFolder, compiledFolder, productModule);
 
 		System.out.println(String.join(" ", compileCommand));
 
@@ -493,8 +503,8 @@ public class SourceCompiler {
 		IFolder compiledProductFolder = productDir.getFolder(productModule);
 		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(productModule);
 
-		List<String> compileCommand = constructCompileCommand(project.getBuildFolder().getFolder(productModule),
-				binFolder, compiledProductFolder);
+		List<String> compileCommand = constructCompileCommand(project, project.getBuildFolder().getFolder(productModule),
+				binFolder, compiledProductFolder, "");
 
 		System.out.println(String.join(" ", compileCommand));
 
@@ -511,8 +521,8 @@ public class SourceCompiler {
 				jarCommand);
 	}
 
-	private static List<String> constructCompileCommand(IFolder sourceFolder, IFolder binFolder, IFolder modulePath)
-			throws CoreException {
+	private static List<String> constructCompileCommand(IFeatureProject project, IFolder sourceFolder, IFolder binFolder, IFolder modulePath, String handleRequirements)
+			throws CoreException, IOException {
 
 		List<String> modulePaths = transverseModuleFilePaths(sourceFolder);
 
@@ -525,6 +535,34 @@ public class SourceCompiler {
 		compileCommand.addAll(modulePaths);
 
 		return compileCommand;
+	}
+	
+	private static Set<String> extractDelta(IFeatureProject project, IFolder moduleFolder) throws CoreException {
+	    Set<String> dependencies = new HashSet<>();
+	    
+	    IFile moduleInfoFile = moduleFolder.getFile("module-info.java");
+	    if (moduleInfoFile.exists()) {
+	        try (BufferedReader reader = new BufferedReader(new InputStreamReader(moduleInfoFile.getContents()))) {
+	            String line;
+	            while ((line = reader.readLine()) != null) {
+	                line = line.trim();
+	                if (line.startsWith("requires ")) {
+	                    String[] parts = line.split("\\s+");
+	                    
+	                    String requiredModule = parts.length == 3 ? parts[2] : parts[1];
+	                    requiredModule = requiredModule.replace(";", "");
+	                    
+	                    if (project.getProject().getFolder("modules").getFolder(requiredModule).exists()) {
+	                        dependencies.add(requiredModule);
+	                    }
+	                }
+	            }
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        }
+	    }
+
+	    return dependencies;
 	}
 
 	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, String jarName)

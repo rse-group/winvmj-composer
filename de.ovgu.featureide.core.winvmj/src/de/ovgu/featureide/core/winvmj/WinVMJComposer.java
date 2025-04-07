@@ -147,7 +147,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return new UVLFeatureModelFormat();
 	}
 	
-	private void selectModulesFromProject(
+	public void selectModulesFromProject(
 		IFeatureProject project, WinVMJProduct product) throws CoreException {
 		for (IFolder sourceModule: product.getModules()) {
 			IFolder destModule = project.getBuildFolder().getFolder(sourceModule.getName());
@@ -193,7 +193,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return true;
 	}
 
-	private void checkMultiLevelDelta(
+	public void checkMultiLevelDelta(
 		IFeatureProject project,
 		WinVMJProduct product,
 		List<IFeature> features
@@ -213,6 +213,10 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				.map(pr -> CorePlugin.getFeatureProject(pr))
 				.collect(Collectors.toMap(pr -> Utils.getSplName(pr), Function.identity()));
 		
+	    if (refProjectMap.isEmpty()) {
+	        return;
+	    }
+	    
 		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
 		if (multiFetureModel.isMultiProductLineModel()) {
 			for (Entry<String, UsedModel> interfaceModel: multiFetureModel
@@ -263,7 +267,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				Utils.isMultiLevelDelta(mapping)
 			) {
 				MultiLevelDeltaComposer multiLevelDeltaComposer = new MultiLevelDeltaComposer(
-					featureProject, product, key, value);
+						featureProject != null ? featureProject : project, product, key, value);
 				multiLevelDeltaComposer.compose();
 
 				if (multiLevelDeltaMappings == null) multiLevelDeltaMappings = new HashMap<>();

@@ -1,5 +1,7 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards.pages;
 
+import java.util.Map;
+
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
@@ -16,6 +18,10 @@ public class ProjectNameWizardPage extends WizardPage {
         super("Product Name Page");
         setTitle("Product Name");
         setDescription("Enter Your Product Name:");
+    }
+    
+    public String getProductName() {
+        return projectNameText.getText();
     }
     
     @Override

@@ -85,10 +85,7 @@
 	                  <with variable="activeMenuSelection">
 	                     <iterate ifEmpty="false">
 	                        <adapt type="org.eclipse.core.resources.IFolder">
-	                        	<or>
- 									<test property="org.eclipse.core.resources.path" value="*/modules/*"/>
- 									<test property="org.eclipse.core.resources.path" value="*/src/*"/>
- 								</or>
+								<test property="org.eclipse.core.resources.path" value="*/modules/*"/>
 	                        </adapt>
 	                     </iterate>
 	                  </with>

@@ -6,6 +6,7 @@ import java.util.Map;
 
 import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
 import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.fm.core.base.IConstraint;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizardPage;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
 
@@ -50,6 +51,8 @@ public class SelectAllUvlWizardPage extends AbstractWizardPage {
     public boolean getFilter() {
         return isFilteredUvlSelected;
     }
+    
+
 
     @Override
     public void createControl(Composite parent) {
