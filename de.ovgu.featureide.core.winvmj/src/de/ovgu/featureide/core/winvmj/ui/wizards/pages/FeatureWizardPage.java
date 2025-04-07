@@ -1,13 +1,12 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards.pages;
 
 import java.util.ArrayList;
-import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.Map;
 
 import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
 
-import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizardPage;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
@@ -29,7 +28,6 @@ public class FeatureWizardPage extends AbstractWizardPage {
     private ListViewer listViewer;
     private String selectedFile;
     private IFeatureProject project;
-    private MultiStageConfiguration multiStageConfiguration = new MultiStageConfiguration();
     private MultiStageConfiguration multiStageConfiguration = new MultiStageConfiguration();
     private final Map<String, Object> dataMap = new HashMap<String, Object>();
 
@@ -74,18 +72,6 @@ public class FeatureWizardPage extends AbstractWizardPage {
             }
         });
         
-
-        listViewerData.addSelectionListener(new SelectionAdapter() {
-            @Override
-            public void widgetSelected(SelectionEvent e) {
-                int selectedIndex = listViewerData.getSelectionIndex();
-                if (selectedIndex >= 0) {
-                    selectedFile = listViewerData.getItem(selectedIndex);
-                }
-                dataMap.put("selectedFile", selectedFile);
-            }
-        });
-        
         setPageComplete(true);
         setControl(container);
     }
@@ -102,15 +88,6 @@ public class FeatureWizardPage extends AbstractWizardPage {
             fileList.add(file.getName());
         }
         // fileList.add(this.project.getModelFile().getName());
-    private ArrayList<String> findUvlFiles() {
-        ArrayList<String> fileList = new ArrayList<>();
-        for (IFile file : multiStageConfiguration.getAllFeatureModelNames(this.project)) {
-            fileList.add(file.getName());
-        }
-        // fileList.add(this.project.getModelFile().getName());
         return fileList;
     }
-    
- 
-    
 }
