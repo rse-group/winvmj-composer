@@ -291,18 +291,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		}
 	}
 
-	private void restoreCheckedState(TreeItem[] items) {
-		for (TreeItem item : items) {
-			if (featureNames.contains(item.getText())) {
-				item.setChecked(true);
-			}
-
-			if (item.getItemCount() > 0) {
-				restoreCheckedState(item.getItems());
-			}
-		}
-	}
-
 	/**
 	 * Add the feature name as an item to the tree.
 	 *
