@@ -101,7 +101,8 @@ public class FeatureWizard extends Wizard {
 	private ArrayList<String> selectedUvl =  new ArrayList<>();
     private Map<String, IWizardPage> pageMap = new HashMap<String, IWizardPage>();
 	private String selectedPage;
-	private Map<String, HashSet<String>> selectedFeatures = new HashMap<>();
+	private Map<String, HashSet<String>> selectedFeaturesMap = new HashMap<>();
+	private HashSet<String> selectedFeatures = new HashSet<String>();
 	private WinVMJProduct product;
 
     public FeatureWizard() {
@@ -168,9 +169,20 @@ public class FeatureWizard extends Wizard {
 			if (nextPage instanceof SelectFeaturesWizardPage) {
 				SelectFeaturesWizardPage nextSelectPage = (SelectFeaturesWizardPage) nextPage;
 				
-				nextSelectPage.setAllowedParent(currentSelectPage.getFeatureName());
+				if (selectedFeaturesMap.isEmpty()) {
+					nextSelectPage.setAllowedParent(currentSelectPage.getFeatureName());
+				}
+				else {
+					HashSet<String> allSelectedFeatures = new HashSet<>();
+					for (HashSet<String> features : selectedFeaturesMap.values()) {
+						allSelectedFeatures.addAll(features);
+					}
+					
+					WinVMJConsole.println("allSelectedFeatures" + allSelectedFeatures);
+					nextSelectPage.setAllowedParent(allSelectedFeatures);
+				}
 				
-				selectedFeatures.put(currentSelectPage.getSelectedFile(), new HashSet<>(currentSelectPage.getFeatureName()));
+				selectedFeaturesMap.put(currentSelectPage.getSelectedFile(), new HashSet<>(currentSelectPage.getFeatureName()));
 				
 				return (IWizardPage) nextSelectPage;
 			}
@@ -200,12 +212,12 @@ public class FeatureWizard extends Wizard {
     	IWizardPage currentPage = getContainer().getCurrentPage();
         if (currentPage instanceof SelectFeaturesWizardPage) {
             SelectFeaturesWizardPage lastSelectPage = (SelectFeaturesWizardPage) currentPage;
-            selectedFeatures.put(lastSelectPage.getSelectedFile(), new HashSet<>(lastSelectPage.getFeatureName()));
+            selectedFeaturesMap.put(lastSelectPage.getSelectedFile(), new HashSet<>(lastSelectPage.getFeatureName()));
         }
         
         String productName = projectNamePage.getProjectName();
         
-        ArrayList<IFeature> featureList =  multiStageConfiguration.convertSelectedFeaturesToList(selectedFeatures, project);
+        ArrayList<IFeature> featureList =  multiStageConfiguration.convertSelectedFeaturesToList(selectedFeaturesMap, project);
         
         WinVMJConsole.println("Features " + featureList.toString());
         
