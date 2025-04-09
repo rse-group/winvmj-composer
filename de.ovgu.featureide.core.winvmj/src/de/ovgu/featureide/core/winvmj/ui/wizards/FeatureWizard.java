@@ -102,7 +102,6 @@ public class FeatureWizard extends Wizard {
     private Map<String, IWizardPage> pageMap = new HashMap<String, IWizardPage>();
 	private String selectedPage;
 	private Map<String, HashSet<String>> selectedFeaturesMap = new HashMap<>();
-	private HashSet<String> selectedFeatures = new HashSet<String>();
 	private WinVMJProduct product;
 
     public FeatureWizard() {
@@ -178,7 +177,6 @@ public class FeatureWizard extends Wizard {
 						allSelectedFeatures.addAll(features);
 					}
 					
-					WinVMJConsole.println("allSelectedFeatures" + allSelectedFeatures);
 					nextSelectPage.setAllowedParent(allSelectedFeatures);
 				}
 				
