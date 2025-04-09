@@ -38,6 +38,7 @@ import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.CorsPropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.DeploymentScriptRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.EndpointsConfigRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixDeploymentScriptRenderer;
@@ -176,7 +177,9 @@ public class SourceCompiler {
 
 		String dbUsername = dbProperties.getProperty("db.username");
 		String dbPassword = dbProperties.getProperty("db.password");
+		
 		WinVMJConsole.println("Generating additional config files for product...");
+
 		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 		new CorsPropertiesRenderer(project).render(product);
 		// new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
@@ -186,6 +189,8 @@ public class SourceCompiler {
 		new WindowsDeploymentScriptRenderer(project).render(product);
 		new UnixDeploymentScriptRenderer(project).render(product);
 		new UnixRunAllScriptRenderer(project, dbUsername, dbPassword).render(product);
+		new EndpointsConfigRenderer(project).render(product);
+
 		WinVMJConsole.println("All additional config files has been generated");
 	}
 

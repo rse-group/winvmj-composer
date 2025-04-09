@@ -32,7 +32,7 @@ public class CompileModuleHandler extends AFolderHandler {
 				WinVMJConsole.println("Compile modules process completed in " 
 				+ String.valueOf(elapsedTime) 
 				+ " seconds. Please Refresh the project "
-				+ "now and find your compiled product on internal-modules");
+				+ "now and find your compiled files in modules-gen");
 				return true;
 			}
 		};
