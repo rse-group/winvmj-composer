@@ -25,20 +25,39 @@ public class SelectDeploymentPage extends WizardPage {
 
         Button awsButton = new Button(container, SWT.RADIO);
         awsButton.setText("AWS");
-        awsButton.addListener(SWT.Selection, e -> selectedOption = "AWS");
+        awsButton.addListener(SWT.Selection, e -> {
+            selectedOption = "AWS";
+            setPageComplete(isPageComplete());
+        });
 
         Button gcpButton = new Button(container, SWT.RADIO);
         gcpButton.setText("GCP");
-        gcpButton.addListener(SWT.Selection, e -> selectedOption = "GCP");
+        gcpButton.addListener(SWT.Selection, e -> {
+            selectedOption = "GCP";
+            setPageComplete(isPageComplete());
+        });
 
         Button onPremButton = new Button(container, SWT.RADIO);
         onPremButton.setText("On-Prem");
-        onPremButton.addListener(SWT.Selection, e -> selectedOption = "On-Prem");
+        onPremButton.addListener(SWT.Selection, e -> {
+            selectedOption = "On-Prem";
+            setPageComplete(isPageComplete());
+        });
 
         setControl(container);
+        setPageComplete(false);
     }
+
+    @Override
+    public boolean isPageComplete() {
+        return !selectedOption.equals("None");
+    }
+
 
     public String getSelectedOption() {
         return selectedOption;
     }
+    
+
+
 }
