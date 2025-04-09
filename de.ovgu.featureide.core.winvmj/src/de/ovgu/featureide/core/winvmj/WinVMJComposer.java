@@ -193,6 +193,8 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		        ModulePreprocessor.modifyServiceImplClass(duplicateModules);
 		        ModulePreprocessor.modifyModuleInfo(duplicateModules);
 		        ModulePreprocessor.modifyRabbitmqManagerClass(duplicateModules,messagingModule);
+		        
+		        WinVMJConsole.println("Completed compose microservices product");
 		    	
 		        return true;
 		    }

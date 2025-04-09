@@ -33,8 +33,7 @@ public class ModulePreprocessor {
             
             String messagingModule = "vmj.messaging";
             List<String> requiredImports = List.of(
-                    "java.util.UUID",
-                    "java.util.List",
+                    "java.util.*",
                     messagingModule + ".StateTransferMessage",
                     messagingModule + ".Property",
                     messagingModule + ".rabbitmq.RabbitMQManager"
@@ -102,8 +101,17 @@ public class ModulePreprocessor {
     
     private static void addImportStatement(CompilationUnit cu, List<String> requiredImports) {
         requiredImports.forEach(importStr -> {
-            ImportDeclaration importDecl = new ImportDeclaration(importStr, false, false);
-            if (!cu.getImports().contains(importDecl)) {
+            boolean isAsterisk = importStr.endsWith(".*");
+            String importName = isAsterisk ? importStr.substring(0, importStr.length() - 2) : importStr;
+
+            ImportDeclaration importDecl = new ImportDeclaration(importName, false, isAsterisk);
+
+            boolean alreadyExists = cu.getImports().stream().anyMatch(existing ->
+                existing.getNameAsString().equals(importName) &&
+                existing.isAsterisk() == isAsterisk
+            );
+
+            if (!alreadyExists) {
                 cu.addImport(importDecl);
             }
         });

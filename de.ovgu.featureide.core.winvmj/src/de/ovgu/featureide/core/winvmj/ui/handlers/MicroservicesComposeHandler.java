@@ -36,7 +36,7 @@ public class MicroservicesComposeHandler extends AFeatureProjectHandler {
 
 			@Override
 			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-				WinVMJConsole.println("Begin compose micorservices product...");
+				WinVMJConsole.println("Begin compose microservices product...");
 				
 				IFile servicesDefFile = project.getProject().getFile("services-def.json");
 

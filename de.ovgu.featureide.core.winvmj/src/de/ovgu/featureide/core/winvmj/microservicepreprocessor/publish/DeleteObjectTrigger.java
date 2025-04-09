@@ -2,8 +2,6 @@ package de.ovgu.featureide.core.winvmj.microservicepreprocessor.publish;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 
-import java.util.Map;
-
 public class DeleteObjectTrigger extends PublishMessageTrigger{
     public DeleteObjectTrigger() {
         super();
@@ -11,11 +9,7 @@ public class DeleteObjectTrigger extends PublishMessageTrigger{
     }
 
     @Override
-    protected Map<String, String> getRequiredAttributes(MethodDeclaration method,
-                                                        String objectDomainVar,
-                                                        Map<String, String> variableTypeMap) {
-        return null;
-    }
+    protected void collectProperties(MethodDeclaration method, String objectDomainVar) {}
 
 }
 
