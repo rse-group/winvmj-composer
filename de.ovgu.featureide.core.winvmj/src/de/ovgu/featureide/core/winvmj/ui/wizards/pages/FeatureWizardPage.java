@@ -1,11 +1,12 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards.pages;
 
 import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.Map;
 
-
 import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
+
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizardPage;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
@@ -89,6 +90,4 @@ public class FeatureWizardPage extends AbstractWizardPage {
         // fileList.add(this.project.getModelFile().getName());
         return fileList;
     }
- 
-    
 }

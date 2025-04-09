@@ -42,9 +42,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import java.nio.file.Path;
 
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -63,7 +61,9 @@ import org.eclipse.ui.ide.IDE;
 
 import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.fm.core.base.IFeature;
+import de.ovgu.featureide.fm.core.base.IFeatureStructure;
 import de.ovgu.featureide.fm.core.base.impl.ConfigFormatManager;
+import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.fm.core.FMCorePlugin;
 import de.ovgu.featureide.fm.core.analysis.cnf.formula.FeatureModelFormula;
@@ -122,12 +122,33 @@ public class FeatureWizard extends Wizard {
         projectNamePage = new ProjectNameWizardPage();
         addPage(projectNamePage);
 
-		selectAllUvlWizardPage = new SelectAllUvlWizardPage();
-		selectAllUvlWizardPage.setProject(this.project);
-		addPage(selectAllUvlWizardPage);
+		// Section for Sorting Model
+		IFile chosenFile = null;
 
-		confirmationSelectionWizardPage = new ConfirmationSelectionWizardPage();
-		addPage(confirmationSelectionWizardPage);
+		for (IFile file : multiStageConfiguration.getAllFeatureModelNames(this.project)) {
+            if (file.getName().equals("model.uvl")) {
+				chosenFile = file;
+			}
+        }
+
+		IFeature root = multiStageConfiguration.loadFeatureModel(chosenFile).getStructure().getRoot().getFeature();
+		for (final IFeatureStructure feature : root.getStructure().getChildren()) {
+			String featureName = feature.getFeature().getName().split("\\.")[1];
+			SelectFeaturesWizardPage page = new SelectFeaturesWizardPage();
+			page.setProject(this.project);
+			page.setSelectedFile(featureName+".uvl");
+			addPage(page);
+
+		}
+		hasSetupFeatureSelection = true;
+
+		// Uncomment for old version
+		// selectAllUvlWizardPage = new SelectAllUvlWizardPage();
+		// selectAllUvlWizardPage.setProject(this.project);
+		// addPage(selectAllUvlWizardPage);
+
+		// confirmationSelectionWizardPage = new ConfirmationSelectionWizardPage();
+		// addPage(confirmationSelectionWizardPage);
 
 		// Uncomment for single feature wizard
         // featureWizardPage = new FeatureWizardPage();
