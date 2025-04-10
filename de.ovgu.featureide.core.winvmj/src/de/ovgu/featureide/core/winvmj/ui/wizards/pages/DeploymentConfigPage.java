@@ -18,6 +18,8 @@ public class DeploymentConfigPage extends WizardPage {
     private Text nginxCertNameText;
     private Text instanceNameText;
     private Text productPrefixText;
+    private Text productNameText;
+
 
     public DeploymentConfigPage(String pageName) {
         super(pageName);
@@ -43,6 +45,8 @@ public class DeploymentConfigPage extends WizardPage {
         nginxCertNameText = createField(container, "NGINX Certificate Name:");
         instanceNameText = createField(container, "Instance Name:");
         productPrefixText = createField(container, "Product Prefix:");
+        productNameText = createField(container, "Product Name:");
+
 
         Listener validationListener = e -> setPageComplete(isPageComplete());
 
@@ -54,6 +58,7 @@ public class DeploymentConfigPage extends WizardPage {
         nginxCertNameText.addListener(SWT.Modify, validationListener);
         instanceNameText.addListener(SWT.Modify, validationListener);
         productPrefixText.addListener(SWT.Modify, validationListener);
+        productNameText.addListener(SWT.Modify, validationListener);
 
         setControl(container);
         setPageComplete(false);
@@ -88,7 +93,8 @@ public class DeploymentConfigPage extends WizardPage {
                 && !certificateNameText.getText().trim().isEmpty()
                 && !nginxCertNameText.getText().trim().isEmpty()
                 && !instanceNameText.getText().trim().isEmpty()
-                && !productPrefixText.getText().trim().isEmpty();
+                && !productPrefixText.getText().trim().isEmpty()
+        		&& !productNameText.getText().trim().isEmpty();
     }
 
     @Override
@@ -147,5 +153,9 @@ public class DeploymentConfigPage extends WizardPage {
 
     public String getProductPrefix() {
         return productPrefixText.getText();
+    }
+    
+    public String getProductName() {
+    	return productNameText.getText();
     }
 }
