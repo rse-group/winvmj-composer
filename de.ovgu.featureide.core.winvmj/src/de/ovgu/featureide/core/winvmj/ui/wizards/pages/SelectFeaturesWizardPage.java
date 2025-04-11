@@ -82,6 +82,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	private FeatureWizard featureWizard;
 	private SelectAllUvlWizardPage selectAllUvlWizardPage;
 	private Label noFeaturesLabel;
+	private Label validationLabel;
 
     public HashSet<String> getFeatureNames(){
     	return featureNames;
@@ -142,7 +143,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		container.setLayout(layout);
 		setControl(container);
 
-		Label validationLabel = new Label(container, SWT.NONE);
+		validationLabel = new Label(container, SWT.NONE);
 		validationLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
     	validationLabel.setText("Configuration status: Unknown");
 
@@ -184,7 +185,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 					else {
 						validationLabel.setText("Local Configuration status: Valid!");
 						validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_GREEN));
-						
 						setPageComplete(true);
 					}
 					validationLabel.getParent().layout();
@@ -257,13 +257,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		}
 	}
 	
-	private void clearCheckedStateRecursive(TreeItem item) {
-		item.setChecked(false);
-		for (TreeItem child : item.getItems()) {
-			clearCheckedStateRecursive(child);
-		}
-	}
-
+	
 	@Override
 	public void setVisible(boolean visible) {
 		if (visible) {
@@ -281,21 +275,16 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 					    
 						addFilteredFeaturesToTree(multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), filteredFeatures);
 					}
-					
-					for (TreeItem item : featuresTree.getItems()) {
-						WinVMJConsole.println("item " + item);
-						clearCheckedStateRecursive(item);
+							
+					if (featuresTree.getItemCount() == 0) {
+						validationLabel.setVisible(false);
+						noFeaturesLabel.setVisible(true);
+					} else {
+						noFeaturesLabel.setVisible(false);
+						validationLabel.setVisible(true);
+						restoreCheckedState(featuresTree.getItems());
 					}
-					
-					restoreCheckedState(featuresTree.getItems());
-					
-//					if (featuresTree.getItemCount() == 0) {
-//						noFeaturesLabel.setVisible(true);
-//						setPageComplete(true);
-//					} else {
-//						noFeaturesLabel.setVisible(false);
-//						setPageComplete(false); 
-//					}
+					setPageComplete(true);
 					
 				} 
 				else {
@@ -304,32 +293,31 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 				}
 			}
 		}		
-//		else {
-//			IWizardPage current = getWizard().getContainer().getCurrentPage();
-//			FeatureWizard wizard = (FeatureWizard) getWizard();
-//
-//			int currentIndex = wizard.getPageIndex(current);
-//			int myIndex = wizard.getPageIndex(this);
-//
-//			WinVMJConsole.println("currentIndex " + currentIndex);
-//			WinVMJConsole.println("myIndex " + myIndex);
-//			if (currentIndex < myIndex) {
-//				Map<String, HashSet<String>> selectedFeaturesMap = wizard.getSelectedFeaturesMap();
-//				if (selectedFeaturesMap != null) {
-//					WinVMJConsole.println("Looking for selectedFile key: " + getSelectedFile());
-//					WinVMJConsole.println("Before delete selectedFeatures map keys: " + selectedFeaturesMap.keySet());
-//					
-//					selectedFeaturesMap.remove(getSelectedFile());
-//					
-//					WinVMJConsole.println("After delete selectedFeatures map keys: " + selectedFeaturesMap.keySet());
-//					WinVMJConsole.println("🔄 Going back — removed selections for: " + getSelectedFile());
-//				}
-//			}
-//		}
+		else {
+			IWizardPage current = getWizard().getContainer().getCurrentPage();
+			FeatureWizard wizard = (FeatureWizard) getWizard();
+
+			int currentIndex = wizard.getPageIndex(current);
+			int myIndex = wizard.getPageIndex(this);
+
+			if (currentIndex < myIndex) {
+				Map<String, HashSet<String>> selectedFeaturesMap = wizard.getSelectedFeaturesMap();
+				if (selectedFeaturesMap != null) {				
+//					WinVMJConsole.println("selectedFeatures " + featureNames);
+					
+					featureNames.clear();
+					
+//					WinVMJConsole.println("featureNames after remove" + featureNames);
+					selectedFeaturesMap.remove(getSelectedFile());
+//					WinVMJConsole.println("selectedFeaturesMap after remove" + selectedFeaturesMap);
+					wizard.setSelectedFeaturesMap(selectedFeaturesMap);
+				}
+			}
+		}
 		super.setVisible(visible);
 	}
 	
-
+	// maybe bisaa dipake juga untuk auto select features
 	private void restoreCheckedState(TreeItem[] items) {
 		for (TreeItem item : items) {
 			if (featureNames.contains(item.getText())) {
@@ -487,22 +475,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 //		return selectedFeatures;
 //	}
 	
-//	private HashSet<String> getRequiredParents(HashSet<String> filteredFeatures) {
-//	    HashSet<String> requiredParents = new HashSet<>();
-//	    
-//	    Collection<IFeature> features = multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getFeaturesPreorder();
-//	    for (IFeature feature : features) {
-//	    	if (feature.getStructure().getParent() == null) {
-//	    		requiredParents.add(feature.getName());
-//	    	}
-//	    	else if (filteredFeatures.contains(feature.getName()) && feature.getStructure().getParent() != null) {
-//	            requiredParents.add(feature.getStructure().getParent().getFeature().getName());
-//	        }
-//	    }
-//	    return requiredParents;
-//	}
-
-
 
 	@Override
 	protected void putData() {

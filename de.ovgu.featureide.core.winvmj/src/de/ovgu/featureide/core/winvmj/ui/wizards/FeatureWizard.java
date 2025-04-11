@@ -120,6 +120,10 @@ public class FeatureWizard extends Wizard {
     	return selectedFeaturesMap;
     }
     
+    public void setSelectedFeaturesMap(Map<String, HashSet<String>> selectedFeaturesMap) {
+        this.selectedFeaturesMap = selectedFeaturesMap;
+    }
+    
     public int getPageIndex(IWizardPage page) {
     	int index = 0;
     	for (IWizardPage p : getPages()) {
