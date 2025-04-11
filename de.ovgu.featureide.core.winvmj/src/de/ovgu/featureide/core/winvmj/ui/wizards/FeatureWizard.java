@@ -116,6 +116,19 @@ public class FeatureWizard extends Wizard {
         return this.dataMap;
     }
     
+    public Map<String, HashSet<String>> getSelectedFeaturesMap() {
+    	return selectedFeaturesMap;
+    }
+    
+    public int getPageIndex(IWizardPage page) {
+    	int index = 0;
+    	for (IWizardPage p : getPages()) {
+    		if (p == page) return index;
+    		index++;
+    	}
+    	return -1;
+    }
+
 
     @Override
     public void addPages() {
@@ -211,21 +224,6 @@ public class FeatureWizard extends Wizard {
 		return super.getNextPage(currentPage);
 	}
 
-	// @Override
-	// public IWizardPage getPreviousPage(IWizardPage currentPage) {
-	// 	IWizardPage previousPage = super.getPreviousPage(currentPage);
-	// 	System.out.println("MAsuk siini");
-	// 	System.out.println(previousPage);
-	// 	if (previousPage != null) System.out.println(previousPage.getName());
-
-	// 	if (previousPage == confirmationSelectionWizardPage) {
-	// 		System.out.println("MAsukkkkk");
-	// 		return null;
-	// 	}
-
-	// 	return previousPage;
-	// }
-
     @Override
     public boolean performFinish() {
     	IWizardPage currentPage = getContainer().getCurrentPage();
@@ -239,14 +237,6 @@ public class FeatureWizard extends Wizard {
         ArrayList<IFeature> featureList =  multiStageConfiguration.convertSelectedFeaturesToList(selectedFeaturesMap, project);
         
         WinVMJConsole.println("Features " + featureList.toString());
-        
-//        HashSet<String> featureNames = selectFeaturesWizardPage.getFeatureName();
-//		final FeatureModelFormula featureModel = this.project.getFeatureModelManager().getPersistentFormula();
-//		final IPersistentFormat<Configuration> format = ConfigFormatManager.getInstance().getDefaultFormat();
-//
-//		final String suffix = "." + format.getSuffix();
-//		final String name = projectName;
-//		final String fileName = name + (name.endsWith(suffix) ? "" : suffix);
 
 		final IRunnableWithProgress op = new IRunnableWithProgress() {
 

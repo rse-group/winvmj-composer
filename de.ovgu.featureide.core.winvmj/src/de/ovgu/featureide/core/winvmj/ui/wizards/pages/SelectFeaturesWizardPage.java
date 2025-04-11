@@ -40,8 +40,13 @@ import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jface.wizard.IWizardPage;
 
+import de.ovgu.featureide.fm.core.analysis.cnf.CNF;
 import de.ovgu.featureide.fm.core.analysis.cnf.formula.FeatureModelFormula;
+import de.ovgu.featureide.fm.core.analysis.cnf.solver.AdvancedSatSolver;
+import de.ovgu.featureide.fm.core.analysis.cnf.solver.ISatSolver.SelectionStrategy;
+import de.ovgu.featureide.fm.core.analysis.cnf.solver.ISimpleSatSolver.SatResult;
 import de.ovgu.featureide.fm.core.configuration.Configuration;
 import de.ovgu.featureide.fm.core.configuration.ConfigurationAnalyzer;
 import de.ovgu.featureide.fm.core.configuration.Selection;
@@ -76,6 +81,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	private boolean isFirst = false;
 	private FeatureWizard featureWizard;
 	private SelectAllUvlWizardPage selectAllUvlWizardPage;
+	private Label noFeaturesLabel;
 
     public HashSet<String> getFeatureNames(){
     	return featureNames;
@@ -129,7 +135,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	}
 
 	@Override
-	public void createControl(Composite parent) {
+	public void createControl(Composite parent) {		
 		final Composite container = new Composite(parent, SWT.NONE);
 
 		final GridLayout layout = new GridLayout();
@@ -142,6 +148,13 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 		featuresTree = new Tree(container, SWT.MULTI | SWT.CHECK);
 		featuresTree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+		
+		noFeaturesLabel = new Label(container, SWT.NONE);
+		noFeaturesLabel.setText("No features available to select for this level.");
+		noFeaturesLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_BLUE));
+		noFeaturesLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		noFeaturesLabel.setVisible(false);
+	    
 		featuresTree.addSelectionListener(new SelectionListener() {
 
 			@Override
@@ -160,7 +173,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 						configForChecking.setManual(feature, Selection.SELECTED);
 					}
 					
-
 					ConfigurationAnalyzer analyze = new ConfigurationAnalyzer(formula,configForChecking);
 					
 					if (!analyze.isValid()) {
@@ -244,6 +256,13 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			check(items[i], checkStatus);
 		}
 	}
+	
+	private void clearCheckedStateRecursive(TreeItem item) {
+		item.setChecked(false);
+		for (TreeItem child : item.getItems()) {
+			clearCheckedStateRecursive(child);
+		}
+	}
 
 	@Override
 	public void setVisible(boolean visible) {
@@ -259,22 +278,54 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 					else {
 						HashSet<String> filteredFeatures = filteredFeaturesBasedOnConstraint(allowedParentFeatures);
-						HashSet<String> requiredParents = getRequiredParents(filteredFeatures);
-						HashSet<String> combinedFeatures = new HashSet<>(filteredFeatures);
-					    combinedFeatures.addAll(requiredParents);
 					    
-						addFilteredFeaturesToTree(multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), combinedFeatures);
+						addFilteredFeaturesToTree(multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), filteredFeatures);
 					}
+					
+					for (TreeItem item : featuresTree.getItems()) {
+						WinVMJConsole.println("item " + item);
+						clearCheckedStateRecursive(item);
+					}
+					
 					restoreCheckedState(featuresTree.getItems());
-
+					
+//					if (featuresTree.getItemCount() == 0) {
+//						noFeaturesLabel.setVisible(true);
+//						setPageComplete(true);
+//					} else {
+//						noFeaturesLabel.setVisible(false);
+//						setPageComplete(false); 
+//					}
+					
 				} 
-				
 				else {
 					setErrorMessage("Please select a Project in the previous page.");
 					setPageComplete(false);
 				}
 			}
-		}
+		}		
+//		else {
+//			IWizardPage current = getWizard().getContainer().getCurrentPage();
+//			FeatureWizard wizard = (FeatureWizard) getWizard();
+//
+//			int currentIndex = wizard.getPageIndex(current);
+//			int myIndex = wizard.getPageIndex(this);
+//
+//			WinVMJConsole.println("currentIndex " + currentIndex);
+//			WinVMJConsole.println("myIndex " + myIndex);
+//			if (currentIndex < myIndex) {
+//				Map<String, HashSet<String>> selectedFeaturesMap = wizard.getSelectedFeaturesMap();
+//				if (selectedFeaturesMap != null) {
+//					WinVMJConsole.println("Looking for selectedFile key: " + getSelectedFile());
+//					WinVMJConsole.println("Before delete selectedFeatures map keys: " + selectedFeaturesMap.keySet());
+//					
+//					selectedFeaturesMap.remove(getSelectedFile());
+//					
+//					WinVMJConsole.println("After delete selectedFeatures map keys: " + selectedFeaturesMap.keySet());
+//					WinVMJConsole.println("🔄 Going back — removed selections for: " + getSelectedFile());
+//				}
+//			}
+//		}
 		super.setVisible(visible);
 	}
 	
@@ -348,70 +399,108 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			for (final IFeatureStructure feature : root.getStructure().getChildren()) {
 				addFilteredFeaturesToTree(feature.getFeature(), combinedFeatures);
 			}
+		}		
 	}
-//	    if (filteredFeatures.contains(root.getName())) { 
-//	        final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
-//	        item.setText(root.getName());
-//	        item.setData(root);
-//
-//	        for (final IFeatureStructure feature : root.getStructure().getChildren()) {
-//	            if (filteredFeatures.contains(feature.getFeature().getName())) { 
-//	                addFeaturesToTree(feature.getFeature(), item);
-//	            }
-//	        }
-//	        item.setExpanded(true);
-//	    }
+	
+	private Map<String, String> getFeatureNameMapping(FeatureModelFormula formula) {
+		Map<String, String> mapping = new HashMap<>();
 
-		
+		for (IFeature feature : formula.getFeatureModel().getStructure().getFeaturesPreorder()) {
+			String fullName = feature.getName();       
+			String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
+			mapping.put(shortName, fullName);          
+		}
+
+		return mapping;
 	}
 	
 	private HashSet<String> filteredFeaturesBasedOnConstraint(HashSet<String> targetFeatures) {
 		HashSet<String> selectedFeatures = new HashSet<>();
 		
-		for (IConstraint constraint : project.getFeatureModel().getConstraints()) {
-		    String node = constraint.getNode().toString();
-		    String[] parts = node.split("=>");
-
-		    if (parts.length == 2) {
-		        String leftSide = parts[0].trim();
-		        String rightSide = parts[1].trim();
-
-		        HashSet<String> rightFeatures = new HashSet<>();
-		        for (String feature : rightSide.split("\\|")) {
-		            feature = feature.trim();
-		            if (feature.contains(".")) {
-		                feature = feature.substring(feature.indexOf('.') + 1); 
-		            }
-		            rightFeatures.add(feature);
-		        }
-		        if (!Collections.disjoint(targetFeatures, rightFeatures)) {
-		            for (String feature : leftSide.split("\\|")) {
-		                feature = feature.trim();
-		                if (feature.contains(".")) {
-		                    feature = feature.substring(feature.indexOf('.') + 1); 
-		                }
-		                selectedFeatures.add(feature);
-		            }
-		        }
-		    }
+		FeatureModelFormula formula = new FeatureModelFormula(project.getFeatureModel());
+		CNF cnf = formula.getCNF();
+		AdvancedSatSolver solver = new AdvancedSatSolver(cnf);
+		Map<String, String> nameMap = getFeatureNameMapping(formula);
+		for (String shortName : targetFeatures) {
+			String fullName = nameMap.get(shortName);
+			if (fullName != null) {
+				int literal = solver.getSatInstance().getVariables().getVariable(fullName, true);
+				solver.assignmentPush(literal);
+			}
 		}
+		
+		if (solver.hasSolution() == SatResult.TRUE) {
+			solver.setSelectionStrategy(SelectionStrategy.ORG);
+			int[] findsolutionORG = solver.findSolution();
+			for (int lit : findsolutionORG) {
+				String fullName = solver.getSatInstance().getVariables().getName(lit);
+				if (lit > 0) {
+					String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
+					if (!targetFeatures.contains(shortName)) {
+						selectedFeatures.add(shortName);
+					}
+				}
+			}
+		}
+		
+		String rootFullName = project.getFeatureModel().getStructure().getRoot().getFeature().getName();
+		String rootShortName = rootFullName.contains(".") ? rootFullName.substring(rootFullName.indexOf('.') + 1) : rootFullName;
+		selectedFeatures.remove(rootShortName);
+		
+		WinVMJConsole.println("selectedFeatures " + selectedFeatures);
 		return selectedFeatures;
 	}
 	
-	private HashSet<String> getRequiredParents(HashSet<String> filteredFeatures) {
-	    HashSet<String> requiredParents = new HashSet<>();
-	    
-	    Collection<IFeature> features = multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getFeaturesPreorder();
-	    for (IFeature feature : features) {
-	    	if (feature.getStructure().getParent() == null) {
-	    		requiredParents.add(feature.getName());
-	    	}
-	    	else if (filteredFeatures.contains(feature.getName()) && feature.getStructure().getParent() != null) {
-	            requiredParents.add(feature.getStructure().getParent().getFeature().getName());
-	        }
-	    }
-	    return requiredParents;
-	}
+	
+//	private HashSet<String> filteredFeaturesBasedOnConstraint(HashSet<String> targetFeatures) {
+//		HashSet<String> selectedFeatures = new HashSet<>();
+//		
+//		WinVMJConsole.println("Constraints Count" +  project.getFeatureModel().getConstraintCount());
+//		WinVMJConsole.println("Constraints" +  project.getFeatureModel().getConstraints());
+//		for (IConstraint constraint : project.getFeatureModel().getConstraints()) {
+//		    String node = constraint.getNode().toString();
+//		    String[] parts = node.split("=>");
+//
+//		    if (parts.length == 2) {
+//		        String leftSide = parts[0].trim();
+//		        String rightSide = parts[1].trim();
+//
+//		        HashSet<String> rightFeatures = new HashSet<>();
+//		        for (String feature : rightSide.split("\\|")) {
+//		            feature = feature.trim();
+//		            if (feature.contains(".")) {
+//		                feature = feature.substring(feature.indexOf('.') + 1); 
+//		            }
+//		            rightFeatures.add(feature);
+//		        }
+//		        if (!Collections.disjoint(targetFeatures, rightFeatures)) {
+//		            for (String feature : leftSide.split("\\|")) {
+//		                feature = feature.trim();
+//		                if (feature.contains(".")) {
+//		                    feature = feature.substring(feature.indexOf('.') + 1); 
+//		                }
+//		                selectedFeatures.add(feature);
+//		            }
+//		        }
+//		    }
+//		}
+//		return selectedFeatures;
+//	}
+	
+//	private HashSet<String> getRequiredParents(HashSet<String> filteredFeatures) {
+//	    HashSet<String> requiredParents = new HashSet<>();
+//	    
+//	    Collection<IFeature> features = multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getFeaturesPreorder();
+//	    for (IFeature feature : features) {
+//	    	if (feature.getStructure().getParent() == null) {
+//	    		requiredParents.add(feature.getName());
+//	    	}
+//	    	else if (filteredFeatures.contains(feature.getName()) && feature.getStructure().getParent() != null) {
+//	            requiredParents.add(feature.getStructure().getParent().getFeature().getName());
+//	        }
+//	    }
+//	    return requiredParents;
+//	}
 
 
 

@@ -39,10 +39,17 @@ import de.ovgu.featureide.fm.core.job.LongRunningWrapper;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.LinkedHashMap;
 
 public class MultiStageConfiguration {
 	private WinVMJProduct product;
 	private WinVMJComposer composer =  new WinVMJComposer();
+	private static String FEATURE_MODEL_FOLDER = "featureModels";
 	
 	public static List<IFile> getAllFeatureModelNames(IFeatureProject featureProject){
 		List<IFile> featureModelNames = new ArrayList<>();
@@ -84,26 +91,53 @@ public class MultiStageConfiguration {
     
     public ArrayList<IFeature> convertSelectedFeaturesToList(Map<String, HashSet<String>> selectedFeaturesMap, IFeatureProject featureProject) {
     	ArrayList<IFeature> featureList = new ArrayList<>();
-
+    	
+    	HashSet<String> allowedFeatureNames = loadAllowedFeatureNamesFromJson(featureProject);
+    	
         for (Map.Entry<String, HashSet<String>> entry : selectedFeaturesMap.entrySet()) {
             String selectedFile = entry.getKey();
             HashSet<String> featureNames = entry.getValue();
             
-            IFile featureFile = featureProject.getProject().getFolder("featureModels").getFile(selectedFile);
-            
+            IFile featureFile = featureProject.getProject().getFolder(FEATURE_MODEL_FOLDER).getFile(selectedFile);
             IFeatureModel featureModel = loadFeatureModel(featureFile);
 
             ArrayList<IFeature> features = new ArrayList<>(
-                    featureNames.stream()
-                    	.filter(name -> !name.equals("Features"))
-                        .map(name -> new Feature(featureModel, name))
-                        .collect(Collectors.toList()) 
-                );
+        			featureNames.stream()
+        				.filter(allowedFeatureNames::contains)
+        				.map(name -> new Feature(featureModel, name))
+        				.collect(Collectors.toList())
+        		);
             
             featureList.addAll(features);
         }
 
         return featureList;
+    }
+    
+    private HashSet<String> loadAllowedFeatureNamesFromJson(IFeatureProject featureProject) {
+    	HashSet<String> allowed = new HashSet<>();
+    	IFile jsonFile = featureProject.getProject().getFile("feature_to_module.json");
+
+    	try {
+    		IFile featureToModuleMapper = featureProject.getProject().getFile(composer.FEATURE_MODULE_MAPPER_FILENAME);
+
+    		Reader reader = new InputStreamReader(featureToModuleMapper.getContents());
+    		Gson gson = new Gson();
+
+    		Map<String, List<String>> mappings = gson.fromJson(
+    			reader,
+    			new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType()
+    		);
+
+    		if (mappings != null) {
+    			allowed.addAll(mappings.keySet());
+    		}
+    	} catch (Exception e) {
+    		WinVMJConsole.println("Error loading feature_to_module.json: " + e.getMessage());
+    	}
+
+
+    	return allowed;
     }
     
     public void composeProduct(WinVMJProduct product, ArrayList<IFeature> selectedFeature, IFeatureProject featureProject) throws CoreException, ParserException {
@@ -124,285 +158,5 @@ public class MultiStageConfiguration {
         moduleInfoRenderer.render(product);
         productClassRenderer.render(product); 
     }
-    
-	
-	public static void multiStage(IFeatureProject project) {
-	
-		
-//		//path ke feature model
-		IFeatureModelManager featureModelPath = project.getFeatureModelManager();
-		WinVMJConsole.println("Feature Model FeatureModelManager PersistentFormula");
-		WinVMJConsole.println(featureModelPath.getPersistentFormula().toString());
-		WinVMJConsole.println("Feature Model FeatureModelManager PersistentFormula");	
-		
-		//feature model
-		IFeatureModel featureModel = project.getFeatureModel();
-		
-		WinVMJConsole.println("Structure " + featureModel.getStructure());
-		WinVMJConsole.println("Root " + featureModel.getStructure().getRoot());
-		WinVMJConsole.println("Features " + featureModel.getStructure().getRoot().getFeature());
-		WinVMJConsole.println("Features Root Property" + featureModel.getStructure().getRoot().getFeature().getProperty());
-		WinVMJConsole.println("Features Root Feature Model" + featureModel.getStructure().getRoot().getFeature().getFeatureModel());
-		
-		Collection<IFeature> features = featureModel.getStructure().getFeaturesPreorder();
-		for (IFeature feature : features) {
-		    WinVMJConsole.println("Feature: " + feature);
-		    WinVMJConsole.println(" - Name: " + feature.getName());
-		    WinVMJConsole.println(" - Property: " + feature.getProperty());
-		    if (feature.getStructure().getParent() != null) {
-		        WinVMJConsole.println(" - Feature Parent Name: " + feature.getStructure().getParent().getFeature().getName());
-		    }
-
-		    WinVMJConsole.println("---------------------------------------------------------");
-
-//		    if (feature. != null) {
-//		        WinVMJConsole.println(" - Parent: " + feature.getParent().getName());
-//		    } else {
-//		        WinVMJConsole.println(" - Parent: None (Root Feature)");
-//		    }
-		}
-		
-		
-//		List<IConstraint> features = featureModel.getConstraints();
-//		WinVMJConsole.println("Feature Model Constraints:");
-//		List<String> extractedConstraints = new ArrayList<>();
-//
-//		for (IConstraint constraint : features) {
-//			WinVMJConsole.println("getDescription " + constraint.getDescription()); 
-//			WinVMJConsole.println("getDisplayName " + constraint.getDisplayName()); 
-//			WinVMJConsole.println("getContainedFeatures " + constraint.getContainedFeatures()); 
-//			WinVMJConsole.println("getInternalId " + constraint.getInternalId()); 
-//			WinVMJConsole.println("getName " + constraint.getName()); 
-//			WinVMJConsole.println("getTags " + constraint.getTags()); 
-//			WinVMJConsole.println("getNode " + constraint.getNode()); 
-//			WinVMJConsole.println("---------------------------------------------------"); 
-//		}
-		
-		HashSet<String> selectedFeatures = new HashSet<>();
-		HashSet<String> targetFeatures = new HashSet<>(Arrays.asList("Xendit", "Vendor"));
-				
-		for (IConstraint constraint : project.getFeatureModel().getConstraints()) {
-		    String node = constraint.getNode().toString();
-		    String[] parts = node.split("=>");
-
-		    if (parts.length == 2) {
-		        String leftSide = parts[0].trim();
-		        String rightSide = parts[1].trim();
-
-		        HashSet<String> rightFeatures = new HashSet<>();
-		        for (String feature : rightSide.split("\\|")) {
-		            feature = feature.trim();
-		            if (feature.contains(".")) {
-		                feature = feature.substring(feature.indexOf('.') + 1); 
-		            }
-		            rightFeatures.add(feature);
-		        }
-		        if (!Collections.disjoint(targetFeatures, rightFeatures)) {
-		            for (String feature : leftSide.split("\\|")) {
-		                feature = feature.trim();
-		                if (feature.contains(".")) {
-		                    feature = feature.substring(feature.indexOf('.') + 1); 
-		                }
-		                selectedFeatures.add(feature);
-		            }
-		        }
-		    }
-		}
-		
-		WinVMJConsole.println("Final Selected Features: " + selectedFeatures);
-	    
-	}
-	
-
-//		for (IConstraint constraint : features) {
-//		    String node = constraint.getNode().toString();
-//
-//		    if (node.contains(targetFeature)) {
-//		        String[] parts = node.split("=>");
-//		        WinVMJConsole.println("parts " + parts.toString()); 
-//		        if (parts.length == 2) {
-//		            String leftSide = parts[0].trim(); 
-//		            WinVMJConsole.println("left side "+ leftSide.toString()); 
-//		            String[] leftFeatures = leftSide.split("\\|"); 
-//		            WinVMJConsole.println("left features "+ leftFeatures.toString()); 
-//		            for (String feature : leftFeatures) {
-//		                relatedFeatures.add(feature.trim());
-//		            }
-//		        }
-//		    }
-//		}
-
-		// Print the related features
-		
-
-//		
-//		
-//		List<String> featuresList = featureModel.getFeatureOrderList();
-//		WinVMJConsole.println("Feature Model Feature Order List");
-//		WinVMJConsole.println(featuresList.toString());
-//		WinVMJConsole.println("Feature Model Feature Order List");
-		
-//        final HashSet<SelectableFeature> updateFeatures = new HashSet<>(); 
-//		WinVMJConsole.println("Using 1 Feature Model....................");
-//		IFeatureModel featureModel = project.getFeatureModel();
-//		IFeatureModelManager featureModelManager = project.getFeatureModelManager();
-//
-//		Configuration configuration = new Configuration(featureModelManager.getPersistentFormula());
-//		
-//		WinVMJConsole.println("Formula..................");
-//		WinVMJConsole.println(featureModelManager.getPersistentFormula().toString());
-//		
-//		
-//        WinVMJConsole.println("Configuration..................");
-//        WinVMJConsole.println(configuration.toString());
-//        
-// 
-//        List<String> featuresList = featureModel.getFeatureOrderList();
-//        WinVMJConsole.println("Available Features: " + featuresList);
-//
-//        // Choose two features (modify these according to the actual model)
-//        String feature1 = "Midtrans";
-//        String feature2 = "SpecifiedRecipient";
-//
-//        WinVMJConsole.println("Checking possibility of selecting: " + feature1 + " and " + feature2);
-//
-//        configuration.setManual(feature1, Selection.SELECTED);
-//        configuration.setManual(feature2, Selection.SELECTED);
-//        
-//        
-//        ConfigurationPropagator propagator = new ConfigurationPropagator(featureModelManager.getPersistentFormula(), configuration);
-//
-//        WinVMJConsole.println("Propagator..................");
-//        WinVMJConsole.println(propagator.toString());
-//        
-//        
-//        LongRunningWrapper.getRunner(propagator.update(true));
-//        
-//        final Boolean canBeValid = LongRunningWrapper.runMethod(propagator.isValid());
-//        updateFeatures.clear();
-//		updateFeatures.addAll(configuration.getFeatures());
-//
-//        WinVMJConsole.println("Propagator results" + canBeValid);
-//
-//        if (canBeValid) {
-//        	WinVMJConsole.println("1 Feature Model");
-//        	WinVMJConsole.println("Selected results" + updateFeatures);
-//        		for (final SelectableFeature feature : updateFeatures) {
-//        			WinVMJConsole.println("Selected results" + feature + feature.getSelection());
-//        		}
-//        		WinVMJConsole.println("The selection of " + feature1 + " and " + feature2 + " is POSSIBLE.");
-//          
-//        } else {
-//            WinVMJConsole.println("The selection of " + feature1 + " and " + feature2 + " is NOT POSSIBLE.");
-//        }
-//		
-//        WinVMJConsole.println("Using 2 Feature Model..................");
-//        
-//		IFile vendorFile = project.getProject().getFile("vendor.uvl");
-//		Path vendorPath = Paths.get(vendorFile.getLocation().toOSString());
-//		final IFeatureModel vendorFeatureModel = FeatureModelManager.load(vendorPath);
-//		
-//		WinVMJConsole.println("Payment Gateway Vendor..................");
-//		WinVMJConsole.println(vendorFeatureModel.getFeatureOrderList().toString());
-//
-//		FeatureModelFormula vendorFormula = new FeatureModelFormula(vendorFeatureModel);
-//		
-//		Configuration vendorConfiguration = new Configuration(vendorFormula);
-//        WinVMJConsole.println("Configuration..................");
-//        WinVMJConsole.println(vendorConfiguration.toString());
-//		
-//        
-//        
-//		IFile featuesFile = project.getProject().getFile("feature.uvl");
-//		Path featuesPath = Paths.get(featuesFile.getLocation().toOSString());
-//		final IFeatureModel featuresFeatureModel = FeatureModelManager.load(featuesPath);
-//		WinVMJConsole.println("Payment Gateway Features..................");
-//		WinVMJConsole.println(featuresFeatureModel.getFeatureOrderList().toString());
-//		
-//		FeatureModelFormula featureFormula = new FeatureModelFormula(featuresFeatureModel);
-//		
-//		Configuration featureConfiguration = new Configuration(featureFormula);
-//        WinVMJConsole.println("Configuration..................");
-//        WinVMJConsole.println(featureConfiguration.toString());
-//        
-//        
-//		Map<String, String> featureVendorMapping = new HashMap<>();
-//
-//		List<String> featureList = featuresFeatureModel.getFeatureOrderList();
-//
-//		WinVMJConsole.println("features Feature Model Constraint" + featuresFeatureModel.getConstraints());
-//		
-//		for (IConstraint constraint : featuresFeatureModel.getConstraints()) {
-//		    String constraintStr = constraint.toString(); 
-//		    
-//		    for (String feature : featureList) {
-//			    if (featuresFeatureModel.getFeature(feature).getStructure().isAbstract()) {
-//		            continue;
-//		        }
-//			    
-//		        for (String vendor : vendorFeatureModel.getFeatureOrderList()) {
-//		            if (constraintStr.contains(feature) && constraintStr.contains(vendor)) {
-//		                featureVendorMapping.put(feature, vendor);
-//		            }
-//		        }
-//		    }
-//		}
-//
-//		WinVMJConsole.println("Dynamic Feature-Vendor Mapping: " + featureVendorMapping);
-//		
-//		String selectedVendor = "Flip";
-//
-//		if (vendorFeatureModel.getFeatureOrderList().contains(selectedVendor)) {
-//			vendorConfiguration.setManual(selectedVendor, Selection.SELECTED);
-//			WinVMJConsole.println("Select " + selectedVendor);
-//		} else {
-//		    WinVMJConsole.println("Invalid Vendor Selection!");
-//		}
-//		
-//		String selectedFeature = "MidtransPaymentLink";
-//
-//		if (featureVendorMapping.containsKey(selectedFeature)) {
-//		    String requiredVendor = featureVendorMapping.get(selectedFeature);
-//
-//		    if (vendorConfiguration.getSelectableFeature(requiredVendor).getSelection() == Selection.SELECTED) {
-//		    	featureConfiguration.setManual(selectedFeature, Selection.SELECTED);
-//		    	WinVMJConsole.println("Select " + selectedFeature);
-//		    } else {
-//		        WinVMJConsole.println(selectedFeature + " requires " + requiredVendor + " to be selected first!");
-//		    }
-//		} else {
-//		    WinVMJConsole.println("Invalid Feature Selection!");
-//		}
-//		
-//		ConfigurationPropagator vendorPropagator = new ConfigurationPropagator(vendorFormula, vendorConfiguration);
-//		final Boolean isVendorValid = LongRunningWrapper.runMethod(vendorPropagator.canBeValid());
-//
-//		ConfigurationPropagator featuresPropagator = new ConfigurationPropagator(featureFormula, featureConfiguration);
-//		final boolean isFeaturesValid = LongRunningWrapper.runMethod(featuresPropagator.canBeValid());
-//
-//		 WinVMJConsole.println("Vendor Propagator results" + isVendorValid);
-//		 WinVMJConsole.println("Feature Propagator results" + isFeaturesValid);
-//		if (isVendorValid && isFeaturesValid) {
-//			WinVMJConsole.println("Vendor.................");
-//			for (SelectableFeature feature : vendorConfiguration.getManualFeatures()) {
-//			    if (feature.getSelection() == Selection.SELECTED) {
-//			        WinVMJConsole.println("Selected Feature: " + feature.getFeature().getName());
-//			    }
-//			}
-//			
-//			WinVMJConsole.println("Features.................");
-//
-//			for (SelectableFeature feature : featureConfiguration.getManualFeatures()) {
-//			    if (feature.getSelection() == Selection.SELECTED) {
-//			        WinVMJConsole.println("Selected Feature: " + feature.getFeature().getName());
-//			    }
-//			}
-//			
-//		    WinVMJConsole.println("Final Configuration is VALID! ✅");
-//		} else {
-//		    WinVMJConsole.println("Final Configuration is INVALID ❌. Check constraints.");
-//		}
-		
-//	}
 
 }
