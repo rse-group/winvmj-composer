@@ -6,8 +6,6 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 public class UpdateObjectTrigger extends PublishMessageTrigger{
@@ -47,7 +45,12 @@ public class UpdateObjectTrigger extends PublishMessageTrigger{
                         } else if (arg.isIntegerLiteralExpr()) {
                             fieldType = "int";
                         } else if (arg.isDoubleLiteralExpr()) {
-                            fieldType = "double";
+                        	String raw = arg.asDoubleLiteralExpr().getValue();
+                            if (raw.endsWith("f") || raw.endsWith("F")) {
+                                fieldType = "float";
+                            } else {
+                                fieldType = "double";
+                            }
                         } else if (arg.isStringLiteralExpr()) {
                             fieldType = "String";
                         } else {

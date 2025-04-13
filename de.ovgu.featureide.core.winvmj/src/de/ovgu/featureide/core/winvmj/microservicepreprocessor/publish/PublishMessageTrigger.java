@@ -95,7 +95,6 @@ public abstract class PublishMessageTrigger {
             } else {
                 valueExpression = new MethodCallExpr(new NameExpr(fieldValue), "get" + fieldType + "Id");
             }
-            fieldType = "Object";
         } else {
             valueExpression = new NameExpr(fieldValue);
         }

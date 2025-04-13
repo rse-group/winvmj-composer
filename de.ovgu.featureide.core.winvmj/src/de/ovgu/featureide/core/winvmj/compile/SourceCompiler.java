@@ -38,10 +38,8 @@ import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.CorsPropertiesRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.DeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.EndpointsConfigRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixDeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunAllScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunScriptRenderer;
@@ -234,7 +232,7 @@ public class SourceCompiler {
 		if (!productModule.exists())
 			productModule.create(false, true, null);
 		WinVMJConsole.println("Unpack RabbitMQ Libraries for product...");
-		InternalResourceManager.loadResourceDirectory("rabbitmq-libraries", productModule.getLocation().toOSString());
+		InternalResourceManager.loadResourceDirectory("microservice-preprocessor/rabbitmq-libraries", productModule.getLocation().toOSString());
 		WinVMJConsole.println("WinVMJ Libraries unpacked");
 	}
 

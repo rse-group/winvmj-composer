@@ -3,7 +3,9 @@ package de.ovgu.featureide.core.winvmj.microservicepreprocessor;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 
+import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.microservicepreprocessor.publish.PublishMessageCallAdder;
+
 import org.eclipse.core.resources.*;
 import org.eclipse.core.runtime.CoreException;
 
@@ -47,16 +49,43 @@ public class ModulePreprocessor {
         }
     }
 
-    public static void modifyRabbitmqManagerClass(Set<IFolder> moduleDirs, IFolder messagesModuleDir) {
-        IFile rabbitmqManagerFile = getFileByName(messagesModuleDir, "RabbitMQManager.java");
-        if (rabbitmqManagerFile == null) return;
-
-        CompilationUnit cu = JavaParserUtil.parse(rabbitmqManagerFile);
-        ModelLayerExtractor.addModelInterfaceImportStatement(moduleDirs, cu);
-        ModelFactoryExtractor.initializeObjectFactory(moduleDirs, cu);
-        RepositoryExtractor.initializeRepositoryMap(moduleDirs, cu);
-
-        overwriteFile(rabbitmqManagerFile, cu);
+    public static void modifyProductModule(Set<IFolder> moduleDirs, IFolder productModule, String productName) {
+    	try {
+    		productModule.refreshLocal(IResource.DEPTH_INFINITE, null);
+    		IFolder mainClassDir = getMainClassDir(productModule);
+    		copyMessageConsumer(mainClassDir.getLocation().toOSString());
+    		mainClassDir.refreshLocal(IResource.DEPTH_INFINITE, null);
+    		
+    		IFile messageConsumerFile = getFileByName(mainClassDir, "MessageConsumerImpl.java");
+            if (messageConsumerFile == null) return;
+            
+            // Modify MessageConsumer
+            CompilationUnit messageConsumerCu = JavaParserUtil.parse(messageConsumerFile);
+            
+            ModelLayerExtractor.addModelInterfaceImportStatement(moduleDirs, messageConsumerCu);
+            ModelFactoryExtractor.initializeObjectFactory(moduleDirs, messageConsumerCu);
+            RepositoryExtractor.initializeRepositoryMap(moduleDirs, messageConsumerCu);
+            
+            // Modify MainClass
+            IFile productFile = getFileByName(mainClassDir, productName);
+            if (productFile == null) return;
+            CompilationUnit productCu  = JavaParserUtil.parse(productFile);
+            String messagingModule = "vmj.messaging";
+            List<String> requiredImports = List.of(
+                    messagingModule + ".rabbitmq.RabbitMQManager"
+            );
+            addImportStatement(productCu, requiredImports);
+            MessageConsumerRegister.addMessageConsumerRegistration(productCu);
+            ClassMover.moveClass(messageConsumerCu, productCu);
+            
+            overwriteFile(productFile, productCu);
+            
+            messageConsumerFile.delete(true, null);
+            
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+        
     }
 
     public static void modifyModuleInfo(Set<IFolder> moduleDirs) {
@@ -115,5 +144,36 @@ public class ModulePreprocessor {
                 cu.addImport(importDecl);
             }
         });
+    }
+    
+    private static IFolder getMainClassDir(IFolder productModuleDir) throws CoreException {
+        String[] segments = productModuleDir.getName().split("\\."); // <spl name>.product.<product name>
+        
+        if (segments.length < 3) {
+            throw new IllegalArgumentException("Invalid product module folder name: " + productModuleDir.getName());
+        }
+        
+        String splName = segments[0];
+        String productName = segments[segments.length - 1];
+        
+        IFolder splDir = productModuleDir.getFolder(splName);
+        IFolder productDir = splDir.getFolder("product");
+        IFolder productNameDir = productDir.getFolder(productName);
+
+        if (!productNameDir.exists()) {
+            throw new IllegalStateException("Product name folder not found: " + productNameDir.getFullPath());
+        }
+
+        return productNameDir;
+    }
+    
+    private static void copyMessageConsumer(String mainClassDirPath) {
+    	try {
+    		String messageConsumerFileName = "/MessageConsumerImpl.java";
+			InternalResourceManager.loadResourceFile("microservice-preprocessor"+messageConsumerFileName, mainClassDirPath+messageConsumerFileName);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
 }

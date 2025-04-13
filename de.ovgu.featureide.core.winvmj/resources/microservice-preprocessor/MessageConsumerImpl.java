@@ -1,0 +1,152 @@
+import java.lang.reflect.Field;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import vmj.hibernate.integrator.RepositoryUtil;
+import vmj.messaging.Property;
+import vmj.messaging.StateTransferMessage;
+import vmj.messaging.rabbitmq.MessageConsumer;
+
+class MessageConsumerImpl implements MessageConsumer {
+
+    private Map<String, RepositoryUtil> repositoryMap = new HashMap<>();
+    
+    public MessageConsumerImpl() {}
+
+    @Override
+    public void consume(StateTransferMessage message) {
+        // 🔹 Debug output
+        System.out.println("Deserialized Message:");
+        System.out.println("ID: " + message.getId());
+        System.out.println("Type: " + message.getType());
+        System.out.println("Action: " + message.getAction());
+        System.out.println("Properties:");
+        for (Property property : message.getProperties()) {
+            System.out.println(" - " + property.getVarName() + " (" + property.getType() + "): " + property.getValue());
+        }
+
+        switch (message.getAction()) {
+            case "create" -> createObjectHandler(message);
+            case "update" -> updateObjectHandler(message);
+            case "delete" -> deleteObjectHandler(message);
+            default -> System.out.println("Unsupported action: " + message.getAction());
+        }
+    }
+
+    private void createObjectHandler(StateTransferMessage message) {
+        String domainInterface = message.getType();
+
+        String fqn = "";
+        List<Object> arguments = new ArrayList<>();
+        for (Property property : message.getProperties()) {
+            if (property.getVarName().equals("fqn")){
+                fqn = property.getValue().toString();
+                continue;
+            }
+            arguments.add(parsingObject(property));
+        }
+
+    }
+
+    private void updateObjectHandler(StateTransferMessage message) {
+        Object domainObject;
+        String domainInterface = message.getType();
+        Object id = message.getId();
+        String idStr = id.toString();
+        if (message.getTableName().isEmpty()){
+            try {
+                UUID uuid = UUID.fromString(idStr);
+                domainObject = repositoryMap.get(domainInterface).getObject(uuid);
+            } catch (IllegalArgumentException e) {
+                int intId = ((Number) id).intValue();
+                domainObject = repositoryMap.get(domainInterface).getObject(intId);
+            }
+        } else {
+            String columnName =  domainInterface.substring(0, 1).toLowerCase() + domainInterface.substring(1) + "Id";
+            try {
+                UUID uuid = UUID.fromString(idStr);
+                domainObject = repositoryMap.get(domainInterface).getListObject(message.getTableName(),columnName,uuid).get(0);
+            } catch (IllegalArgumentException e) {
+                int intId = ((Number) id).intValue();
+                domainObject = repositoryMap.get(domainInterface).getListObject(message.getTableName(),columnName,intId).get(0);
+            }
+        }
+
+        Map<String, Object> attributes = new HashMap<>();
+        for (Property property : message.getProperties()) {
+            String attributeName = property.getVarName();
+            Object attributeValue = parsingObject(property);
+            attributes.put(attributeName,attributeValue);
+        }
+
+        setAttributes(domainObject, attributes);
+        repositoryMap.get(domainInterface).updateObject(domainObject);
+    }
+
+    private void deleteObjectHandler(StateTransferMessage message) {
+        Object id = message.getId();
+        String idStr = id.toString();
+        try {
+            UUID uuid = UUID.fromString(idStr);
+            repositoryMap.get(message.getType()).deleteObject(uuid);
+        } catch (IllegalArgumentException e) {
+            int intId = ((Number) id).intValue();
+            repositoryMap.get(message.getType()).deleteObject(intId);
+        }
+    }
+
+    private Object parsingObject(Property property){
+        String varName = property.getVarName();
+        String type = property.getType();
+        Object value = property.getValue();
+        String valueStr = value.toString();
+
+        if (repositoryMap.containsKey(type)){
+        	try {
+                UUID uuid = UUID.fromString(valueStr);
+                value = repositoryMap.get(type).getObject(uuid);
+            } catch (IllegalArgumentException e) {
+                int intId = ((Number) value).intValue();
+                value = repositoryMap.get(type).getObject(intId);
+            }
+        }
+        else if (type.equals("UUID")){
+            value = UUID.fromString(valueStr);
+        } else if (type.equals("Date")) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+            try {
+                value = dateFormat.parse(valueStr);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        } else if (type.equals("boolean") || type.equals("Boolean")) {
+            value = Boolean.parseBoolean(valueStr);
+        } else if (type.equals("float") || type.equals("Float")) {
+            value = Float.parseFloat(valueStr);
+        } else if (type.equals("int") || type.equals("Integer")) {
+            value = ((Number) value).intValue();
+        } else if (type.equals("double") || type.equals("Double")) {
+            value = Double.parseDouble(valueStr);
+        }
+
+
+        return value;
+    }
+
+    private void setAttributes(Object obj, Map<String, Object> attributes) {
+        Class<?> clazz = obj.getClass();
+
+        for (Map.Entry<String, Object> entry : attributes.entrySet()) {
+            try {
+                Field field = clazz.getDeclaredField(entry.getKey());
+                field.setAccessible(true);
+
+                Object value = entry.getValue();
+
+                field.set(obj, value);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}

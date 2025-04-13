@@ -21,7 +21,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.checkerframework.checker.units.qual.kmPERh;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -140,7 +139,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    	String messagingModuleName = "vmj.messaging";
 				IFolder messagingModule = buildDir.getFolder(messagingModuleName);
 				if (!messagingModule.exists()) messagingModule.create(false, true, null);
-		        InternalResourceManager.loadResourceDirectory(messagingModuleName, 
+		        InternalResourceManager.loadResourceDirectory("microservice-preprocessor/" + messagingModuleName, 
 		        		messagingModule.getLocation().toOSString());
 		    	
 		    	Map<String,Integer> modulesCount = new HashMap<String, Integer>();
@@ -183,7 +182,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    		composeMicroserviceProduct(product, featureList);
 		    	}
 		    	
-		    	// Pre-process duplicate module
+		    	// Pre-process duplicate feature module and product module
 		    	Set<IFolder> duplicateModules = new HashSet<>();
 		    	for (String moduleName : duplicateModuleNames) {
 		    		IFolder module = featureProject.getBuildFolder().getFolder(moduleName);
@@ -192,7 +191,20 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    	
 		        ModulePreprocessor.modifyServiceImplClass(duplicateModules);
 		        ModulePreprocessor.modifyModuleInfo(duplicateModules);
-		        ModulePreprocessor.modifyRabbitmqManagerClass(duplicateModules,messagingModule);
+		        
+		        for (WinVMJProduct product : serviceProductMap.values()) {
+		        	IFolder productModule = featureProject.getBuildFolder()
+							.getFolder(product.getProductQualifiedName());
+		        	
+		        	Set<IFolder> duplicateModulesOnProduct = new HashSet<>();
+		        	for (IFolder module : product.getModules()) {
+		        		if (duplicateModuleNames.contains(module.getName())) {
+		        			duplicateModulesOnProduct.add(module);
+		        		}
+		        	}
+		        	
+			        ModulePreprocessor.modifyProductModule(duplicateModulesOnProduct,productModule, product.getProductName());
+		    	}
 		        
 		        WinVMJConsole.println("Completed compose microservices product");
 		    	

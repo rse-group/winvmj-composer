@@ -5,4 +5,6 @@ module vmj.messaging {
     requires com.rabbitmq.client;
     requires vmj.hibernate.integrator;
     requires gson;
+    
+    opens vmj.messaging to gson;
 }

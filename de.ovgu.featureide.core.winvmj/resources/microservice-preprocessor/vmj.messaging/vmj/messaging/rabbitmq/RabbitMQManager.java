@@ -3,16 +3,11 @@ package vmj.messaging.rabbitmq;
 import com.rabbitmq.client.*;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 import com.google.gson.Gson;
-import vmj.hibernate.integrator.RepositoryUtil;
-import vmj.messaging.Property;
 import vmj.messaging.StateTransferMessage;
 
 public class RabbitMQManager {
@@ -26,7 +21,7 @@ public class RabbitMQManager {
     private final String BASE_EXCHANGE = System.getenv("base_exchange") != null ? System.getenv("base_exchange") : "base_exchange";
     private final String appId = System.getenv("app_id");
 
-    private Map<String, RepositoryUtil> repositoryMap = new HashMap<>();
+    private List<MessageConsumer> consumers = new ArrayList<>();
 
     private RabbitMQManager() {
         try {
@@ -90,21 +85,36 @@ public class RabbitMQManager {
         }
     }
 
-    public void bindQueue(String queueName, String routingKey)  {
+    public void bindQueue(String queueName, String routingKey) {
         try {
             Channel channel = getConsumerChannel();
+
+            channel.addShutdownListener(cause -> {
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(5000); 
+                        System.out.println("Attempting to re-bind queue: " + queueName);
+                        bindQueue(queueName, routingKey); // re-bind queue
+                    } catch (Exception ex) {
+                        System.err.println("Failed to rebind queue '" + queueName + "': " + ex.getMessage());
+                    }
+                }).start();
+            });
 
             boolean durable = true;
             boolean exclusive = false;
             boolean autoDelete = false;
-            Map<String, Object> arguments = null;
-            channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
+            channel.queueDeclare(queueName, durable, exclusive, autoDelete, null);
             channel.queueBind(queueName, BASE_EXCHANGE, routingKey);
-            consumeMessage(queueName);
+
+            consumeMessage(queueName); // call tanpa listener tambahan
+            System.out.println("Queue bound & consuming: " + queueName);
+
         } catch (IOException e) {
-            System.out.printf("Failed to create %s queue %s%n", queueName, e);
+            System.err.printf("Failed to bind or consume queue '%s': %s%n", queueName, e.getMessage());
         }
     }
+
 
     public void publishMessage(String routingKey, StateTransferMessage message) {
         Gson gson = new Gson();
@@ -123,6 +133,9 @@ public class RabbitMQManager {
             System.out.println("Failed to publish catalog message");
         }
     }
+
+    public void addMessageConsumer(MessageConsumer consumer) {consumers.add(consumer);}
+    public void removeMessageConsumer(MessageConsumer consumer) {consumers.remove(consumer);}
 
     public void consumeMessage(String queueName) throws IOException {
         Channel channel = getConsumerChannel();
@@ -145,135 +158,15 @@ public class RabbitMQManager {
                 Gson gson = new Gson();
                 StateTransferMessage message = gson.fromJson(messageJson, StateTransferMessage.class);
 
-                // 🔹 Debug output
-                System.out.println("Deserialized Message:");
-                System.out.println("ID: " + message.id());
-                System.out.println("Type: " + message.type());
-                System.out.println("Action: " + message.action());
-                System.out.println("Properties:");
-                for (Property property : message.properties()) {
-                    System.out.println(" - " + property.varName() + " (" + property.type() + "): " + property.value());
+                for (MessageConsumer consumer : consumers) {
+                    consumer.consume(message);
                 }
-
-                switch (message.action()) {
-                    case "create" -> createObjectHandler(message);
-                    case "update" -> updateObjectHandler(message);
-                    case "delete" -> deleteObjectHandler(message);
-                    default -> System.out.println("Unsupported action: " + message.action());
-                }
-
 
             };
 
             channel.basicConsume(queueName, true, deliverCallback, consumerTag -> { });
         } catch (IOException e) {
             System.out.println("Error while consuming message");
-        }
-    }
-
-    private void createObjectHandler(StateTransferMessage message) {
-        String domainInterface = message.type();
-
-        String fqn = "";
-        List<Object> arguments = new ArrayList<>();
-        for (Property property : message.properties()) {
-            if (property.varName().equals("fqn")){
-                fqn = property.value().toString();
-                continue;
-            }
-            arguments.add(parsingObject(property));
-        }
-
-    }
-
-    private void updateObjectHandler(StateTransferMessage message) {
-        Object domainObject;
-        String domainInterface = message.type();
-        if (message.tableName().isEmpty()){
-            Object id = message.id();
-            if (id instanceof UUID uuid) {
-                domainObject = repositoryMap.get(domainInterface).getObject(uuid);
-            } else  { // int
-                int intId = (Integer) id;
-                domainObject = repositoryMap.get(domainInterface).getObject(intId);
-            }
-        } else {
-            String columnName =  domainInterface.substring(0, 1).toLowerCase() + domainInterface.substring(1) + "Id";
-            Object id = message.id();
-            if (id instanceof UUID uuid) {
-                domainObject = repositoryMap.get(domainInterface).getListObject(message.tableName(),columnName,uuid).get(0);
-            } else  { // int
-                int intId = (Integer) id;
-                domainObject = repositoryMap.get(domainInterface).getListObject(message.tableName(),columnName,intId).get(0);
-            }
-        }
-
-        Map<String, Object> attributes = new HashMap<>();
-        for (Property property : message.properties()) {
-            String attributeName = property.varName();
-            Object attributeValue = parsingObject(property);
-            attributes.put(attributeName,attributeValue);
-        }
-
-        setAttributes(domainObject, attributes);
-        repositoryMap.get(domainInterface).updateObject(domainObject);
-    }
-
-    private void deleteObjectHandler(StateTransferMessage message) {
-        Object id = message.id();
-        if (id instanceof UUID uuid) {
-            repositoryMap.get(message.type()).deleteObject(uuid);
-        } else  { // int
-            int intId = (Integer) id;
-            repositoryMap.get(message.type()).deleteObject(intId);
-        }
-    }
-
-    private Object parsingObject(Property property){
-        String varName = property.varName();
-        String type = property.type();
-        Object value = property.value();
-
-        if (type.equals("Object")){
-            if (!varName.toLowerCase().contains("id")){
-                Object id = value;
-                if (id instanceof UUID uuid) {
-                    value = repositoryMap.get(type).getObject(uuid);
-                } else  { // int
-                    int intId = (Integer) id;
-                    value = repositoryMap.get(type).getObject(intId);
-                }
-            }
-        }
-        else if (type.equals("UUID")){
-            value = UUID.fromString(varName);
-        } else if (type.equals("Date")) {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-            try {
-                value = dateFormat.parse(varName);
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
-        }
-
-
-        return value;
-    }
-
-    private void setAttributes(Object obj, Map<String, Object> attributes) {
-        Class<?> clazz = obj.getClass();
-
-        for (Map.Entry<String, Object> entry : attributes.entrySet()) {
-            try {
-                Field field = clazz.getDeclaredField(entry.getKey());
-                field.setAccessible(true);
-
-                Object value = entry.getValue();
-
-                field.set(obj, value);
-            } catch (NoSuchFieldException | IllegalAccessException e) {
-                e.printStackTrace();
-            }
         }
     }
 

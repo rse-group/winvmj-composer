@@ -1,6 +1,5 @@
 package de.ovgu.featureide.core.winvmj.microservicepreprocessor;
 
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.NodeList;
@@ -12,9 +11,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.Path;
 
-import java.io.InputStream;
 import java.util.*;
 
 public class RepositoryExtractor {
