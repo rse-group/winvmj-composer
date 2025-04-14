@@ -158,33 +158,10 @@ public class FeatureWizard extends Wizard {
 
 		}
 		hasSetupFeatureSelection = true;
-
-		// Uncomment for old version
-		// selectAllUvlWizardPage = new SelectAllUvlWizardPage();
-		// selectAllUvlWizardPage.setProject(this.project);
-		// addPage(selectAllUvlWizardPage);
-
-		// confirmationSelectionWizardPage = new ConfirmationSelectionWizardPage();
-		// addPage(confirmationSelectionWizardPage);
-
-		// Uncomment for single feature wizard
-        // featureWizardPage = new FeatureWizardPage();
-        // featureWizardPage.setProject(this.project);
-        // addPage(featureWizardPage);
-
-        // selectFeaturesWizardPage = new SelectFeaturesWizardPage();
-        // selectFeaturesWizardPage.setProject(this.project);
-        // addPage(selectFeaturesWizardPage);
     }
+    
 	@Override
 	public IWizardPage getNextPage(IWizardPage currentPage) {
-		// if (currentPage == featureWizardPage) {
-		// 	selectFeaturesWizardPage.setDataMap(featureWizardPage.getDataMap());
-		// 	selectFeaturesWizardPage.setSelectedFile();
-		// 	return selectFeaturesWizardPage;
-		// }
-
-
 		if ((!hasSetupFeatureSelection) && (currentPage ==  confirmationSelectionWizardPage)) {
 			for (int i = 0; i < selectAllUvlWizardPage.getSelected().size(); i++) {
 				SelectFeaturesWizardPage selectPage = new SelectFeaturesWizardPage();
@@ -224,7 +201,6 @@ public class FeatureWizard extends Wizard {
 			}
 		}
 		
-		// For other cases, use the default behavior
 		return super.getNextPage(currentPage);
 	}
 
@@ -240,7 +216,7 @@ public class FeatureWizard extends Wizard {
         
         ArrayList<IFeature> featureList =  multiStageConfiguration.convertSelectedFeaturesToList(selectedFeaturesMap, project);
         
-        WinVMJConsole.println("Features " + featureList.toString());
+//        WinVMJConsole.println("Features " + featureList.toString());
 
 		final IRunnableWithProgress op = new IRunnableWithProgress() {
 
@@ -270,31 +246,6 @@ public class FeatureWizard extends Wizard {
 
     private void doFinish(String productName, ArrayList<IFeature> selectedFeature)
 			throws CoreException {
-		
-//		WinVMJConsole.println("Auto generating configuration file ...");
-//		monitor.beginTask(CREATING + fileName, 2);
-//		final IFolder configFolder = this.project.getConfigFolder();
-//		final IContainer container = configFolder == null ? this.project.getProject() : configFolder;
-//		if (!container.exists()) {
-//			if (this.project.getProject().isAccessible()) {
-//				FMCorePlugin.createFolder(this.project.getProject(), container.getProjectRelativePath().toString());
-//			} else {
-//				throwCoreException(CONTAINER_DOES_NOT_EXIST_);
-//			}
-//		}
-//		
-//		
-//		final Path configPath = EclipseFileSystem.getPath(container);
-//		final Path file = configPath.resolve(fileName);
-//		Configuration config = new Configuration(featureModel);
-//		for (String feature : selectedFeature) {
-//			config.setManual(feature, Selection.SELECTED);
-//		}
-//		SimpleFileHandler.save(configPath.resolve(fileName), config, format);
-//
-//		WinVMJConsole.println("Auto select the configuration and composing ...");
-//		this.project.setCurrentConfiguration(file);
-    	
         product = new ProductToCompose(project, productName, selectedFeature);
         final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
             @Override
@@ -304,20 +255,6 @@ public class FeatureWizard extends Wizard {
             }
         };
         LongRunningWrapper.getRunner(job, "Compose Product").schedule();
-
-//		monitor.worked(1);
-//		monitor.setTaskName(OPENING_FILE_FOR_EDITING___);
-////		getShell().getDisplay().asyncExec(new Runnable() {
-////
-////			@Override
-////			public void run() {
-////				final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-////				try {
-////					IDE.openEditor(page, (IFile) EclipseFileSystem.getResource(file), true);
-////				} catch (final PartInitException e) {}
-////			}
-////		});
-//		monitor.worked(1);
 	}
     
 
@@ -326,20 +263,14 @@ public class FeatureWizard extends Wizard {
 		throw new CoreException(status);
 	}
 
-//    @Override
-//    public boolean canFinish() {
-//    	if (getContainer().getCurrentPage() instanceof SelectFeaturesWizardPage) {
-//            SelectFeaturesWizardPage currentPage = (SelectFeaturesWizardPage) getContainer().getCurrentPage();
-//            
-//            ArrayList<String> selectedFiles = new ArrayList<>(featureWizardPage.getDataMap().keySet());
-//            
-//            WinVMJConsole.println("selectedFiles" + selectedFiles.toString());
-//            if (!selectedFiles.isEmpty() && currentPage.getSelectedFile().equals(selectedFiles.get(selectedFiles.size() - 1))) {
-//                return true;
-//            }
-//        }
-//        
-//        return false;
-////        return getContainer().getCurrentPage() == selectFeaturesWizardPage && selectFeaturesWizardPage.isPageComplete();
-//    }
+    @Override
+    public boolean canFinish() {
+    	IWizardPage currentPage = getContainer().getCurrentPage();
+    	
+        if (currentPage instanceof SelectFeaturesWizardPage) {
+            return getPageIndex(currentPage) == getPageCount() - 1;
+        }
+
+        return false;
+    }
 }

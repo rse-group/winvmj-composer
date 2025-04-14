@@ -81,8 +81,8 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	private boolean isFirst = false;
 	private FeatureWizard featureWizard;
 	private SelectAllUvlWizardPage selectAllUvlWizardPage;
-	private Label noFeaturesLabel;
 	private Label validationLabel;
+	private Composite container;
 
     public HashSet<String> getFeatureNames(){
     	return featureNames;
@@ -137,7 +137,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 	@Override
 	public void createControl(Composite parent) {		
-		final Composite container = new Composite(parent, SWT.NONE);
+		container = new Composite(parent, SWT.NONE);
 
 		final GridLayout layout = new GridLayout();
 		container.setLayout(layout);
@@ -149,12 +149,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 		featuresTree = new Tree(container, SWT.MULTI | SWT.CHECK);
 		featuresTree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-		
-		noFeaturesLabel = new Label(container, SWT.NONE);
-		noFeaturesLabel.setText("No features available to select for this level.");
-		noFeaturesLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_BLUE));
-		noFeaturesLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-		noFeaturesLabel.setVisible(false);
 	    
 		featuresTree.addSelectionListener(new SelectionListener() {
 
@@ -168,26 +162,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 						featureNames.remove(item.getText());
 					}
 
-					FeatureModelFormula formula = new FeatureModelFormula(multiStageConfiguration.loadFeatureModel(selectedFile));
-					Configuration configForChecking = new Configuration(formula);
-					for (String feature : featureNames) {
-						configForChecking.setManual(feature, Selection.SELECTED);
-					}
-					
-					ConfigurationAnalyzer analyze = new ConfigurationAnalyzer(formula,configForChecking);
-					
-					if (!analyze.isValid()) {
-						validationLabel.setText("Local Configuration status: Invalid!");
-						validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_RED));
-						setPageComplete(false);
-					}
-
-					else {
-						validationLabel.setText("Local Configuration status: Valid!");
-						validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_GREEN));
-						setPageComplete(true);
-					}
-					validationLabel.getParent().layout();
+					validateConfiguration();
 					updatePage();
 				}
 			}
@@ -211,6 +186,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
 				checkItems(true);
+				validateConfiguration();
 			}
 
 			@Override
@@ -225,6 +201,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
 				checkItems(false);
+				validateConfiguration();
 			}
 
 			@Override
@@ -234,6 +211,31 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		// buttonGroup.pack();
 		// container.pack();
 		setPageComplete(false);
+	}
+	
+	private void validateConfiguration() {
+	    if (selectedFile == null) return;
+
+	    FeatureModelFormula formula = new FeatureModelFormula(multiStageConfiguration.loadFeatureModel(selectedFile));
+	    Configuration configForChecking = new Configuration(formula);
+
+	    for (String feature : featureNames) {
+	        configForChecking.setManual(feature, Selection.SELECTED);
+	    }
+
+	    ConfigurationAnalyzer analyze = new ConfigurationAnalyzer(formula, configForChecking);
+
+	    if (!analyze.isValid()) {
+	        validationLabel.setText("Local Configuration status: Invalid!");
+	        validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_RED));
+	        setPageComplete(false);
+	    } else {
+	        validationLabel.setText("Local Configuration status: Valid!");
+	        validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_GREEN));
+	        setPageComplete(true);
+	    }
+
+	    validationLabel.getParent().layout();
 	}
 
 	private void checkItems(boolean checkStatus) {
@@ -265,7 +267,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 				featuresTree.removeAll();
 				final Object featureProject = this.project;
 				if (featureProject != null) {
-					WinVMJConsole.println(allowedParentFeatures.toString());
+//					WinVMJConsole.println(allowedParentFeatures.toString());
 					if (allowedParentFeatures.isEmpty()) {
 						addFeaturesToTree(multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature());
 					}
@@ -277,15 +279,14 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 					}
 							
 					if (featuresTree.getItemCount() == 0) {
-						validationLabel.setVisible(false);
-						noFeaturesLabel.setVisible(true);
+						validationLabel.setText("Configuration status: Unknown");
+	                    validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_WHITE));
+						setPageComplete(true);
 					} else {
-						noFeaturesLabel.setVisible(false);
-						validationLabel.setVisible(true);
+						validationLabel.setText("Configuration status: Unknown");
+	                    validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
 						restoreCheckedState(featuresTree.getItems());
 					}
-					setPageComplete(true);
-					
 				} 
 				else {
 					setErrorMessage("Please select a Project in the previous page.");
@@ -316,8 +317,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		}
 		super.setVisible(visible);
 	}
-	
-	// maybe bisaa dipake juga untuk auto select features
+		
 	private void restoreCheckedState(TreeItem[] items) {
 		for (TreeItem item : items) {
 			if (featureNames.contains(item.getText())) {
@@ -435,46 +435,10 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		String rootShortName = rootFullName.contains(".") ? rootFullName.substring(rootFullName.indexOf('.') + 1) : rootFullName;
 		selectedFeatures.remove(rootShortName);
 		
-		WinVMJConsole.println("selectedFeatures " + selectedFeatures);
+//		WinVMJConsole.println("selectedFeatures " + selectedFeatures);
 		return selectedFeatures;
 	}
-	
-	
-//	private HashSet<String> filteredFeaturesBasedOnConstraint(HashSet<String> targetFeatures) {
-//		HashSet<String> selectedFeatures = new HashSet<>();
-//		
-//		WinVMJConsole.println("Constraints Count" +  project.getFeatureModel().getConstraintCount());
-//		WinVMJConsole.println("Constraints" +  project.getFeatureModel().getConstraints());
-//		for (IConstraint constraint : project.getFeatureModel().getConstraints()) {
-//		    String node = constraint.getNode().toString();
-//		    String[] parts = node.split("=>");
-//
-//		    if (parts.length == 2) {
-//		        String leftSide = parts[0].trim();
-//		        String rightSide = parts[1].trim();
-//
-//		        HashSet<String> rightFeatures = new HashSet<>();
-//		        for (String feature : rightSide.split("\\|")) {
-//		            feature = feature.trim();
-//		            if (feature.contains(".")) {
-//		                feature = feature.substring(feature.indexOf('.') + 1); 
-//		            }
-//		            rightFeatures.add(feature);
-//		        }
-//		        if (!Collections.disjoint(targetFeatures, rightFeatures)) {
-//		            for (String feature : leftSide.split("\\|")) {
-//		                feature = feature.trim();
-//		                if (feature.contains(".")) {
-//		                    feature = feature.substring(feature.indexOf('.') + 1); 
-//		                }
-//		                selectedFeatures.add(feature);
-//		            }
-//		        }
-//		    }
-//		}
-//		return selectedFeatures;
-//	}
-	
+		
 
 	@Override
 	protected void putData() {

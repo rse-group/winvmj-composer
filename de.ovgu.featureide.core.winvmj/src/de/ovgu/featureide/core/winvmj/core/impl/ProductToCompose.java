@@ -70,7 +70,6 @@ public class ProductToCompose extends WinVMJProduct {
 		List<IFolder> selectedModules = new ArrayList<>();
 		selectedModules.addAll(selectExternalModules(project, features));
 		selectedModules.addAll(selectAndOrderModulesByMapping(project, features));
-		WinVMJConsole.println("select modules in  ProductToCompose" + selectedModules.toString());
 		return selectedModules.stream().distinct().collect(Collectors.toList());
 	}
 	
@@ -93,10 +92,8 @@ public class ProductToCompose extends WinVMJProduct {
 		if (multiFetureModel.isMultiProductLineModel()) {
 			for (Entry<String, UsedModel> interfaceModel: multiFetureModel
 					.getExternalModels().entrySet()) {
-				WinVMJConsole.println("interfaceModel " + interfaceModel.getValue().getModelName());
 				String externalSplName = interfaceModel.getValue()
 						 .getModelName().replace("interfaces.", "");
-				WinVMJConsole.println("externalSplName " + externalSplName);
 				IFeatureProject refProject = refProjectMap.get(externalSplName);
 				 List<IFeature> externalFeatures = features.stream()
 						 .filter(f -> f.getName()
@@ -106,7 +103,6 @@ public class ProductToCompose extends WinVMJProduct {
 						 .collect(Collectors.toList());
 				List<String> relatedProducts = Utils.getRelatedProducts(
 					project, externalSplName, productName);
-				WinVMJConsole.println("relatedProducts " + relatedProducts);
 				externalFeatures.addAll(Utils.selectFeaturesFromRelatedProducts(externalSplName, 
 						refProject, relatedProducts));
 				selectedModules.addAll(selectModules(refProject, externalFeatures));

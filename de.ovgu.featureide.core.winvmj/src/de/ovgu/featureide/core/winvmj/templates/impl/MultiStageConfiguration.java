@@ -58,7 +58,6 @@ public class MultiStageConfiguration {
         try {
             project.accept(resource -> {
                 if (resource instanceof IFile && resource.getName().endsWith(".uvl")) {
-                	WinVMJConsole.println(resource.getName());
                 	featureModelNames.add((IFile) resource);
                 }
                 return true; 
