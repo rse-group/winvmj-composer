@@ -32,6 +32,7 @@ import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -162,11 +163,47 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			public void widgetSelected(SelectionEvent e) {
 				if (e.detail == SWT.CHECK) {
 					final TreeItem item = (TreeItem) e.item;
+
 					if (item.getChecked()) {
 						featureNames.add(item.getText());
+						
+						/**
+						 * Note As Reminder aja
+						 * Check all of the parents of a feature
+						 */
+						TreeItem upperParent = item.getParentItem();
+						while (upperParent != null) {
+							upperParent.setChecked(true);
+							featureNames.add(upperParent.getText());
+							upperParent = upperParent.getParentItem();
+						}
+
 					} else {
 						featureNames.remove(item.getText());
+
+						/**
+						 * Check feature sibling first before uncheck all parent
+						 */
+						TreeItem parent = item.getParentItem();
+						boolean isAllSiblingCheck = false;
+						for (TreeItem sibling : parent.getItems()) {
+							if (sibling.getChecked()) {
+								isAllSiblingCheck = true;
+								break;
+							}
+						}
+
+						if (!isAllSiblingCheck) {
+							TreeItem upperParent = item.getParentItem();
+							while (upperParent != null) {
+								upperParent.setChecked(false);
+								featureNames.remove(upperParent.getText());
+								upperParent = upperParent.getParentItem();
+							}
+						}
+
 					}
+
 
 					FeatureModelFormula formula = new FeatureModelFormula(multiStageConfiguration.loadFeatureModel(selectedFile));
 					Configuration configForChecking = new Configuration(formula);
@@ -185,6 +222,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 					else {
 						validationLabel.setText("Local Configuration status: Valid!");
 						validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_GREEN));
+						
 						setPageComplete(true);
 					}
 					validationLabel.getParent().layout();
@@ -251,7 +289,9 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		} else {
 			featureNames.remove(parent.getText());
 		}
+
 		final TreeItem[] items = parent.getItems();
+
 		for (int i = 0; i < items.length; i++) {
 			check(items[i], checkStatus);
 		}
@@ -339,6 +379,9 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
 		item.setText(root.getName());
 		item.setData(root);
+		if (!root.getStructure().getChildren().isEmpty()) {
+			item.setGrayed(true);
+		}
 
 		for (final IFeatureStructure feature : root.getStructure().getChildren()) {
 			addFeaturesToTree(feature.getFeature(), item, null);
@@ -357,6 +400,9 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		item.setText(root.getName());
 		item.setData(root);
 		item.setExpanded(true);
+		if (!root.getStructure().getChildren().isEmpty()) {
+			item.setGrayed(true);
+		}
 
 		for (final IFeatureStructure feature : root.getStructure().getChildren()) {
 			if (combinedFeatures == null) {
@@ -371,10 +417,14 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	}
 
 	private void addFilteredFeaturesToTree(IFeature root, HashSet<String> combinedFeatures) {
+
 		if (combinedFeatures.contains(root.getName())) {
 			final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
 			item.setText(root.getName());
 			item.setData(root);
+			if (!root.getStructure().getChildren().isEmpty()) {
+				item.setGrayed(true);
+			}
 			
 			for (final IFeatureStructure feature : root.getStructure().getChildren()) {
 				if (combinedFeatures.contains(feature.getFeature().getName())) {
