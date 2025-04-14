@@ -32,6 +32,7 @@ import java.util.Map;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -156,14 +157,49 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			public void widgetSelected(SelectionEvent e) {
 				if (e.detail == SWT.CHECK) {
 					final TreeItem item = (TreeItem) e.item;
+					
+				    if (item.getGrayed() && !item.getChecked()) {
+				        item.setChecked(true);
+				        return; 
+				    }
+				    
 					if (item.getChecked()) {
 						featureNames.add(item.getText());
+						
+						/**
+						 * Note As Reminder aja
+						 * Check all of the parents of a feature
+						 */
+						TreeItem upperParent = item.getParentItem();
+						while (upperParent != null) {
+							upperParent.setChecked(true);
+							featureNames.add(upperParent.getText());
+							upperParent = upperParent.getParentItem();
+						}
+
 					} else {
 						featureNames.remove(item.getText());
+						
+						/**
+						 * Check feature parent first 
+						 */						
+						TreeItem parent = item.getParentItem();
+						while (parent != null) {
+						    if (!hasCheckedChild(parent)) {
+						        parent.setChecked(false);
+						        featureNames.remove(parent.getText());
+						        parent = parent.getParentItem();
+						    } else {
+						        break; // stop climbing if this parent still has checked children
+						    }
+						}
+
 					}
+
 
 					validateConfiguration();
 					updatePage();
+					updateGrayedState(featuresTree.getItem(0));
 				}
 			}
 
@@ -213,6 +249,15 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		setPageComplete(false);
 	}
 	
+	private boolean hasCheckedChild(TreeItem parent) {
+	    for (TreeItem child : parent.getItems()) {
+	        if (child.getChecked()) {
+	            return true;
+	        }
+	    }
+	    return false;
+	}
+	
 	private void validateConfiguration() {
 	    if (selectedFile == null) return;
 
@@ -253,7 +298,9 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		} else {
 			featureNames.remove(parent.getText());
 		}
+
 		final TreeItem[] items = parent.getItems();
+
 		for (int i = 0; i < items.length; i++) {
 			check(items[i], checkStatus);
 		}
@@ -286,6 +333,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 						validationLabel.setText("Configuration status: Unknown");
 	                    validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
 						restoreCheckedState(featuresTree.getItems());
+						setPageComplete(false);
 					}
 				} 
 				else {
@@ -317,6 +365,32 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		}
 		super.setVisible(visible);
 	}
+	
+	private void updateGrayedState(TreeItem item) {
+	    if (item == null || item.isDisposed()) return;
+
+	    boolean hasChecked = false;
+	    boolean hasUnchecked = false;
+
+	    for (TreeItem child : item.getItems()) {
+	        updateGrayedState(child);
+	        if (child.getChecked()) {
+	            hasChecked = true;
+	        } else {
+	            hasUnchecked = true;
+	        }
+
+	        if (child.getGrayed()) {
+	            hasChecked = hasUnchecked = true;
+	        }
+	    }
+
+	    if (item.getItemCount() > 0) {
+	        item.setGrayed(hasChecked && hasUnchecked);
+	    } else {
+	        item.setGrayed(false);
+	    }
+	}
 		
 	private void restoreCheckedState(TreeItem[] items) {
 		for (TreeItem item : items) {
@@ -328,6 +402,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 				restoreCheckedState(item.getItems());
 			}
 		}
+		updateGrayedState(featuresTree.getItem(0));
 	}
 
 	/**
@@ -339,6 +414,9 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
 		item.setText(root.getName());
 		item.setData(root);
+//		if (!root.getStructure().getChildren().isEmpty()) {
+//			item.setGrayed(true);
+//		}
 
 		for (final IFeatureStructure feature : root.getStructure().getChildren()) {
 			addFeaturesToTree(feature.getFeature(), item, null);
@@ -371,6 +449,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	}
 
 	private void addFilteredFeaturesToTree(IFeature root, HashSet<String> combinedFeatures) {
+
 		if (combinedFeatures.contains(root.getName())) {
 			final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
 			item.setText(root.getName());
