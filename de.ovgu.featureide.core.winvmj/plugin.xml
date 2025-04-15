@@ -95,7 +95,7 @@
                   commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
                   icon="resources/icons/FeatureIconSmall.ico"
                   id="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
-                  label="Open Feature Wizard"
+                  label="Multi Level Configuration"
                   style="push"
             >
             </command>
