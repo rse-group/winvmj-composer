@@ -320,6 +320,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 					}
 
 					else {
+//						WinVMJConsole.println("allowedParentFeatures " + allowedParentFeatures);
 						HashSet<String> filteredFeatures = filteredFeaturesBasedOnConstraint(allowedParentFeatures);
 					    
 						addFilteredFeaturesToTree(multiStageConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), filteredFeatures);
@@ -499,6 +500,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 		if (solver.hasSolution() == SatResult.TRUE) {
 			solver.setSelectionStrategy(SelectionStrategy.ORG);
 			int[] findsolutionORG = solver.findSolution();
+//			WinVMJConsole.println("findsolutionORG " + findsolutionORG);
 			for (int lit : findsolutionORG) {
 				String fullName = solver.getSatInstance().getVariables().getName(lit);
 				if (lit > 0) {
