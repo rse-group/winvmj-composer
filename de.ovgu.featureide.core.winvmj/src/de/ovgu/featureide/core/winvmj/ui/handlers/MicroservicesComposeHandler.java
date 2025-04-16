@@ -69,9 +69,7 @@ public class MicroservicesComposeHandler extends AFeatureProjectHandler {
                 List<IFeature> featuresList = new ArrayList<>();
 
                 for (JsonElement featureElement : featuresArray) {
-                    JsonObject featureObject = featureElement.getAsJsonObject();
-                    
-                    String featureString =  featureObject.get("feature").getAsString();
+                	String featureString = featureElement.getAsString();
                     IFeature feature = project.getFeatureModel().getFeature(featureString);
 
                     featuresList.add(feature);
