@@ -7,6 +7,7 @@ import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
@@ -24,7 +25,7 @@ public abstract class PublishMessageTrigger {
 
     public static void clearModifiedMethods() {modifiedMethods.clear();}
 
-    public void addPublishMessageCall(RepositoryCallInfo repositoryCallInfo, Set<String> domainInterfaces) {
+    public void addPublishMessageCall(RepositoryCallInfo repositoryCallInfo, Set<String> domainInterfaces, String moduleName) {
         String domainInterface = repositoryCallInfo.domainInterface();
         String objectDomainVar = repositoryCallInfo.domainObjectVar();
         String repositoryOperation = repositoryCallInfo.repositoryOperation();
@@ -46,7 +47,7 @@ public abstract class PublishMessageTrigger {
         setVariableTypeMap(method);
         initializePropertiesVar(method);
         collectProperties(method, objectDomainVar);
-        addPublishCallStatement(method, objectDomainVar, domainInterface, repositoryOperation);
+        addPublishCallStatement(method, objectDomainVar, domainInterface, repositoryOperation, moduleName);
         
         modifiedMethods.put(methodId, modifiedMethods.getOrDefault(methodId, 0) + 1);
     }
@@ -114,15 +115,45 @@ public abstract class PublishMessageTrigger {
     protected void addPublishCallStatement(MethodDeclaration method, 
     		String objectDomainVar, 
     		String domainInterface,
-    		String repositoryOperation ) 
+    		String repositoryOperation,
+    		String moduleName) 
     {
     	List<Expression> newExpressionList = new ArrayList<>();
     	
+    	// StateTranferMessage Argument : id
         String objectIdVar;
         if (objectDomainVar.toLowerCase().contains("id")) {
             objectIdVar = objectDomainVar;
         } else {
             objectIdVar = objectDomainVar + "Identifier"; // avoid the same variable name, usually use id
+            
+            boolean isInCoreModule = moduleName.endsWith(".core");
+            if (isInCoreModule) { // Get record or Component from Decorator
+                String decoratorClassName = domainInterface + "Decorator";
+                // if (<objectDomainVar> instanceof <DomainInterface>Decorator) { <objectDomainVar> = ((<DomainInterface>Decorator) <objectDomainVar>).getRecord(); }
+                AssignExpr unwrapAssign = new AssignExpr(
+                	    new NameExpr(objectDomainVar),
+                	    new ConditionalExpr(
+                	        new InstanceOfExpr(
+                	            new NameExpr(objectDomainVar),
+                	            StaticJavaParser.parseClassOrInterfaceType(decoratorClassName)
+                	        ),
+                	        new MethodCallExpr(
+                	            new EnclosedExpr(new CastExpr(
+                	                StaticJavaParser.parseClassOrInterfaceType(decoratorClassName),
+                	                new NameExpr(objectDomainVar)
+                	            )),
+                	            "getRecord"
+                	        ),
+                	        new NameExpr(objectDomainVar)
+                	    ),
+                	    AssignExpr.Operator.ASSIGN
+                	);
+
+                	newExpressionList.add(unwrapAssign);
+
+                newExpressionList.add(unwrapAssign);
+            }	
             
             // Create method call <objectDomainVar>.get<DomainInterface>Id()
             MethodCallExpr getIdCall = new MethodCallExpr(new NameExpr(objectDomainVar), "get" + domainInterface + "Id");
@@ -134,22 +165,24 @@ public abstract class PublishMessageTrigger {
             VariableDeclarationExpr idVarDecl = new VariableDeclarationExpr(idVar);
             newExpressionList.add(idVarDecl);
         }
-
+        
+        // StateTranferMessage Argument : action
         String action = switch (repositoryOperation) {
             case "saveObject" -> "create";
             case "updateObject" -> "update";
             default -> "delete";
         };
-
+        
         Expression stateTransferMessageExpr = new ObjectCreationExpr(
                 null,
                 new ClassOrInterfaceType(null, "StateTransferMessage"),
                 NodeList.nodeList(
-                        new NameExpr(objectIdVar),
-                        new StringLiteralExpr(domainInterface),
-                        new StringLiteralExpr(action),
-                        new StringLiteralExpr(getTableName(method, objectDomainVar)),
-                        new NameExpr(propertiesVarName)
+                        new NameExpr(objectIdVar), // id
+                        new StringLiteralExpr(domainInterface), // type
+                        new StringLiteralExpr(action), // action
+                        new StringLiteralExpr(getTableName(method, objectDomainVar)), // table name
+                        new StringLiteralExpr(moduleName), // module name
+                        new NameExpr(propertiesVarName) // properties
                 )
         );
         

@@ -190,7 +190,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    	}
 		    	
 		        ModulePreprocessor.modifyServiceImplClass(duplicateModules);
-		        ModulePreprocessor.modifyModuleInfo(duplicateModules);
 		        
 		        for (WinVMJProduct product : serviceProductMap.values()) {
 		        	IFolder productModule = featureProject.getBuildFolder()

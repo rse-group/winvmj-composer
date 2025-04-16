@@ -8,6 +8,7 @@ import java.io.Reader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -35,7 +36,9 @@ import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedMicroserviceProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
+import de.ovgu.featureide.core.winvmj.microservicepreprocessor.ModulePreprocessor;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.CorsPropertiesRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.EndpointsConfigRenderer;
@@ -45,6 +48,7 @@ import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunAllScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.WindowsDeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.WindowsRunScriptRenderer;
+import de.ovgu.featureide.fm.core.base.IFeature;
 
 public class SourceCompiler {
 
@@ -65,18 +69,88 @@ public class SourceCompiler {
 				    .filter(folder -> folder.getName().contains(".product."))
 				    .collect(Collectors.toList()); 
 			
+			boolean isMicroservices = productModules.size() > 1;
 			
-	        for (IFolder productModule : productModules) {
-	        	boolean isMicroservices = productModules.size() > 1;
-	        	
-	        	WinVMJProduct sourceProduct;
-	        	if (isMicroservices) {
-	        		sourceProduct = new ComposedMicroserviceProduct(project, productModule);
-	        	} else {
-	        		sourceProduct = new ComposedProduct(project, productModule);
-	        	}
-	        	
-	        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+			if (isMicroservices) {
+				String messagingModuleName = "vmj.messaging";
+				
+				Map<String,Integer> modulesCount = new HashMap<String, Integer>();
+		    	Set<WinVMJProduct> serviceProducts = new HashSet<WinVMJProduct>();
+				for (IFolder productModule : productModules) {
+					WinVMJProduct sourceProduct = new ComposedMicroserviceProduct(project, productModule);
+					serviceProducts.add(sourceProduct);
+					
+					for (IFolder module : sourceProduct.getModules()) {
+						String moduleName = module.getName();
+						if (moduleName.equals(messagingModuleName)) {
+							continue;
+						}
+						modulesCount.put(moduleName, modulesCount.getOrDefault(moduleName, 0) + 1);
+					}
+			    	
+				}
+				
+				Set<String> duplicateModuleNames = new HashSet<>();
+		    	for (Map.Entry<String, Integer> entry : modulesCount.entrySet()) {
+		    		String module = entry.getKey();
+					Integer moduleCount = entry.getValue();
+					
+					if (moduleCount >= 2) {
+						duplicateModuleNames.add(module);
+					}
+		    	}
+				
+				for (WinVMJProduct sourceProduct : serviceProducts) {
+		        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+					if (!compiledProductDir.exists())
+						compiledProductDir.create(false, true, null);
+					compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
+					if (!compiledProductDir.exists())
+						compiledProductDir.create(false, true, null);
+					importWinVMJLibraries(compiledProductDir, sourceProduct);
+					importWinVMJProductConfigs(compiledProductDir);
+					importRabbitmqLibraries(compiledProductDir, sourceProduct);
+					generateConfigFiles(project, sourceProduct);
+					
+		        	// Pre-process module for specific product
+					String productModuleName = sourceProduct.getProductQualifiedName();
+					
+						// backup to save the module before modification
+					IFolder tempBackupModules = project.getProject().getFolder(".tmp_module_backup");
+				    if (!tempBackupModules.exists()) tempBackupModules.create(true, true, null);
+
+				    List<IFolder> modifiedModules = new ArrayList<>();
+
+				    for (IFolder module : sourceProduct.getModules()) {
+				        if (duplicateModuleNames.contains(module.getName())) {
+				        	// backup module
+				            IFolder backup = tempBackupModules.getFolder(module.getName());
+				            if (backup.exists()) backup.delete(true, null); 
+				            module.copy(backup.getFullPath(), true, null);   
+				            modifiedModules.add(module);
+
+				            ModulePreprocessor.modifyModuleInfo(module, productModuleName);
+				        }
+				    }
+
+				    compileModules(project, compiledProductDir, sourceProduct);
+
+				    // Restore module
+				    for (IFolder module : modifiedModules) {
+				        IFolder backup = tempBackupModules.getFolder(module.getName());
+				        if (module.exists()) module.delete(true, null);
+				        backup.copy(module.getFullPath(), true, null); 
+				    }
+ 
+					
+					insertSqlFolder(compiledProductDir, project);
+				}
+				
+				
+			} else {
+				IFolder productModule = productModules.get(0);
+				WinVMJProduct sourceProduct = new ComposedProduct(project, productModule);
+				IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 				if (!compiledProductDir.exists())
 					compiledProductDir.create(false, true, null);
 				compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
@@ -84,10 +158,17 @@ public class SourceCompiler {
 					compiledProductDir.create(false, true, null);
 				importWinVMJLibraries(compiledProductDir, sourceProduct);
 				importWinVMJProductConfigs(compiledProductDir);
-				if (isMicroservices) { importRabbitmqLibraries(compiledProductDir, sourceProduct);}
 				generateConfigFiles(project, sourceProduct);
 				compileModules(project, compiledProductDir, sourceProduct);
 				insertSqlFolder(compiledProductDir, project);
+
+			}
+			
+			
+	        for (IFolder productModule : productModules) {
+	        	
+	        	
+	        	
 				
 
 	        }

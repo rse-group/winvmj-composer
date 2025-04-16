@@ -51,6 +51,7 @@ class MessageConsumerImpl implements MessageConsumer {
     private void updateObjectHandler(StateTransferMessage message) {
         Object domainObject;
         String domainInterface = message.getType();
+        String moduleName = message.getModuleName();
         Object id = message.getId();
         String idStr = id.toString();
         if (message.getTableName().isEmpty()){
@@ -78,8 +79,9 @@ class MessageConsumerImpl implements MessageConsumer {
             Object attributeValue = parsingObject(property);
             attributes.put(attributeName,attributeValue);
         }
+        String domainClassImpl = moduleName + "." + domainInterface + "Impl";
 
-        setAttributes(domainObject, attributes);
+        setAttributes(domainObject, domainClassImpl, attributes);
         repositoryMap.get(domainInterface).updateObject(domainObject);
     }
 
@@ -133,12 +135,12 @@ class MessageConsumerImpl implements MessageConsumer {
         return value;
     }
 
-    private void setAttributes(Object obj, Map<String, Object> attributes) {
+    private void setAttributes(Object obj, String domainClassImpl, Map<String, Object> attributes) {
         Class<?> clazz = obj.getClass();
 
         for (Map.Entry<String, Object> entry : attributes.entrySet()) {
             try {
-                Field field = clazz.getDeclaredField(entry.getKey());
+            	Field field = getFieldFromHierarchy(clazz, entry.getKey());
                 field.setAccessible(true);
 
                 Object value = entry.getValue();
@@ -148,5 +150,16 @@ class MessageConsumerImpl implements MessageConsumer {
                 e.printStackTrace();
             }
         }
+    }
+    
+    private Field getFieldFromHierarchy(Class<?> clazz, String fieldName) throws NoSuchFieldException {
+        while (clazz != null) {
+            try {
+                return clazz.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                clazz = clazz.getSuperclass(); // traverse to parent class
+            }
+        }
+        throw new NoSuchFieldException("Field '" + fieldName + "' not found in class hierarchy.");
     }
 }

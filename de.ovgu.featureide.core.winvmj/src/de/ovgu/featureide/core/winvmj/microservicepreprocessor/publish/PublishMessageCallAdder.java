@@ -25,14 +25,30 @@ public class PublishMessageCallAdder {
 
     public void addPublishMessageCall(CompilationUnit cu) {
         PublishMessageTrigger.clearModifiedMethods();
+        
+        String moduleName = cu.getPackageDeclaration()
+	      .map(pd -> pd.getName().asString())
+	      .orElse("");
+        boolean isInCoreModule = moduleName.endsWith(".core");
+        boolean isDecoratorImportStatementAdded = false;
+        
         List<RepositoryCallInfo> repositoryCallInfos = getAllRepositoryCall(cu);
-
         for (RepositoryCallInfo repositoryCallInfo : repositoryCallInfos) {
             switch (repositoryCallInfo.repositoryOperation()) {
-                case "saveObject" -> createObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces);
-                case "updateObject" -> updateObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces);
-                case "deleteObject" -> deleteObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces);
+                case "saveObject" -> createObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces, moduleName);
+                case "updateObject" -> updateObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces, moduleName);
+                case "deleteObject" -> deleteObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces, moduleName);
                 default -> System.out.println("Invalid repository operation");
+            }
+            
+            if (isInCoreModule && ! isDecoratorImportStatementAdded) {
+            	String decoratorClassName = moduleName + "." + repositoryCallInfo.domainInterface() + "Decorator";
+            	ImportDeclaration decoratorImport = new ImportDeclaration(decoratorClassName, false, false);
+
+            	if (!cu.getImports().stream().anyMatch(i -> i.getNameAsString().equals(decoratorClassName))) {
+            	    cu.addImport(decoratorImport);
+            	    isDecoratorImportStatementAdded = true;
+            	}
             }
 
         }

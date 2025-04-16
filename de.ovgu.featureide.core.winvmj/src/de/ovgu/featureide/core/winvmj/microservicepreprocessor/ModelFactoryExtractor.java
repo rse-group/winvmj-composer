@@ -6,6 +6,7 @@ import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -21,9 +22,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ModelFactoryExtractor {
+public class ModelFactoryExtractor 	{
 
-    public static Map<String, String> extractFactories(Set<IFolder> moduleDirs) {
+    private static Map<String, String> extractFactories(Set<IFolder> moduleDirs) {
         Set<String> domainInterfacesFqn = ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs);
         Set<String> domainInterfaces = domainInterfacesFqn.stream()
                 .map(fqn -> fqn.substring(fqn.lastIndexOf('.') + 1))
@@ -89,13 +90,13 @@ public class ModelFactoryExtractor {
                         String repoSave = "repositoryMap.get(\"" + domain + "\").saveObject(obj);";
 
                         IfStmt ifStmt = new IfStmt(
-                                new BinaryExpr(new NameExpr("domainInterface"), new StringLiteralExpr(domain), BinaryExpr.Operator.EQUALS),
-                                new BlockStmt(NodeList.nodeList(
-                                        StaticJavaParser.parseStatement(objectCreation),
-                                        StaticJavaParser.parseStatement(repoSave)
-                                )),
-                                null
-                        );
+                        	    new MethodCallExpr(new NameExpr("domainInterface"), "equals", NodeList.nodeList(new StringLiteralExpr(domain))),
+                        	    new BlockStmt(NodeList.nodeList(
+                        	        StaticJavaParser.parseStatement(objectCreation),
+                        	        StaticJavaParser.parseStatement(repoSave)
+                        	    )),
+                        	    null
+                        	);
 
                         if (firstIfStmt == null) {
                             firstIfStmt = ifStmt;

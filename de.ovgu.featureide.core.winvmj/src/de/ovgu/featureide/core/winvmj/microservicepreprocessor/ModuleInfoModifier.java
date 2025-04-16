@@ -9,7 +9,7 @@ import com.github.javaparser.ast.modules.ModuleOpensDirective;
 public class ModuleInfoModifier {
     private static final String messagingModule = "vmj.messaging";
 
-    public static void modifyModuleInfo(CompilationUnit cu){
+    public static void modifyModuleInfo(CompilationUnit cu, String productModule){
         cu.findFirst(ModuleDeclaration.class).ifPresent(module -> {
             String opensModule = module.getNameAsString();
 
@@ -32,14 +32,14 @@ public class ModuleInfoModifier {
                     .findFirst()
                     .ifPresentOrElse(
                             opensDirective -> {
-                                if (opensDirective.getModuleNames().stream().noneMatch(m -> m.asString().equals(messagingModule))) {
-                                    opensDirective.getModuleNames().add(new Name(messagingModule));
+                                if (opensDirective.getModuleNames().stream().noneMatch(m -> m.asString().equals(productModule))) {
+                                    opensDirective.getModuleNames().add(new Name(productModule));
                                 }
                             },
                             () -> {
                                 ModuleOpensDirective newOpensDirective = new ModuleOpensDirective();
                                 newOpensDirective.setName(new Name(opensModule));
-                                newOpensDirective.getModuleNames().add(new Name(messagingModule));
+                                newOpensDirective.getModuleNames().add(new Name(productModule));
                                 module.addDirective(newOpensDirective);
                             }
                     );

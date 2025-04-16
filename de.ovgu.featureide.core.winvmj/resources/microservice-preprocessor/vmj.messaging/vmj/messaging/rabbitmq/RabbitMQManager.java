@@ -8,6 +8,8 @@ import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import vmj.messaging.StateTransferMessage;
 
 public class RabbitMQManager {
@@ -117,7 +119,9 @@ public class RabbitMQManager {
 
 
     public void publishMessage(String routingKey, StateTransferMessage message) {
-        Gson gson = new Gson();
+        Gson gson = new GsonBuilder()
+                .setDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
+                .create();
         String messageJson = gson.toJson(message);
 
         try {

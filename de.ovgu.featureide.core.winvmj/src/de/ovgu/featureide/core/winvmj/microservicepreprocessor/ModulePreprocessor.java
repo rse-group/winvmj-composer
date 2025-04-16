@@ -13,6 +13,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -62,7 +63,12 @@ public class ModulePreprocessor {
             // Modify MessageConsumer
             CompilationUnit messageConsumerCu = JavaParserUtil.parse(messageConsumerFile);
             
-            ModelLayerExtractor.addModelInterfaceImportStatement(moduleDirs, messageConsumerCu);
+            List<String> domainModelInterfacesFqn = new ArrayList<String>(ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs));
+            addImportStatement(messageConsumerCu, domainModelInterfacesFqn);
+            
+            Set<String> domainImplementationsFqnSet = ModelLayerExtractor.extractModelImplementationsFqn(moduleDirs);
+            AttributeSetterModifier.modifySetAttributesMethod(messageConsumerCu, domainImplementationsFqnSet);
+            
             ModelFactoryExtractor.initializeObjectFactory(moduleDirs, messageConsumerCu);
             RepositoryExtractor.initializeRepositoryMap(moduleDirs, messageConsumerCu);
             
@@ -88,16 +94,14 @@ public class ModulePreprocessor {
         
     }
 
-    public static void modifyModuleInfo(Set<IFolder> moduleDirs) {
-        for (IFolder moduleDir : moduleDirs) {
-            IFile moduleInfoFile = getFileByName(moduleDir, "module-info.java");
-            if (moduleInfoFile == null) continue;
+    public static void modifyModuleInfo(IFolder moduleDir, String productModule) {
+    	IFile moduleInfoFile = getFileByName(moduleDir, "module-info.java");
+        if (moduleInfoFile == null) return;
 
-            CompilationUnit cu = JavaParserUtil.parse(moduleInfoFile);
-            ModuleInfoModifier.modifyModuleInfo(cu);
+        CompilationUnit cu = JavaParserUtil.parse(moduleInfoFile);
+        ModuleInfoModifier.modifyModuleInfo(cu, productModule);
 
-            overwriteFile(moduleInfoFile, cu);
-        }
+        overwriteFile(moduleInfoFile, cu);
     }
 
     private static void overwriteFile(IFile file, CompilationUnit cu) {
