@@ -1,5 +1,7 @@
 package de.ovgu.featureide.core.winvmj;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -22,6 +24,10 @@ import org.logicng.io.parsers.ParserException;
 import org.logicng.io.parsers.PropositionalParser;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import org.eclipse.core.resources.IFile;
@@ -151,6 +157,44 @@ public class Utils {
 	    }
 	    return allModuleFolders;
 	}
+	
+	public static Map<String, List<IFeature>> getMicroservicesDefinition(IFeatureProject project) {
+        Map<String, List<IFeature>> serviceDefinition = new HashMap<>();
+        
+        IFile servicesDefFile = project.getProject().getFile("services-def.json");
+
+        try (InputStream inputStream = servicesDefFile.getContents();
+             InputStreamReader reader = new InputStreamReader(inputStream);
+             BufferedReader bufferedReader = new BufferedReader(reader)) {
+        
+            JsonObject jsonObject = JsonParser.parseReader(bufferedReader).getAsJsonObject();
+            JsonArray servicesArray = jsonObject.getAsJsonArray("services");
+
+            for (JsonElement serviceElement : servicesArray) {
+                JsonObject serviceObject = serviceElement.getAsJsonObject();
+
+                String productName = serviceObject.get("productName").getAsString();
+
+                JsonArray featuresArray = serviceObject.getAsJsonArray("features");
+                List<IFeature> featuresList = new ArrayList<>();
+
+                for (JsonElement featureElement : featuresArray) {
+                	String featureString = featureElement.getAsString();
+                    IFeature feature = project.getFeatureModel().getFeature(featureString);
+
+                    featuresList.add(feature);
+                }
+
+                serviceDefinition.put(productName, featuresList);
+            }
+        } catch (CoreException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return serviceDefinition;
+    }
 
 	private static String getFeatureName(String module) {
 		String[] moduleParts = module.split("\\.");

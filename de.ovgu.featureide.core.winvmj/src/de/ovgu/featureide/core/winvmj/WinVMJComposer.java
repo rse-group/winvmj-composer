@@ -8,7 +8,6 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -23,7 +22,6 @@ import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.logicng.datastructures.Assignment;
@@ -112,9 +110,10 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	}
 	
 	// Micro-services
-	public void performFullBuildMicroservices(Map<String, List<IFeature>> serviceDefinition ) {
+	public void performFullBuildMicroservices() {
 		multiLevelDeltaMappings = null;
 		
+		Map<String, List<IFeature>> serviceDefinition = Utils.getMicroservicesDefinition(featureProject);
 		Map<String, IFolder> allModulesMapping = null;
 		try {
 			allModulesMapping = Utils.getAllModulesMapping(featureProject);
