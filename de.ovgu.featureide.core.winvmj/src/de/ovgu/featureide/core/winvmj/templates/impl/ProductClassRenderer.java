@@ -365,7 +365,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return count == 1 ? baseName : baseName + count; 
 	}
 
-	private Set<String> getImports(WinVMJProduct product) throws IOException, CoreException {
+	protected Set<String> getImports(WinVMJProduct product) throws IOException, CoreException {
 		Set<String> imports = new LinkedHashSet<>();
 		for (String module : product.getModuleNames()) {
 			imports.addAll(constructImport(module));
@@ -373,7 +373,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return imports;
 	}
 
-	private List<String> constructImport(String module) throws IOException, CoreException { 
+	protected List<String> constructImport(String module) throws IOException, CoreException { 
 		List<String> modulesToImport = new ArrayList<>();
 		String coreModule = getCoreByModule(module); 
 		String mainModule = coreModule.replace(".core", ""); 

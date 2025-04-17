@@ -99,6 +99,8 @@ public class SourceCompiler {
 						duplicateModuleNames.add(module);
 					}
 		    	}
+		    	Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(project.getProject());
+		    	Map<String,List<IFeature>> serviceDefMap = Utils.getMicroservicesDefinition(project);
 				
 				for (WinVMJProduct sourceProduct : serviceProducts) {
 		        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
@@ -118,8 +120,23 @@ public class SourceCompiler {
 						// backup to save the module before modification
 					IFolder tempBackupModules = project.getProject().getFolder(".tmp_module_backup");
 				    if (!tempBackupModules.exists()) tempBackupModules.create(true, true, null);
-
+				    
+				   
 				    List<IFolder> modifiedModules = new ArrayList<>();
+				    
+				    	// get all selected feature module of a micro-service from service-def.json 
+				    Set<String> selectedFeatureModulesName = new HashSet<String>();
+				    List<IFeature> selectedFeatures = serviceDefMap.getOrDefault((sourceProduct.getProductName()), null);
+				    if (selectedFeatures != null) {
+				    	for (IFeature feature : selectedFeatures) {
+				    		List<String> featureModulesName = featureToModuleNameMap.getOrDefault(feature.getName(), null);
+				    		if (featureModulesName != null) {
+				    			for (String moduleName : featureModulesName) {
+				    				selectedFeatureModulesName.add(moduleName);
+				    			}
+				    		}
+				    	}
+				    }
 
 				    for (IFolder module : sourceProduct.getModules()) {
 				        if (duplicateModuleNames.contains(module.getName())) {
@@ -131,8 +148,13 @@ public class SourceCompiler {
 
 				            ModulePreprocessor.modifyModuleInfo(module, productModuleName);
 				        }
+				        
+				        if (!selectedFeatureModulesName.contains(module.getName())) {
+				        	ModulePreprocessor.deleteResourceLayer(module);
+				        }
 				    }
 
+				    
 				    compileModules(project, compiledProductDir, sourceProduct);
 
 				    // Restore module

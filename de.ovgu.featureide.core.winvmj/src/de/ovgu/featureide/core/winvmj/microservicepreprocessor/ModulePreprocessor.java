@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -103,6 +104,30 @@ public class ModulePreprocessor {
 
         overwriteFile(moduleInfoFile, cu);
     }
+    
+    
+    public static void deleteResourceLayer(IFolder moduleDir) {
+        try {
+            for (IResource resource : moduleDir.members()) {
+                if (resource instanceof IFolder folder) {
+                    if (folder.getName().equals("resource")) {
+                        folder.delete(true, null);
+                    } else {
+                        deleteResourceLayer(folder); 
+                    }
+                } else if (resource instanceof IFile file) {
+                    String name = file.getName();
+                    if (name.endsWith("ResourceFactory.java")) {
+                        file.delete(true, null);
+                    }
+                }
+            }
+        } catch (CoreException e) {
+            e.printStackTrace();
+        }
+    }
+
+   
 
     private static void overwriteFile(IFile file, CompilationUnit cu) {
         try (InputStream stream = new ByteArrayInputStream(cu.toString().getBytes(StandardCharsets.UTF_8))) {
