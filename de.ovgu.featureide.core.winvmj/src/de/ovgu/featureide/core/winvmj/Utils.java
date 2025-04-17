@@ -195,6 +195,15 @@ public class Utils {
 
         return serviceDefinition;
     }
+	
+	public static Map<String, List<String>> getFeatureToModuleMap(IProject project) throws CoreException{
+		Reader mapReader = new InputStreamReader(project
+				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents());
+		Gson gson = new Gson();
+		Map<String, List<String>> splMappings = gson.fromJson(mapReader,
+				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+		return splMappings;
+	}
 
 	private static String getFeatureName(String module) {
 		String[] moduleParts = module.split("\\.");
