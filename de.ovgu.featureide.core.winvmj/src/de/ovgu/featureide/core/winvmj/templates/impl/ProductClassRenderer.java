@@ -52,7 +52,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 	public ProductClassRenderer(IFeatureProject project) {
 		super(project);
 		try {
-			loadFeatureToModuleMap(project);
+			featureToModuleMap = Utils.getFeatureToModuleMap(project.getProject());
 		} catch (CoreException e) {
 			e.printStackTrace();
 		}
@@ -126,22 +126,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 		}
 		return models;
 	}
-
-	private void loadFeatureToModuleMap(IFeatureProject project) throws CoreException {
-        IFile mapFile = project.getProject().getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
-        if (mapFile.exists()) {
-            try (Reader mapReader = new InputStreamReader(mapFile.getContents())) {
-                Gson gson = new Gson();
-                featureToModuleMap = gson.fromJson(mapReader,
-                    new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            System.err.println("Feature to module map file does not exist");
-            featureToModuleMap = new LinkedHashMap<>();
-        }
-    }
 	
 	private void getSelectedFeature(IFeatureProject winVmjProject) {
 		Configuration config = winVmjProject.loadCurrentConfiguration();
