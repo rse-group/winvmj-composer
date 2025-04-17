@@ -3,6 +3,8 @@ package de.ovgu.featureide.core.winvmj;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +26,7 @@ import com.google.gson.reflect.TypeToken;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 
 import org.apache.commons.io.FilenameUtils;
@@ -127,6 +130,26 @@ public class Utils {
 
 	public static String getSplName(IFeatureProject project) {
 		return project.getFeatureModel().getStructure().getRoot().getFeature().getName();
+	}
+	
+	public static Map<String, IFolder> getAllModulesMapping(IFeatureProject project) throws CoreException {
+		List<IProject> allProjects = new ArrayList<>();
+	    allProjects.add(project.getProject()); 
+	    Collections.addAll(allProjects, project.getProject().getReferencedProjects()); 
+
+	    // collect all module folders from all projects
+	    Map<String, IFolder> allModuleFolders = new HashMap<>();
+	    for (IProject p : allProjects) {
+	        IFolder moduleFolder = p.getFolder(WinVMJComposer.MODULE_FOLDERNAME);
+	        if (moduleFolder.exists()) {
+	            for (IResource resource : moduleFolder.members()) {
+	                if (resource instanceof IFolder) {
+	                    allModuleFolders.put(resource.getName(), (IFolder) resource);
+	                }
+	            }
+	        }
+	    }
+	    return allModuleFolders;
 	}
 
 	private static String getFeatureName(String module) {

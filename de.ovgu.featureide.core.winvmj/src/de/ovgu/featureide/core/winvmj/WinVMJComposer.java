@@ -117,7 +117,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		
 		Map<String, IFolder> allModulesMapping = null;
 		try {
-			allModulesMapping = getAllModulesMapping();
+			allModulesMapping = Utils.getAllModulesMapping(featureProject);
 		} catch (CoreException e) {
 			e.printStackTrace();
 			return;
@@ -214,26 +214,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		LongRunningWrapper.getRunner(job, "Compose Products in Microservices").schedule();
 	}
 	
-	// Micro-services
-	private Map<String, IFolder> getAllModulesMapping() throws CoreException {
-		List<IProject> allProjects = new ArrayList<>();
-	    allProjects.add(featureProject.getProject()); 
-	    Collections.addAll(allProjects, featureProject.getProject().getReferencedProjects()); 
-
-	    // collect all module folders from all projects
-	    Map<String, IFolder> allModuleFolders = new HashMap<>();
-	    for (IProject p : allProjects) {
-	        IFolder moduleFolder = p.getFolder(WinVMJComposer.MODULE_FOLDERNAME);
-	        if (moduleFolder.exists()) {
-	            for (IResource resource : moduleFolder.members()) {
-	                if (resource instanceof IFolder) {
-	                    allModuleFolders.put(resource.getName(), (IFolder) resource);
-	                }
-	            }
-	        }
-	    }
-	    return allModuleFolders;
-	}
 	
 	private void composeMicroserviceProduct(WinVMJProduct product, List<IFeature> selectedFeatures) 
 	{
