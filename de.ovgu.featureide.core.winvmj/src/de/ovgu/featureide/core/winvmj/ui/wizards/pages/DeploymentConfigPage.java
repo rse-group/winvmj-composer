@@ -20,7 +20,6 @@ public class DeploymentConfigPage extends WizardPage {
     private Text productPrefixText;
     private Text productNameText;
 
-
     public DeploymentConfigPage(String pageName) {
         super(pageName);
         setTitle("Deployment Configuration");
@@ -30,27 +29,24 @@ public class DeploymentConfigPage extends WizardPage {
     @Override
     public void createControl(Composite parent) {
         Composite container = new Composite(parent, SWT.NONE);
-        container.setLayout(new GridLayout(2, false)); // 2 columns: label + input
+        GridLayout layout = new GridLayout(2, false);
+        layout.marginWidth = 10;
+        layout.marginHeight = 10;
+        layout.verticalSpacing = 8;
+        container.setLayout(layout);
 
-        usernameText = createField(container, "Username:");
-        machineTypeCombo = createComboField(container, "Machine Type:", new String[]{"SMALL", "MEDIUM", "LARGE"});
-        
-        regionLabel = new Label(container, SWT.NONE);
-        regionLabel.setText("Region:");
-        regionCombo = new Combo(container, SWT.DROP_DOWN | SWT.READ_ONLY);
-        regionCombo.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-        regionCombo.setItems(new String[]{"US", "SINGAPORE", "EUROPE", "JAKARTA"});
+        usernameText = createField(container, "Username:", "Nama user untuk linux user di VM (Untuk AWS hanya bisa 'ubuntu')");
+        machineTypeCombo = createComboField(container, "Machine Type:", new String[]{"SMALL", "MEDIUM", "LARGE"}, "Tentukan ukuran mesin untuk instance");
+        regionCombo = createComboField(container, "Region:", new String[]{}, "Lokasi region untuk instance");
 
-        certificateNameText = createField(container, "Certificate Name:");
-        nginxCertNameText = createField(container, "NGINX Certificate Name:");
-        instanceNameText = createField(container, "Instance Name:");
-        productPrefixText = createField(container, "Product Prefix:");
-        productNameText = createField(container, "Product Name:");
-
+        certificateNameText = createField(container, "Certificate Name:", "Nama sertifikat SSL utama yang digunakan");
+        nginxCertNameText = createField(container, "NGINX Certificate Name:", "Nama sertifikat yang digunakan oleh NGINX");
+        instanceNameText = createField(container, "Instance Name:", "Nama unik untuk VM instance");
+        productPrefixText = createField(container, "Product Prefix:", "Prefix folder produk (contoh: 'aisco' atau 'webshop')");
+        productNameText = createField(container, "Product Name:", "Nama produk spesifik yang akan di-deploy");
 
         Listener validationListener = e -> setPageComplete(isPageComplete());
 
-        // Attach listeners for validation
         usernameText.addListener(SWT.Modify, validationListener);
         machineTypeCombo.addListener(SWT.Selection, validationListener);
         regionCombo.addListener(SWT.Selection, validationListener);
@@ -64,22 +60,27 @@ public class DeploymentConfigPage extends WizardPage {
         setPageComplete(false);
     }
 
-    private Text createField(Composite parent, String labelText) {
+
+    private Text createField(Composite parent, String labelText, String tooltipText) {
         Label label = new Label(parent, SWT.NONE);
         label.setText(labelText);
+        label.setToolTipText(tooltipText);
 
         Text text = new Text(parent, SWT.BORDER);
         text.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        text.setToolTipText(tooltipText);
         return text;
     }
 
-    private Combo createComboField(Composite parent, String labelText, String[] items) {
+    private Combo createComboField(Composite parent, String labelText, String[] items, String tooltipText) {
         Label label = new Label(parent, SWT.NONE);
         label.setText(labelText);
+        label.setToolTipText(tooltipText);
 
         Combo combo = new Combo(parent, SWT.DROP_DOWN | SWT.READ_ONLY);
-        combo.setItems(items);
         combo.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        combo.setItems(items);
+        combo.setToolTipText(tooltipText);
         return combo;
     }
 
@@ -94,7 +95,7 @@ public class DeploymentConfigPage extends WizardPage {
                 && !nginxCertNameText.getText().trim().isEmpty()
                 && !instanceNameText.getText().trim().isEmpty()
                 && !productPrefixText.getText().trim().isEmpty()
-        		&& !productNameText.getText().trim().isEmpty();
+                && !productNameText.getText().trim().isEmpty();
     }
 
     @Override
@@ -105,21 +106,30 @@ public class DeploymentConfigPage extends WizardPage {
             String deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentPage().getSelectedOption();
 
             if ("AWS".equalsIgnoreCase(deploymentTarget)) {
-                regionCombo.setItems(new String[] { "US", "EUROPE", "SINGAPORE" });
-                regionLabel.setVisible(true);
+                regionCombo.setItems(new String[]{"US", "EUROPE", "SINGAPORE"});
                 regionCombo.setVisible(true);
+
+                usernameText.setText("ubuntu");
+                usernameText.setEnabled(false);
+                usernameText.setToolTipText("Untuk AWS, user harus 'ubuntu'");
             } else if ("GCP".equalsIgnoreCase(deploymentTarget)) {
-                regionCombo.setItems(new String[] { "US", "EUROPE", "JAKARTA" });
-                regionLabel.setVisible(true);
+                regionCombo.setItems(new String[]{"US", "EUROPE", "JAKARTA"});
                 regionCombo.setVisible(true);
+
+                usernameText.setEnabled(true);
+                usernameText.setText("");
+                usernameText.setToolTipText("Nama user untuk akses SSH (bebas diisi)");
             } else if ("On-Prem".equalsIgnoreCase(deploymentTarget)) {
                 regionCombo.setItems(new String[0]);
-                regionLabel.setVisible(false);
                 regionCombo.setVisible(false);
+
+                usernameText.setEnabled(true);
+                usernameText.setText("");
+                usernameText.setToolTipText("Nama user lokal untuk akses SSH");
             }
 
             if (regionCombo.isVisible() && regionCombo.getItemCount() > 0) {
-                regionCombo.select(0); // preselect first item
+                regionCombo.select(0);
             }
 
             setPageComplete(isPageComplete());
@@ -154,8 +164,8 @@ public class DeploymentConfigPage extends WizardPage {
     public String getProductPrefix() {
         return productPrefixText.getText();
     }
-    
+
     public String getProductName() {
-    	return productNameText.getText();
+        return productNameText.getText();
     }
 }
