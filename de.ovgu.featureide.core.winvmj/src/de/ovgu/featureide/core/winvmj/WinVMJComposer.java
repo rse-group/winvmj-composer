@@ -37,6 +37,7 @@ import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.MicroserviceProductToCompose;
 import de.ovgu.featureide.core.winvmj.core.impl.MultiLevelDeltaComposer;
 import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
@@ -148,7 +149,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 					String productName = entry.getKey();
 					List<IFeature> featureList = entry.getValue();
 					
-					WinVMJProduct product = new ProductToCompose(featureProject, productName, 
+					WinVMJProduct product = new MicroserviceProductToCompose(featureProject, productName, 
 							featureList, finalModulesMapping, messagingModule);
 					serviceProductMap.put(productName, product);
 					
