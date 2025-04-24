@@ -36,7 +36,6 @@ import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedMicroserviceProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
-import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
 import de.ovgu.featureide.core.winvmj.microservicepreprocessor.ModulePreprocessor;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
@@ -186,14 +185,6 @@ public class SourceCompiler {
 
 			}
 			
-			
-	        for (IFolder productModule : productModules) {
-	        	
-	        	
-	        	
-				
-
-	        }
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}

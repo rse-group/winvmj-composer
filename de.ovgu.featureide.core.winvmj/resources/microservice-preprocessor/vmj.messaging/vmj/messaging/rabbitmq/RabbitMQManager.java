@@ -20,8 +20,8 @@ public class RabbitMQManager {
     private final ThreadLocal<Channel> publisherChannelThreadLocal = new ThreadLocal<>();
     private final ThreadLocal<Channel> consumerChannelThreadLocal = new ThreadLocal<>();
 
-    private final String BASE_EXCHANGE = System.getenv("base_exchange") != null ? System.getenv("base_exchange") : "base_exchange";
-    private final String appId = System.getenv("app_id");
+    private final String BASE_EXCHANGE = System.getenv("BASE_EXCHAGE") != null ? System.getenv("BASE_EXCHAGE") : "base_exchange";
+    private final String APP_ID = System.getenv("APP_ID");
 
     private List<MessageConsumer> consumers = new ArrayList<>();
 
@@ -126,7 +126,7 @@ public class RabbitMQManager {
 
         try {
             AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-                    .appId(appId)
+                    .appId(APP_ID)
                     .contentType("application/json")
                     .deliveryMode(2)
                     .build();
@@ -150,7 +150,7 @@ public class RabbitMQManager {
 
         try {
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-                if (appId.equals(delivery.getProperties().getAppId())) {
+                if (APP_ID.equals(delivery.getProperties().getAppId())) {
                     System.out.println("Skipping own message...");
                     return;
                 }
