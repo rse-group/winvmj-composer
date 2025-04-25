@@ -53,9 +53,9 @@ public class MessageConsumerRegister {
                 "addMessageConsumer",
                 NodeList.nodeList(new NameExpr("messageConsumer"))
         );
-
-        body.addStatement(new ExpressionStmt(messageConsumerDecl));
-        body.addStatement(new ExpressionStmt(addConsumerCall));
+        
+        body.addStatement(0, new ExpressionStmt(addConsumerCall));
+        body.addStatement(0, new ExpressionStmt(messageConsumerDecl));
     }
 }
 

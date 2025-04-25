@@ -10,7 +10,7 @@ import com.github.javaparser.ast.stmt.IfStmt;
 
 import java.util.Set;
 
-public class AttributeSetterModifier {
+public class ConcreteClassCaster {
 
     public static void modifySetAttributesMethod(CompilationUnit cu, Set<String> modelImplFqns) {
         cu.findAll(MethodDeclaration.class).stream()

@@ -11,6 +11,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import vmj.messaging.StateTransferMessage;
+import vmj.messaging.MessageConsumeException;
 
 public class RabbitMQManager {
     private static RabbitMQManager instance;
@@ -147,11 +148,12 @@ public class RabbitMQManager {
             System.out.println("Channel is null");
             return;
         }
-
+        
         try {
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 if (APP_ID.equals(delivery.getProperties().getAppId())) {
                     System.out.println("Skipping own message...");
+                    channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                     return;
                 }
 
@@ -162,13 +164,20 @@ public class RabbitMQManager {
                 Gson gson = new Gson();
                 StateTransferMessage message = gson.fromJson(messageJson, StateTransferMessage.class);
 
-                for (MessageConsumer consumer : consumers) {
-                    consumer.consume(message);
+                try {
+                    for (MessageConsumer consumer : consumers) {
+                        consumer.consume(message);
+                    }
+
+                    channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                } catch (MessageConsumeException e) {
+                    System.err.println("Failed to consume message: " + e.getMessage());
                 }
 
             };
-
-            channel.basicConsume(queueName, true, deliverCallback, consumerTag -> { });
+            
+            boolean autoAck = false;	
+            channel.basicConsume(queueName, autoAck, deliverCallback, consumerTag -> { });
         } catch (IOException e) {
             System.out.println("Error while consuming message");
         }

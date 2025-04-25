@@ -77,10 +77,10 @@ public class QueueBindingTrigger {
         });
     }
 
-    // this.queue = System.getenv("app_id") + "." + routingKey;
+    // this.queue = System.getenv("APP_ID") + "." + routingKey;
     private static ExpressionStmt generateQueueAssignment() {
         MethodCallExpr getenvCall = new MethodCallExpr(new NameExpr("System"), "getenv")
-                .addArgument(new StringLiteralExpr("app_id"));
+                .addArgument(new StringLiteralExpr("APP_ID"));
         BinaryExpr appIdWithDot = new BinaryExpr(getenvCall, new StringLiteralExpr("."), BinaryExpr.Operator.PLUS);
         BinaryExpr queueValue = new BinaryExpr(appIdWithDot, new NameExpr("routingKey"), BinaryExpr.Operator.PLUS);
         AssignExpr assignQueue = new AssignExpr(new NameExpr("this.queue"), queueValue, AssignExpr.Operator.ASSIGN);

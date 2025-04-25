@@ -5,7 +5,9 @@ import java.util.*;
 import vmj.hibernate.integrator.RepositoryUtil;
 import vmj.messaging.Property;
 import vmj.messaging.StateTransferMessage;
+import vmj.messaging.MessageConsumeException;
 import vmj.messaging.rabbitmq.MessageConsumer;
+
 
 class MessageConsumerImpl implements MessageConsumer {
 
@@ -14,26 +16,30 @@ class MessageConsumerImpl implements MessageConsumer {
     public MessageConsumerImpl() {}
 
     @Override
-    public void consume(StateTransferMessage message) {
-        // 🔹 Debug output
-        System.out.println("Deserialized Message:");
-        System.out.println("ID: " + message.getId());
-        System.out.println("Type: " + message.getType());
-        System.out.println("Action: " + message.getAction());
-        System.out.println("Properties:");
-        for (Property property : message.getProperties()) {
-            System.out.println(" - " + property.getVarName() + " (" + property.getType() + "): " + property.getValue());
-        }
+    public void consume(StateTransferMessage message) throws MessageConsumeException {
+        try {
+            // 🔹 Debug output
+            System.out.println("Deserialized Message:");
+            System.out.println("ID: " + message.getId());
+            System.out.println("Type: " + message.getType());
+            System.out.println("Action: " + message.getAction());
+            System.out.println("Properties:");
+            for (Property property : message.getProperties()) {
+                System.out.println(" - " + property.getVarName() + " (" + property.getType() + "): " + property.getValue());
+            }
 
-        switch (message.getAction()) {
-            case "create" -> createObjectHandler(message);
-            case "update" -> updateObjectHandler(message);
-            case "delete" -> deleteObjectHandler(message);
-            default -> System.out.println("Unsupported action: " + message.getAction());
+            switch (message.getAction()) {
+                case "create" -> createObjectHandler(message);
+                case "update" -> updateObjectHandler(message);
+                case "delete" -> deleteObjectHandler(message);
+                default -> System.out.println("Unsupported action: " + message.getAction());
+            }
+        } catch (Exception e) {
+            throw new MessageConsumeException("Failed to consume message", e);
         }
     }
 
-    private void createObjectHandler(StateTransferMessage message) {
+    private void createObjectHandler(StateTransferMessage message) throws Exception {
         String domainInterface = message.getType();
 
         String fqn = "";
@@ -48,7 +54,7 @@ class MessageConsumerImpl implements MessageConsumer {
 
     }
 
-    private void updateObjectHandler(StateTransferMessage message) {
+    private void updateObjectHandler(StateTransferMessage message) throws Exception {
         Object domainObject;
         String domainInterface = message.getType();
         String moduleName = message.getModuleName();
@@ -97,7 +103,7 @@ class MessageConsumerImpl implements MessageConsumer {
         }
     }
 
-    private Object parsingObject(Property property){
+    private Object parsingObject(Property property) throws ParseException {
         String varName = property.getVarName();
         String type = property.getType();
         Object value = property.getValue();
@@ -115,12 +121,7 @@ class MessageConsumerImpl implements MessageConsumer {
         else if (type.equals("UUID")){
             value = UUID.fromString(valueStr);
         } else if (type.equals("Date")) {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-            try {
-                value = dateFormat.parse(valueStr);
-            } catch (ParseException e) {
-                e.printStackTrace();
-            }
+        	value = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").parse(valueStr);
         } else if (type.equals("boolean") || type.equals("Boolean")) {
             value = Boolean.parseBoolean(valueStr);
         } else if (type.equals("float") || type.equals("Float")) {
@@ -135,20 +136,16 @@ class MessageConsumerImpl implements MessageConsumer {
         return value;
     }
 
-    private void setAttributes(Object obj, String domainClassImpl, Map<String, Object> attributes) {
+    private void setAttributes(Object obj, String domainClassImpl, Map<String, Object> attributes) throws Exception	 {
         Class<?> clazz = obj.getClass();
 
         for (Map.Entry<String, Object> entry : attributes.entrySet()) {
-            try {
-            	Field field = getFieldFromHierarchy(clazz, entry.getKey());
-                field.setAccessible(true);
+        	Field field = getFieldFromHierarchy(clazz, entry.getKey());
+            field.setAccessible(true);
 
-                Object value = entry.getValue();
+            Object value = entry.getValue();
 
-                field.set(obj, value);
-            } catch (NoSuchFieldException | IllegalAccessException e) {
-                e.printStackTrace();
-            }
+            field.set(obj, value);
         }
     }
     

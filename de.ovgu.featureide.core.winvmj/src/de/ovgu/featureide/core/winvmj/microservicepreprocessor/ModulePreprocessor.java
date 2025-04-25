@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -68,7 +67,7 @@ public class ModulePreprocessor {
             addImportStatement(messageConsumerCu, domainModelInterfacesFqn);
             
             Set<String> domainImplementationsFqnSet = ModelLayerExtractor.extractModelImplementationsFqn(moduleDirs);
-            AttributeSetterModifier.modifySetAttributesMethod(messageConsumerCu, domainImplementationsFqnSet);
+            ConcreteClassCaster.modifySetAttributesMethod(messageConsumerCu, domainImplementationsFqnSet);
             
             ModelFactoryExtractor.initializeObjectFactory(moduleDirs, messageConsumerCu);
             RepositoryExtractor.initializeRepositoryMap(moduleDirs, messageConsumerCu);
