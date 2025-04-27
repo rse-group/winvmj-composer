@@ -7,11 +7,13 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -195,6 +197,29 @@ public class Utils {
 
         return serviceDefinition;
     }
+	
+	public static Set<String> getSelectedFeatureModulesName(List<IFeature> selectedFeatures, 
+			IProject project) throws CoreException{
+		Map<String, List<String>> featureToModuleNameMap = getFeatureToModuleMap(project);
+		return getSelectedFeatureModulesName(selectedFeatures, featureToModuleNameMap);
+		
+	}
+	
+	public static Set<String> getSelectedFeatureModulesName(List<IFeature> selectedFeatures, 
+			Map<String, List<String>> featureToModuleNameMap){
+		Set<String> selectedFeatureModulesName = new HashSet<String>();
+		if (selectedFeatures != null) {
+	    	for (IFeature feature : selectedFeatures) {
+	    		List<String> featureModulesName = featureToModuleNameMap.getOrDefault(feature.getName(), null);
+	    		if (featureModulesName != null) {
+	    			for (String moduleName : featureModulesName) {
+	    				selectedFeatureModulesName.add(moduleName);
+	    			}
+	    		}
+	    	}
+	    }
+		return selectedFeatureModulesName;
+	}
 	
 	public static Map<String, List<String>> getFeatureToModuleMap(IProject project) throws CoreException{
 		Reader mapReader = new InputStreamReader(project

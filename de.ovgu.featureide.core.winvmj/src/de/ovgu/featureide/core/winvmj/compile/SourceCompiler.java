@@ -124,18 +124,8 @@ public class SourceCompiler {
 				    List<IFolder> modifiedModules = new ArrayList<>();
 				    
 				    	// get all selected feature module of a micro-service from service-def.json 
-				    Set<String> selectedFeatureModulesName = new HashSet<String>();
 				    List<IFeature> selectedFeatures = serviceDefMap.getOrDefault((sourceProduct.getProductName()), null);
-				    if (selectedFeatures != null) {
-				    	for (IFeature feature : selectedFeatures) {
-				    		List<String> featureModulesName = featureToModuleNameMap.getOrDefault(feature.getName(), null);
-				    		if (featureModulesName != null) {
-				    			for (String moduleName : featureModulesName) {
-				    				selectedFeatureModulesName.add(moduleName);
-				    			}
-				    		}
-				    	}
-				    }
+				    Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(selectedFeatures, featureToModuleNameMap);
 
 				    for (IFolder module : sourceProduct.getModules()) {
 				        if (duplicateModuleNames.contains(module.getName())) {
@@ -153,7 +143,6 @@ public class SourceCompiler {
 				        }
 				    }
 
-				    
 				    compileModules(project, compiledProductDir, sourceProduct);
 
 				    // Restore module
@@ -162,10 +151,10 @@ public class SourceCompiler {
 				        if (module.exists()) module.delete(true, null);
 				        backup.copy(module.getFullPath(), true, null); 
 				    }
- 
-					
+				    
 					insertSqlFolder(compiledProductDir, project);
 				}
+				compileAndPackageApiGateway(project);
 				
 				
 			} else {
@@ -728,4 +717,62 @@ public class SourceCompiler {
 		}
 		WinVMJConsole.println("SQL Files inserted");
 	}
+	
+	public static void compileAndPackageApiGateway(IFeatureProject project) throws IOException, CoreException {
+		String apiGatewayDirName = "ApiGateway";
+		
+		IFolder binFolder = project.getProject().getFolder("bin-comp");
+		if (!binFolder.exists()){
+			binFolder.create(true, true, null);
+		}
+		
+		IFolder apiGatewayBin = binFolder.getFolder(apiGatewayDirName); // bin-comp/ApiGateway
+		IFolder compiledApiGatewayDir = project.getProject().getFolder(OUTPUT_FOLDER).getFolder(apiGatewayDirName); // src-gen/ApiGateway
+
+	    if (!apiGatewayBin.exists()) {
+	    	apiGatewayBin.create(true, true, null);
+	    }
+	    if (!compiledApiGatewayDir.exists()) {
+	    	compiledApiGatewayDir.create(true, true, null);
+	    }
+
+	    String sourceFile = project.getBuildFolder().getFolder("ApiGateway").getFile("ApiGateway.java").getLocation().toOSString();
+
+	    // Compile command
+	    List<String> compileCommand = new ArrayList<>();
+	    compileCommand.add("javac");
+	    compileCommand.add("-d");
+	    compileCommand.add(apiGatewayBin.getLocation().toOSString());
+	    compileCommand.add(sourceFile);
+
+	    JavaCLI.execute(
+	            "Compiling ApiGateway...", 
+	            "ApiGateway compiled", 
+	            compileCommand
+	    );
+
+	    // Jar command
+	    List<String> jarCommand = new ArrayList<>();
+	    jarCommand.add("jar");
+	    jarCommand.add("--create");
+	    jarCommand.add("--file");
+	    jarCommand.add(compiledApiGatewayDir.getLocation().append(apiGatewayDirName + ".jar").toOSString()); // src-gen/ApiGateway/ApiGateway.jar
+	    jarCommand.add("--main-class");
+	    jarCommand.add("ApiGateway");
+	    jarCommand.add("-C");
+	    jarCommand.add(apiGatewayBin.getLocation().toOSString());
+	    jarCommand.add(".");
+
+	    System.out.println(String.join(" ", jarCommand));
+
+	    JavaCLI.execute(
+	            "Packaging ApiGateway...", 
+	            "ApiGateway packaged", 
+	            jarCommand
+	    );
+	    
+	    InternalResourceManager.loadResourceFile("microservice-preprocessor/api-gateway/run.bat",
+				compiledApiGatewayDir.getLocation().toOSString() + "/run.bat");
+	}
+
 }

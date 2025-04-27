@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -102,6 +104,23 @@ public class ModulePreprocessor {
         ModuleInfoModifier.modifyModuleInfo(cu, productModule);
 
         overwriteFile(moduleInfoFile, cu);
+    }
+    
+    public static void registerRoutingToApiGateway(Map<String, Set<IFolder>> serviceFeatureModuleMap, IFile apiGatewayFile) {
+    	
+    	Map<String, Set<String>> serviceToEndpointsMap = new HashMap<String, Set<String>>();
+    	for (Map.Entry<String, Set<IFolder>> entry : serviceFeatureModuleMap.entrySet()) {
+			String serviceName = entry.getKey();
+			Set<IFolder> selectedFeatureModules = entry.getValue();
+			
+			Set<String> exposedServiceEndpoints = ResourceLayerExtractor.extractEndpoints(selectedFeatureModules);
+			serviceToEndpointsMap.put(serviceName, exposedServiceEndpoints);
+    	}
+    	
+    	CompilationUnit cu = JavaParserUtil.parse(apiGatewayFile);
+    	RoutingMapAdder.addRoutingMap(cu, serviceToEndpointsMap);
+
+        overwriteFile(apiGatewayFile, cu);
     }
     
     

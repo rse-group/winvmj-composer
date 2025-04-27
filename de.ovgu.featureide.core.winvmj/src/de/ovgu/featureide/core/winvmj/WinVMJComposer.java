@@ -141,17 +141,23 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				if (!messagingModule.exists()) messagingModule.create(false, true, null);
 		        InternalResourceManager.loadResourceDirectory("microservice-preprocessor/" + messagingModuleName, 
 		        		messagingModule.getLocation().toOSString());
+		        
+		        // Add ApiGateway to build directory
+		    	IFolder apiGatewayDir = buildDir.getFolder("ApiGateway");
+				if (!apiGatewayDir.exists()) apiGatewayDir.create(false, true, null);
+				InternalResourceManager.loadResourceDirectory("microservice-preprocessor/api-gateway", 
+						apiGatewayDir.getLocation().toOSString());
 		    	
+				// Instantiate WinVMJProduct for each service and identify duplicate module
 		    	Map<String,Integer> modulesCount = new HashMap<String, Integer>();
-		    	Map<String, WinVMJProduct> serviceProductMap = new HashMap<String, WinVMJProduct>();
-		    	
+		    	Set<WinVMJProduct> serviceProducts = new HashSet<WinVMJProduct>();
 		    	for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
 					String productName = entry.getKey();
-					List<IFeature> featureList = entry.getValue();
+					List<IFeature> selectedFeatures = entry.getValue();
 					
 					WinVMJProduct product = new MicroserviceProductToCompose(featureProject, productName, 
-							featureList, finalModulesMapping, messagingModule);
-					serviceProductMap.put(productName, product);
+							selectedFeatures, finalModulesMapping, messagingModule);
+					serviceProducts.add(product);
 					
 					
 					for (IFolder module : product.getModules()) {
@@ -164,34 +170,30 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		        }
 		    	
 		    	Set<String> duplicateModuleNames = new HashSet<>();
+		    	Set<IFolder> duplicateModules = new HashSet<>();
 		    	for (Map.Entry<String, Integer> entry : modulesCount.entrySet()) {
-		    		String module = entry.getKey();
+		    		String moduleName = entry.getKey();
 					Integer moduleCount = entry.getValue();
 					
 					if (moduleCount >= 2) {
-						duplicateModuleNames.add(module);
+						duplicateModuleNames.add(moduleName);
+						IFolder module = featureProject.getBuildFolder().getFolder(moduleName);
+			    		duplicateModules.add(module);
 					}
 		    	}
 		    	
 		    	// Compose product module and move module to build folder
-		    	for (Map.Entry<String, WinVMJProduct> entry : serviceProductMap.entrySet()) {
-		    		String productName = entry.getKey();
-		    		WinVMJProduct product = entry.getValue();
+		    	for (WinVMJProduct product : serviceProducts) {
+		    		String productName = product.getProductName();
 		    		List<IFeature> featureList = serviceDefinition.get(productName);
 		    		
 		    		composeMicroserviceProduct(product, featureList);
 		    	}
 		    	
 		    	// Pre-process duplicate feature module and product module
-		    	Set<IFolder> duplicateModules = new HashSet<>();
-		    	for (String moduleName : duplicateModuleNames) {
-		    		IFolder module = featureProject.getBuildFolder().getFolder(moduleName);
-		    		duplicateModules.add(module);
-		    	}
-		    	
 		        ModulePreprocessor.modifyServiceImplClass(duplicateModules);
 		        
-		        for (WinVMJProduct product : serviceProductMap.values()) {
+		        for (WinVMJProduct product : serviceProducts) {
 		        	IFolder productModule = featureProject.getBuildFolder()
 							.getFolder(product.getProductQualifiedName());
 		        	
@@ -204,6 +206,26 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		        	
 			        ModulePreprocessor.modifyProductModule(duplicateModulesOnProduct,productModule, product.getProductName());
 		    	}
+		        
+		        // Pre-process ApiGateway
+		        Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(featureProject.getProject());
+		        Map<String, Set<IFolder>> serviceFeatureModuleMap = new HashMap<String, Set<IFolder>>();
+		        for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
+					String productName = entry.getKey();
+					List<IFeature> selectedFeatures = entry.getValue();
+					
+					Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(selectedFeatures, featureToModuleNameMap);
+					Set<IFolder> selectedModules = new HashSet<IFolder>();
+					for (String moduleName : selectedFeatureModulesName) {
+						selectedModules.add(buildDir.getFolder(moduleName));
+					}
+					serviceFeatureModuleMap.put(productName,selectedModules);
+		        }
+		    	String apiGatewayFilename = "ApiGateway.java";
+		    	apiGatewayDir.refreshLocal(IResource.DEPTH_INFINITE, null);
+		        ModulePreprocessor.registerRoutingToApiGateway(serviceFeatureModuleMap, apiGatewayDir.getFile(apiGatewayFilename));
+		        
+		        
 		        
 		        WinVMJConsole.println("Completed compose microservices product");
 		    	
