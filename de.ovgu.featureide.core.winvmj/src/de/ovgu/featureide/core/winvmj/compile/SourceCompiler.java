@@ -52,6 +52,13 @@ public class SourceCompiler {
 	private static String OUTPUT_FOLDER = "src-gen";
 	private static String OUTPUT_MODULES_FOLDER = "modules-gen";
 	private static String MODULES_FOLDER = "modules";
+	private static ArrayList<String> WINVMJ_LIBRARIES = new ArrayList<>(Arrays.asList(
+		"vmj.auth",
+		"vmj.auth.model",
+		"vmj.hibernate.integrator",
+		"vmj.object.mapper",
+		"vmj.routing.route"
+	));
 
 	private SourceCompiler() {
 	};
@@ -113,6 +120,8 @@ public class SourceCompiler {
 	        boolean requiresUpdate = false;
 
 	        for (String require : requirements) {
+	        	if (WINVMJ_LIBRARIES.contains(require)) continue;
+				
 	            IFolder requireFolder = project.getProject().getFolder(MODULES_FOLDER).getFolder(require);
 	            if (requireFolder.exists()) {
 	                IFile generatedJar = compiledModulesDir.getFile(require + ".jar");
