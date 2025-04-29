@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelConfiguration;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizardPage;
@@ -28,7 +28,7 @@ public class FeatureWizardPage extends AbstractWizardPage {
     private ListViewer listViewer;
     private String selectedFile;
     private IFeatureProject project;
-    private MultiStageConfiguration multiStageConfiguration = new MultiStageConfiguration();
+    private MultiLevelConfiguration multiLevelConfiguration = new MultiLevelConfiguration();
     private final Map<String, Object> dataMap = new HashMap<String, Object>();
 
     public FeatureWizardPage() {
@@ -84,7 +84,7 @@ public class FeatureWizardPage extends AbstractWizardPage {
 
     private ArrayList<String> findUvlFiles() {
         ArrayList<String> fileList = new ArrayList<>();
-        for (IFile file : multiStageConfiguration.getAllFeatureModelNames(this.project)) {
+        for (IFile file : multiLevelConfiguration.getAllFeatureModelNames(this.project)) {
             fileList.add(file.getName());
         }
         // fileList.add(this.project.getModelFile().getName());

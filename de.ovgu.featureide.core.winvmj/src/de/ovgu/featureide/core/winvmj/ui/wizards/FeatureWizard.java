@@ -3,7 +3,7 @@ package de.ovgu.featureide.core.winvmj.ui.wizards;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
-import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelConfiguration;
 import de.ovgu.featureide.core.winvmj.ui.wizards.pages.*;
 
 import java.io.IOException;
@@ -34,7 +34,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizard;
-import de.ovgu.featureide.core.winvmj.templates.impl.MultiStageConfiguration;
+import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelConfiguration;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import java.lang.reflect.InvocationTargetException;
@@ -90,7 +90,7 @@ import static de.ovgu.featureide.fm.core.localization.StringTable.OPENING_FILE_F
 public class FeatureWizard extends Wizard {
 
     private ProjectNameWizardPage projectNamePage;
-	private MultiStageConfiguration multiStageConfiguration = new MultiStageConfiguration();
+	private MultiLevelConfiguration multiStageConfiguration = new MultiLevelConfiguration();
 	private SelectAllUvlWizardPage selectAllUvlWizardPage;
     private FeatureWizardPage featureWizardPage;
     private SelectFeaturesWizardPage selectFeaturesWizardPage;

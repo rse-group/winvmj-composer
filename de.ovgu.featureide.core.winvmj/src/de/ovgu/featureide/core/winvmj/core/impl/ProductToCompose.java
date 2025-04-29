@@ -69,6 +69,14 @@ public class ProductToCompose extends WinVMJProduct {
 			throws CoreException, ParserException {
 		List<IFolder> selectedModules = new ArrayList<>();
 		selectedModules.addAll(selectExternalModules(project, features));
+		
+//		features = features.stream()
+//			    .map(f -> {
+//			        String name = f.getName();
+//			        String shortName = name.contains(".") ? name.substring(name.indexOf('.') + 1) : name;
+//			        return new Feature(project.getFeatureModel(), shortName);
+//			    })
+//			    .collect(Collectors.toList());
 		selectedModules.addAll(selectAndOrderModulesByMapping(project, features));
 		return selectedModules.stream().distinct().collect(Collectors.toList());
 	}

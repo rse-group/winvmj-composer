@@ -46,10 +46,10 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.LinkedHashMap;
 
-public class MultiStageConfiguration {
+public class MultiLevelConfiguration {
 	private WinVMJProduct product;
 	private WinVMJComposer composer =  new WinVMJComposer();
-	private static String FEATURE_MODEL_FOLDER = "featureModels";
+	private static String FEATURE_MODEL_FOLDER = "interfaces";
 	
 	public static List<IFile> getAllFeatureModelNames(IFeatureProject featureProject){
 		List<IFile> featureModelNames = new ArrayList<>();
