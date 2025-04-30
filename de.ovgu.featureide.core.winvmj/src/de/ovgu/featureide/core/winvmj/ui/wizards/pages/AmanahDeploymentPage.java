@@ -17,7 +17,7 @@ public class AmanahDeploymentPage extends WizardPage {
     public AmanahDeploymentPage(String pageName) {
         super(pageName);
         setTitle("Amanah SSH Configuration");
-        setDescription("Enter SSH tunnel port, private key file (.pem), and username for Amanah deployment.");
+        setDescription("Enter SSH tunnel port, private key file, username, product name and product file dir for Amanah deployment.");
     }
 
     @Override
@@ -79,6 +79,14 @@ public class AmanahDeploymentPage extends WizardPage {
                 setPageComplete(isPageComplete());
             }
         });
+        
+        // Tip Label (Reminder for SSH port forwarding)
+        Label tipLabel = new Label(container, SWT.WRAP);
+        tipLabel.setText("Tip: Pastikan Anda sudah membuka koneksi SSH port forwarding ke server Kawung sebelum melakukan deployment.\n");
+        GridData gdTipLabel = new GridData(SWT.FILL, SWT.TOP, true, false);
+        gdTipLabel.horizontalSpan = 3;
+        gdTipLabel.widthHint = 500; 
+        tipLabel.setLayoutData(gdTipLabel);
 
         setControl(container);
         setPageComplete(false);
