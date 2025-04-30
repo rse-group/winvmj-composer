@@ -13,7 +13,6 @@ public class DeploymentConfigPage extends WizardPage {
     private Text usernameText;
     private Combo machineTypeCombo;
     private Combo regionCombo;
-    private Label regionLabel;
     private Text certificateNameText;
     private Text nginxCertNameText;
     private Text instanceNameText;

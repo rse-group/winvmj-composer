@@ -16,8 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Display;
-
-
+import org.eclipse.jface.wizard.IWizardPage;
 import org.eclipse.jface.wizard.Wizard;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.ui.wizards.pages.*;
@@ -29,6 +28,7 @@ public class DeploymentWizard extends Wizard {
     private SelectDeploymentPage deploymentPage;
     private CredentialAndProductPage filePage;
     private DeploymentConfigPage configPage;
+    private AmanahDeploymentPage amanahPage;
 
     public DeploymentWizard() {
         setWindowTitle("Deployment Wizard");
@@ -39,15 +39,91 @@ public class DeploymentWizard extends Wizard {
     	deploymentPage = new SelectDeploymentPage("Deployment Selection");
         filePage = new CredentialAndProductPage("File Selection");
         configPage = new DeploymentConfigPage("Configuration");
+        amanahPage = new AmanahDeploymentPage("Amanah Configuration");
 
         addPage(deploymentPage);
         addPage(filePage);
         addPage(configPage);
+        addPage(amanahPage);
     }
+    
+    @Override
+    public IWizardPage getNextPage(IWizardPage page) {
+        if (page == deploymentPage) {
+            String method = deploymentPage.getSelectedOption();
+            if ("amanah".equalsIgnoreCase(method)) {
+                return amanahPage;
+            } else {
+                return filePage;
+            }
+        } else if (page == filePage) {
+            return configPage;
+        }
+        // amanahPage does not lead to any further page
+        return null;
+    }
+
 
     @Override
     public boolean performFinish() {
-        String selectedOption = deploymentPage.getSelectedOption().toLowerCase();
+    	String selectedOption = deploymentPage.getSelectedOption().toLowerCase();
+
+        if ("amanah".equalsIgnoreCase(selectedOption)) {
+            String tunnelPort = amanahPage.getTunnelPort();
+            String privateKeyPath = amanahPage.getPrivateKeyPath();
+            String usernameAmanah = amanahPage.getUsername();
+            String productName = amanahPage.getProductName();
+            String productFile = amanahPage.getProductFile();
+
+            
+            String scriptDir = locateScriptDir();
+
+            String finalScriptPath = scriptDir + "\\deploy_amanah.bat";
+            
+            WinVMJConsole.println("Deployment Script: " + finalScriptPath);
+            
+            new Thread(() -> {
+            	List<String> amanahCommand = new ArrayList<>();
+            	amanahCommand.add("cmd.exe");
+                amanahCommand.add("/c");
+            	amanahCommand.add(finalScriptPath);
+            	amanahCommand.add(privateKeyPath); 
+            	amanahCommand.add(usernameAmanah);
+            	amanahCommand.add(tunnelPort);
+            	amanahCommand.add(productName);
+            	amanahCommand.add(productFile);
+            	
+            	try {
+            		ProcessBuilder builder = new ProcessBuilder(amanahCommand);
+            		builder.redirectErrorStream(true);
+                    Process process = builder.start();
+                    
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            WinVMJConsole.println("[SCRIPT OUTPUT] " + line);
+                        }
+                    }
+                    int exitCode = process.waitFor();
+                    WinVMJConsole.println("Deployment completed with exit code: " + exitCode);
+                    
+                } catch (Exception e) {
+                    WinVMJConsole.println("[ERROR] Failed to deploy: " + e.getMessage());
+                }
+            	
+            	
+            }).start();
+            
+            
+
+            return true;
+        }
+        
+        
+        
+    	
+    	
+    	
         String credentialPath = filePage.getCredentialFilePath();
         String productZipPath = filePage.getProductFilePath();
         String username = configPage.getUsername();
@@ -116,9 +192,9 @@ public class DeploymentWizard extends Wizard {
                 }
 
                 int exitCode = process.waitFor();
-                WinVMJConsole.println("Directory listing completed with exit code: " + exitCode);
+                WinVMJConsole.println("Deployment completed with exit code: " + exitCode);
             } catch (Exception e) {
-                WinVMJConsole.println("Failed to run ls command: " + e.getMessage());
+                WinVMJConsole.println("Failed to run command: " + e.getMessage());
                 e.printStackTrace();
             }
         }).start();
@@ -130,10 +206,16 @@ public class DeploymentWizard extends Wizard {
     
     @Override
     public boolean canFinish() {
-        return deploymentPage.isPageComplete()
-            && filePage.isPageComplete()
-            && configPage.isPageComplete();
+        String method = deploymentPage.getSelectedOption();
+        if ("amanah".equalsIgnoreCase(method)) {
+            return deploymentPage.isPageComplete() && amanahPage.isPageComplete();
+        } else {
+            return deploymentPage.isPageComplete()
+                && filePage.isPageComplete()
+                && configPage.isPageComplete();
+        }
     }
+
     
     
     

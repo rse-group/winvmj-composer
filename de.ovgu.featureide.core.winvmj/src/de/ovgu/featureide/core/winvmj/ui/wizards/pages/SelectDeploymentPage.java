@@ -38,9 +38,16 @@ public class SelectDeploymentPage extends WizardPage {
         });
 
         Button onPremButton = new Button(container, SWT.RADIO);
-        onPremButton.setText("On-Prem");
+        onPremButton.setText("On-Prem (Amanah Server)");
         onPremButton.addListener(SWT.Selection, e -> {
-            selectedOption = "On-Prem";
+            selectedOption = "amanah";
+            setPageComplete(isPageComplete());
+        });
+        
+        Button microServiceButton = new Button(container, SWT.RADIO);
+        microServiceButton.setText("Microservice (Docker)");
+        microServiceButton.addListener(SWT.Selection, e -> {
+            selectedOption = "microservice";
             setPageComplete(isPageComplete());
         });
 
