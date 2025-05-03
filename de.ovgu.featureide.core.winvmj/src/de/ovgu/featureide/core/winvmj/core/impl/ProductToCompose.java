@@ -70,13 +70,13 @@ public class ProductToCompose extends WinVMJProduct {
 		List<IFolder> selectedModules = new ArrayList<>();
 		selectedModules.addAll(selectExternalModules(project, features));
 		
-//		features = features.stream()
-//			    .map(f -> {
-//			        String name = f.getName();
-//			        String shortName = name.contains(".") ? name.substring(name.indexOf('.') + 1) : name;
-//			        return new Feature(project.getFeatureModel(), shortName);
-//			    })
-//			    .collect(Collectors.toList());
+		features = features.stream()
+			    .map(f -> {
+			        String name = f.getName();
+			        String shortName = name.contains(".") ? name.substring(name.indexOf('.') + 1) : name;
+			        return new Feature(project.getFeatureModel(), shortName);
+			    })
+			    .collect(Collectors.toList());
 		selectedModules.addAll(selectAndOrderModulesByMapping(project, features));
 		return selectedModules.stream().distinct().collect(Collectors.toList());
 	}
@@ -85,6 +85,7 @@ public class ProductToCompose extends WinVMJProduct {
 			List<IFeature> features) throws CoreException, ParserException {
 		CorePlugin.getDefault();
 		
+		WinVMJConsole.println("Project " + project.getFeatureModel().getStructure().getRoot().getFeature().getName());
 		Map<String, IFeatureProject> refProjectMap = 
 				Stream.of(project.getProject().getReferencedProjects())
 				.map(pr -> CorePlugin.getFeatureProject(pr))
