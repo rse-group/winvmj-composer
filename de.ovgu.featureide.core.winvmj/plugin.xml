@@ -99,6 +99,13 @@
                   style="push"
             >
             </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
+                  label="Deployment Menu"
+                  style="push">
+            </command>
          </menu>
       </menuContribution>
    </extension>
@@ -123,6 +130,10 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.OpenFeatureWizardHandler"
             commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.DeploymentMenuWizardHandler"
+            commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler">
       </handler>
    </extension>
 </plugin>
