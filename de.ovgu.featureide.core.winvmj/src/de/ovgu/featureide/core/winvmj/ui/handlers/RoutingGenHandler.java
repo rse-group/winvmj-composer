@@ -2,10 +2,12 @@ package de.ovgu.featureide.core.winvmj.ui.handlers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.Platform;
@@ -44,9 +46,9 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 				List<IProject> filteredProject = new ArrayList<>();
 				WinVMJConsole.println("Filtering project...");
 				for (IProject project : projects) {
-					if (projectIsReact(project)) {
-						filteredProject.add(project);
-					}
+					 if (projectIsEmpty(project)) {
+					        filteredProject.add(project);
+					    }
 				}
 				
 				Display.getDefault().asyncExec(new Runnable() {
@@ -94,6 +96,33 @@ public class RoutingGenHandler extends AFeatureProjectHandler {
 			}
 		};
 		LongRunningWrapper.getRunner(job, "Compile JAR").schedule();
+	}
+	
+	
+	private static boolean projectIsEmpty(IProject project) {
+	    try {
+	        if (project.exists() && project.isOpen()) {
+	            
+	            IResource[] members = project.members();
+	            
+	            boolean isEmpty = true;
+	            
+	            for (IResource resource : members) {
+	                String name = resource.getName();
+	                if(name.equals(".project") || name.equals(".settings")) {
+	                	continue;
+	                }else {
+	                	isEmpty = false;
+	                }
+	            }
+	            return isEmpty;
+	        }
+	        return false;
+	    } catch (Exception e) {
+	        WinVMJConsole.println("Error checking if project is empty: " + e.getMessage());
+	        e.printStackTrace();
+	        return false;
+	    }
 	}
 	
 	private static boolean projectIsReact(IProject project) {
