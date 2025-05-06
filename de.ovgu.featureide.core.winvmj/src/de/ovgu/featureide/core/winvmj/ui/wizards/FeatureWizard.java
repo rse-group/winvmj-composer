@@ -274,6 +274,12 @@ public class FeatureWizard extends Wizard {
 			MessageDialog.openError(getShell(), "Error", realException.getMessage());
 			return false;
 		}
+		
+		MessageDialog.openInformation(
+		        getShell(),
+		        "Configuration Complete",
+		        "Product configuration finished.\nConfiguration file has been generated successfully."
+		);
         
         return true;
     }
