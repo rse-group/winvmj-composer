@@ -208,6 +208,12 @@ public abstract class PublishMessageTrigger {
         publishCall.addArgument(new NameExpr("routingKey"));
         publishCall.addArgument(new NameExpr("message"));
         newExpressionList.add(publishCall);
+        
+        // Clear properties list after message is published
+        // To handle the case where properties collected inside for loop, 
+        // we do not want the property to accumulate while the for loop is running.
+        MethodCallExpr clearCall = new MethodCallExpr(new NameExpr(propertiesVarName), "clear");
+        newExpressionList.add(clearCall);
 
         method.findAll(MethodCallExpr.class).forEach(methodCall -> {
             if (methodCall.getNameAsString().equals(repositoryOperation) && methodCall.getScope().isPresent()) {
