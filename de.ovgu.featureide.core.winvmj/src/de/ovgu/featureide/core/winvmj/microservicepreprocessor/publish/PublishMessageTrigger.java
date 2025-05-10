@@ -149,9 +149,6 @@ public abstract class PublishMessageTrigger {
                 	    ),
                 	    AssignExpr.Operator.ASSIGN
                 	);
-
-                	newExpressionList.add(unwrapAssign);
-
                 newExpressionList.add(unwrapAssign);
             }	
             
