@@ -85,10 +85,7 @@
 	                  <with variable="activeMenuSelection">
 	                     <iterate ifEmpty="false">
 	                        <adapt type="org.eclipse.core.resources.IFolder">
-	                        	<or>
- 									<test property="org.eclipse.core.resources.path" value="*/modules/*"/>
- 									<test property="org.eclipse.core.resources.path" value="*/src/*"/>
- 								</or>
+								<test property="org.eclipse.core.resources.path" value="*/modules/*"/>
 	                        </adapt>
 	                     </iterate>
 	                  </with>
@@ -98,9 +95,16 @@
                   commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
                   icon="resources/icons/FeatureIconSmall.ico"
                   id="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
-                  label="Open Feature Wizard"
+                  label="Multi Level Configuration"
                   style="push"
             >
+            </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
+                  label="Deployment Menu"
+                  style="push">
             </command>
             <command
                   commandId="de.ovgu.featureide.core.winvmj.microservicescomposehandler"
@@ -147,6 +151,10 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.OpenFeatureWizardHandler"
             commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.DeploymentMenuWizardHandler"
+            commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler">
       </handler>
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.MicroservicesComposeHandler"

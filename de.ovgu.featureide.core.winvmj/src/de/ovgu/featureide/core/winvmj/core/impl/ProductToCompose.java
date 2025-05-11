@@ -1,32 +1,46 @@
 package de.ovgu.featureide.core.winvmj.core.impl;
 
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.logicng.datastructures.Assignment;
+import org.logicng.formulas.Formula;
 import org.logicng.formulas.FormulaFactory;
+import org.logicng.formulas.Variable;
 import org.logicng.io.parsers.ParserException;
 import org.logicng.io.parsers.PropositionalParser;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.fm.core.base.IFeature;
 import de.ovgu.featureide.fm.core.base.impl.Feature;
 import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel;
 import de.ovgu.featureide.fm.core.base.impl.MultiFeatureModel.UsedModel;
+import de.ovgu.featureide.fm.core.io.EclipseFileSystem;
 
 public class ProductToCompose extends WinVMJProduct {
 	
@@ -43,10 +57,28 @@ public class ProductToCompose extends WinVMJProduct {
 		}
 	}
 	
-	protected List<IFolder> selectModules(IFeatureProject project, List<IFeature> features) 
+    public ProductToCompose(IFeatureProject featureProject, String productName, ArrayList<IFeature> selectedFeatures) {
+        this.productName = productName;
+        this.splName = Utils.getSplName(featureProject);
+        try {
+            this.modules = selectModules(featureProject, selectedFeatures);
+        } catch (CoreException | ParserException e) {
+            this.modules = null;
+        }
+    }
+
+    protected List<IFolder> selectModules(IFeatureProject project, List<IFeature> features) 
 			throws CoreException, ParserException {
 		List<IFolder> selectedModules = new ArrayList<>();
 		selectedModules.addAll(selectExternalModules(project, features));
+		
+		features = features.stream()
+			    .map(f -> {
+			        String name = f.getName();
+			        String shortName = name.contains(".") ? name.substring(name.indexOf('.') + 1) : name;
+			        return new Feature(project.getFeatureModel(), shortName);
+			    })
+			    .collect(Collectors.toList());
 		selectedModules.addAll(selectAndOrderModulesByMapping(project, features));
 		return selectedModules.stream().distinct().collect(Collectors.toList());
 	}
@@ -54,12 +86,19 @@ public class ProductToCompose extends WinVMJProduct {
 	private List<IFolder> selectExternalModules(IFeatureProject project, 
 			List<IFeature> features) throws CoreException, ParserException {
 		CorePlugin.getDefault();
+		
+		WinVMJConsole.println("Project " + project.getFeatureModel().getStructure().getRoot().getFeature().getName());
 		Map<String, IFeatureProject> refProjectMap = 
 				Stream.of(project.getProject().getReferencedProjects())
 				.map(pr -> CorePlugin.getFeatureProject(pr))
 				.collect(Collectors.toMap(pr -> Utils.getSplName(pr), Function.identity()));
 		
 		List<IFolder> selectedModules = new ArrayList<>();
+		
+		if (refProjectMap.isEmpty()) {
+	        return selectedModules;
+	    }
+		
 		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
 		if (multiFetureModel.isMultiProductLineModel()) {
 			for (Entry<String, UsedModel> interfaceModel: multiFetureModel

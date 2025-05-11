@@ -3,7 +3,7 @@
    <feature url="features/de.ovgu.featureide_3.11.1.202410061546.jar" id="de.ovgu.featureide" version="3.11.1.202410061546">
       <category name="WinVMJ Composer Dependencies"/>
    </feature>
-   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.3.0.202503041840.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.3.0.202503041840">
+   <feature url="features/de.ovgu.featureide.core.winvmj.feature_3.4.0.202504161253.jar" id="de.ovgu.featureide.core.winvmj.feature" version="3.4.0.202504161253">
       <category name="WinVMJ Composer"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
