@@ -128,17 +128,23 @@ public class SourceCompiler {
 				    Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(selectedFeatures, featureToModuleNameMap);
 
 				    for (IFolder module : sourceProduct.getModules()) {
-				        if (duplicateModuleNames.contains(module.getName())) {
-				        	// backup module
+				    	boolean isDuplicatedModule = duplicateModuleNames.contains(module.getName());
+				    	boolean isSelectedFeatureModule = selectedFeatureModulesName.contains(module.getName());
+				    	boolean isPreprocessedModule = isDuplicatedModule || !isSelectedFeatureModule;
+				    	
+				    	if (isPreprocessedModule) {
+				    		// backup module
 				            IFolder backup = tempBackupModules.getFolder(module.getName());
 				            if (backup.exists()) backup.delete(true, null); 
 				            module.copy(backup.getFullPath(), true, null);   
 				            modifiedModules.add(module);
-
+				    	}
+				    	
+				        if (isDuplicatedModule) {
 				            ModulePreprocessor.modifyModuleInfo(module, productModuleName);
 				        }
 				        
-				        if (!selectedFeatureModulesName.contains(module.getName())) {
+				        if (!isSelectedFeatureModule) {
 				        	ModulePreprocessor.deleteResourceLayer(module);
 				        }
 				    }
