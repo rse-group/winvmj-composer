@@ -22,6 +22,7 @@ public abstract class PublishMessageTrigger {
     protected Set<String> domainInterfaces = new HashSet<>();
     
     protected String propertiesVarName;
+    protected String messageVarName;
 
     public static void clearModifiedMethods() {modifiedMethods.clear();}
 
@@ -35,8 +36,10 @@ public abstract class PublishMessageTrigger {
         String methodId = method.getSignature().asString();
         
         propertiesVarName = "properties";
+        messageVarName = "message";
         if (modifiedMethods.getOrDefault(methodId, 0) > 0) {
         	propertiesVarName += String.valueOf(modifiedMethods.get(methodId));
+        	messageVarName += String.valueOf(modifiedMethods.get(methodId));
         }
         
 
@@ -183,30 +186,22 @@ public abstract class PublishMessageTrigger {
                 )
         );
         
-        String methodId = method.getSignature().asString();
-        if (!modifiedMethods.containsKey(methodId)) {
-            VariableDeclarator messageVar = new VariableDeclarator(
-                    new ClassOrInterfaceType(null, "StateTransferMessage"),
-                    "message",
-                    stateTransferMessageExpr
-            );
-            VariableDeclarationExpr messageDecl = new VariableDeclarationExpr(messageVar);
-            newExpressionList.add(messageDecl);
-        } else {
-            AssignExpr reassignMessage = new AssignExpr(
-                    new NameExpr("message"),
-                    stateTransferMessageExpr,
-                    AssignExpr.Operator.ASSIGN
-            );
-            newExpressionList.add(reassignMessage);
-        }
+        VariableDeclarator messageVar = new VariableDeclarator(
+                new ClassOrInterfaceType(null, "StateTransferMessage"),
+                messageVarName,
+                stateTransferMessageExpr
+        );
+        VariableDeclarationExpr messageDecl = new VariableDeclarationExpr(messageVar);
+        newExpressionList.add(messageDecl);
+        
+        
 
         MethodCallExpr publishCall = new MethodCallExpr(
                 new MethodCallExpr(new NameExpr("RabbitMQManager"), "getInstance"),
                 "publishMessage"
         );
         publishCall.addArgument(new NameExpr("routingKey"));
-        publishCall.addArgument(new NameExpr("message"));
+        publishCall.addArgument(new NameExpr(messageVarName));
         newExpressionList.add(publishCall);
         
         // Clear properties list after message is published
