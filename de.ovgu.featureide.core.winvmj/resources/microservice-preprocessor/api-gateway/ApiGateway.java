@@ -16,12 +16,22 @@ public class ApiGateway {
     private static final Map<String, String> routeMap = new HashMap<>();
 
     private static void initRoutingMap(){
-        routeMap.put("/auth/user/save", "ServiceAuth_URL");
-        routeMap.put("/call/user/save", "ServiceAuth_URL");
-        routeMap.put("/auth/forgot-password-token", "ServiceAuth_URL");
-        routeMap.put("/auth/forgot-password", "ServiceAuth_URL");
-        routeMap.put("/auth/login/pwd", "ServiceAuth_URL");
-        routeMap.put("/call/user/delete", "ServiceAuth_URL");
+    	routeMap.put("/auth/user/save", "ServiceAuth_URL");
+    	routeMap.put("/auth/register", "ServiceAuth_URL");
+    	routeMap.put("/auth/forgot-password-token", "ServiceAuth_URL");
+    	routeMap.put("/auth/forgot-password", "ServiceAuth_URL");
+    	routeMap.put("/auth/login/pwd", "ServiceAuth_URL");
+    	routeMap.put("/call/role/save", "ServiceAuth_URL");
+    	routeMap.put("/call/role/detail", "ServiceAuth_URL");
+    	routeMap.put("/call/role/list", "ServiceAuth_URL");
+    	routeMap.put("/call/role/update", "ServiceAuth_URL");
+    	routeMap.put("/call/role/delete", "ServiceAuth_URL");
+    	routeMap.put("/call/user/save", "ServiceAuth_URL");
+    	routeMap.put("/call/user/detail", "ServiceAuth_URL");
+    	routeMap.put("/call/user/list", "ServiceAuth_URL");
+    	routeMap.put("/call/user/update", "ServiceAuth_URL");
+    	routeMap.put("/call/user/delete", "ServiceAuth_URL");
+    	routeMap.put("/call/user/changerole", "ServiceAuth_URL");
     }
 
 
