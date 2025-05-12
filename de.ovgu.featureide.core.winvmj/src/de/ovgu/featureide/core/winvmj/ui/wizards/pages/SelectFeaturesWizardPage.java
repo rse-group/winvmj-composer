@@ -337,7 +337,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 				featuresTree.removeAll();
 				final Object featureProject = this.project;
 				if (featureProject != null) {
-//					WinVMJConsole.println(allowedParentFeatures.toString());
 					
 					if (allowedParentFeatures.isEmpty()) {
 						addFeaturesToTree(multiLevelConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature());
@@ -345,30 +344,20 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 					else {
 						disabledFeatureNames.clear();
-//						WinVMJConsole.println("allowedParentFeatures " + allowedParentFeatures);
-//						HashSet<String> filteredFeatures = filteredFeaturesBasedOnConstraint(allowedParentFeatures);
-						Map<String, Integer> filteredFeatures = filteredFeaturesBasedOnConstraint(allowedParentFeatures);
-					    
-//						WinVMJConsole.println("filteredFeatures " + filteredFeatures);
-//						addFilteredFeaturesToTree(multiLevelConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), filteredFeatures);
-						addConstraintFeaturesToTree(multiLevelConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), filteredFeatures, null);
+						Map<String, Integer> filteredFeatures = handleFeaturesBasedOnConstraint(allowedParentFeatures);
+						addRelevantFeaturesToTree(multiLevelConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), filteredFeatures, null);
 					}
-							
-					if (featuresTree.getItemCount() == 0) {
-						validationLabel.setText("Configuration status: Unknown");
-	                    validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_WHITE));
-						setPageComplete(true);
-					} else {
-						validationLabel.setText("Configuration status: Unknown");
-	                    validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
-						restoreCheckedState(featuresTree.getItems());
-						setPageComplete(false);
-					}
+					
+					validationLabel.setText("Configuration status: Unknown");
+					validationLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
+					restoreCheckedState(featuresTree.getItems());
 				} 
+				
 				else {
 					setErrorMessage("Please select a Project in the previous page.");
-					setPageComplete(false);
+					
 				}
+				setPageComplete(false);
 			}
 		}		
 		else {
@@ -381,13 +370,8 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			if (currentIndex < myIndex) {
 				Map<String, HashSet<String>> selectedFeaturesMap = wizard.getSelectedFeaturesMap();
 				if (selectedFeaturesMap != null) {				
-//					WinVMJConsole.println("selectedFeatures " + featureNames);
-					
 					featureNames.clear();
-					
-//					WinVMJConsole.println("featureNames after remove" + featureNames);
 					selectedFeaturesMap.remove(getSelectedFile());
-//					WinVMJConsole.println("selectedFeaturesMap after remove" + selectedFeaturesMap);
 					wizard.setSelectedFeaturesMap(selectedFeaturesMap);
 				}
 			}
@@ -498,7 +482,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 //		}		
 //	}
 	
-	private void addConstraintFeaturesToTree(IFeature root, Map<String, Integer> selectedFeatures, TreeItem parent) {
+	private void addRelevantFeaturesToTree(IFeature root, Map<String, Integer> selectedFeatures, TreeItem parent) {
 		String shortName = root.getName();
 
 	    final TreeItem item;
@@ -524,7 +508,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	    }
 
 	    for (final IFeatureStructure child : root.getStructure().getChildren()) {
-	    	addConstraintFeaturesToTree(child.getFeature(), selectedFeatures, item);
+	    	addRelevantFeaturesToTree(child.getFeature(), selectedFeatures, item);
 	    }
 	}
 	
@@ -533,7 +517,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 		for (IFeature feature : formula.getFeatureModel().getStructure().getFeaturesPreorder()) {
 			String fullName = feature.getName();       
-			String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
+			String shortName = getShortName(fullName);
 			mapping.put(shortName, fullName);          
 		}
 
@@ -613,28 +597,34 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 //		return selectedFeatures;
 //	}
 
-	private Map<String, Integer> filteredFeaturesBasedOnConstraint(HashSet<String> selectedFeatures) {
+	
+	private List<IFeature> getConcreteChildren(IFeature feature) {
+	    List<IFeature> result = new ArrayList<>();
+	    for (IFeatureStructure childStructure : feature.getStructure().getChildren()) {
+	        IFeature child = childStructure.getFeature();
+	        if (child.getStructure().isAbstract()) {
+	            result.addAll(getConcreteChildren(child));
+	        } else {
+	            result.add(child);
+	        }
+	    }
+	    
+	    return result;
+	}
+	
+	private Map<String, Integer> handleFeaturesBasedOnConstraint(HashSet<String> selectedFeatures) {
 		Map<String, Integer> targetFeatures = new HashMap<>();
-		
 		FeatureModelFormula formula = new FeatureModelFormula(project.getFeatureModel());
 		CNF cnf = formula.getCNF();
 		AdvancedSatSolver solver = new AdvancedSatSolver(cnf);
 		Map<String, String> nameMap = getFeatureNameMapping(formula);
-		
 		Set<String> fullNameSet = new HashSet<>();
-
-		for (String shortName : selectedFeatures) {
-		    String fullName = nameMap.get(shortName);
-		    if (fullName != null) {
-		        fullNameSet.add(fullName);
-		    }
-		}
-		
 	    Collection<IFeature> currentSelectedFileFeatures = multiLevelConfiguration.loadFeatureModel(selectedFile).getFeatures();
 		
-		for (String shortName : selectedFeatures) {
-			String fullName = nameMap.get(shortName);
+		for (String featureName : selectedFeatures) {
+			String fullName = nameMap.get(featureName);
 			if (fullName != null) {
+				fullNameSet.add(fullName);
 				int literal = solver.getSatInstance().getVariables().getVariable(fullName, true);
 				solver.assignmentPush(literal);
 			}
@@ -646,13 +636,11 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 	        for (int lit : findsolutionORG) {
 	            String fullName = solver.getSatInstance().getVariables().getName(lit);
-	            String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
-
-	            boolean isInSelectedFile = currentSelectedFileFeatures.stream().anyMatch(f -> {
-	                return f.getName().equals(shortName);
-	            });
-	            
-	            if (!selectedFeatures.contains(shortName) && isInSelectedFile) {
+	            String shortName = getShortName(fullName);
+//	            boolean isInSelectedFile = currentSelectedFileFeatures.stream().anyMatch(f -> {
+//	                return f.getName().equals(shortName);
+//	            });
+	            if (!selectedFeatures.contains(shortName)) {
 	                targetFeatures.put(shortName, lit);
 	                if (lit > 0) {
 	                	fullNameSet.add(fullName);
@@ -661,72 +649,72 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	        }
 	    }
 	    
-	    for (String shortName : selectedFeatures) {
-	        IFeature feature = findFeatureByName(project.getFeatureModel(), nameMap.get(shortName));
+	    for (String featureName : selectedFeatures) {
+	        IFeature feature = findFeatureByName(project.getFeatureModel(), nameMap.get(featureName));
 	        if (feature == null) continue;
 
 	        for (IConstraint constraint : project.getFeatureModel().getConstraints()) {
 	            Collection<IFeature> involvedFeatures = constraint.getContainedFeatures();
 
 	            if (involvedFeatures.contains(feature)) {
-	                for (IFeature f : involvedFeatures) {
-	                    String fShortName = f.getName().contains(".") ? f.getName().substring(f.getName().indexOf('.') + 1) : f.getName();
-	                    
+	            	
+	            	//handle abstracts features
+	            	Collection<IFeature> abstractFeatureChildren = new ArrayList<>(involvedFeatures);
+	            	for (IFeature currentInvolvedFeature : involvedFeatures) {
+	                	if (currentInvolvedFeature.getStructure().isAbstract()) {
+	                        List<IFeature> concreteDescendants = getConcreteChildren(currentInvolvedFeature);
+	                        abstractFeatureChildren.addAll(concreteDescendants);
+	                        continue;
+	                    }
+	            	}
+	            	involvedFeatures.addAll(abstractFeatureChildren);
+	            	
+	                for (IFeature currentInvolvedFeature : involvedFeatures) {
+	                    String fShortName = getShortName(currentInvolvedFeature.getName());	                 
 	                    if (selectedFeatures.contains(fShortName)) continue;
-	                    
 	    	            boolean isInSelectedFile = currentSelectedFileFeatures.stream().anyMatch(n -> {
 	    	                return n.getName().equals(fShortName);
-	    	            });
-	    	            
-	    	            WinVMJConsole.println("Name: " + fShortName);
-	    	            
-	    	            WinVMJConsole.println("is in file ? " + isInSelectedFile);
-	    	            
-	                    if (!isInSelectedFile) continue;
+	    	            });	    	            
+	                    if (!isInSelectedFile) continue;	                    
+	                    HashSet<String> configurationSet = new HashSet<>();
 	                    
-	                    HashSet<String> tempSet = new HashSet<>();
-
-	                    IFeature current = f;
-	                    tempSet.addAll(fullNameSet);
-	                    while (current != null) {
-	                        tempSet.add(current.getName());
-	                        IFeatureStructure parentStructure = current.getStructure().getParent();
-	                        current = (parentStructure != null) ? parentStructure.getFeature() : null;
+	                    configurationSet.addAll(fullNameSet);
+	                    
+	                    IFeature originalFeature = currentInvolvedFeature;
+	                    
+	                    while (currentInvolvedFeature != null) {
+	                    	configurationSet.add(currentInvolvedFeature.getName());
+	                        IFeatureStructure parentStructure = currentInvolvedFeature.getStructure().getParent();
+	                        currentInvolvedFeature = (parentStructure != null) ? parentStructure.getFeature() : null;
 	                    }
 	                    
 	                    Configuration configForChecking = new Configuration(formula);
-	            	    for (String tempFeat : tempSet) {
-	            	        configForChecking.setManual(tempFeat, Selection.SELECTED);
+	                    
+	            	    for (String feat : configurationSet) {
+	            	        configForChecking.setManual(feat, Selection.SELECTED);
 	            	    }
 
-	            	    WinVMJConsole.println("tempSet " + tempSet);
 	            	    ConfigurationAnalyzer analyze = new ConfigurationAnalyzer(formula, configForChecking);
 	            	    
 	            	    if (analyze.isValid()){
-	            	    	WinVMJConsole.println("Open Clauses" + analyze.findOpenClauses());
-	                        int literal = solver.getSatInstance().getVariables().getVariable(f.getName(), true);
+	                        int literal = solver.getSatInstance().getVariables().getVariable(originalFeature.getName(), true);
 	                        solver.assignmentPush(literal);
 	                        
 		        	        int[] findsolution = solver.findSolution();
 		        	        
-		        	        WinVMJConsole.println("solver.hasSolution() " + solver.hasSolution());
 	                        if (solver.hasSolution() == SatResult.TRUE) {
-	    	        	        for (int lit_temp : findsolution) {
-	    	        	        	WinVMJConsole.println("lit " + lit_temp);
-	    	        	            String fullName_temp = solver.getSatInstance().getVariables().getName(lit_temp);
-	    	        	            String shortName_temp = fullName_temp.contains(".") ? fullName_temp.substring(fullName_temp.indexOf('.') + 1) : fullName_temp;
+	    	        	        for (int lit : findsolution) {
+	    	        	            String fullName = solver.getSatInstance().getVariables().getName(lit);
+	    	        	            String shortName = getShortName(fullName);
 	    	        	            
-	    	        	            WinVMJConsole.println("shortName_temp " + shortName_temp);
-	    	        	            if (!selectedFeatures.contains(shortName_temp)) {
-	    	        	                Integer existing = targetFeatures.get(shortName_temp);
-	    	        	                if (existing != null && existing < 0 && lit_temp > 0) {
-	    	        	                    WinVMJConsole.println("adding/updating: " + shortName_temp + " => " + lit_temp);
-	    	        	                    targetFeatures.put(shortName_temp, lit_temp);
+	    	        	            if (!selectedFeatures.contains(shortName)) {
+	    	        	                Integer existing = targetFeatures.get(shortName);
+	    	        	                if (existing != null && existing < 0 && lit > 0) {
+	    	        	                    targetFeatures.put(shortName, lit);
 	    	        	                }
 	    	        	            }
 	    	        	        }
 	                        }
-
 	                        solver.assignmentPop();
 	            	    }
 	            	    configForChecking.reset();
@@ -735,138 +723,12 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	        }
 	    }
 
-		
-//		for (String shortName : targetFeatures) {
-//		    IFeature selectedFeature = findFeatureByName(project.getFeatureModel(), nameMap.get(shortName));
-//		    if (selectedFeature == null) continue;
-//		    
-//		    for (IConstraint constraint : project.getFeatureModel().getConstraints()) {
-//		        Collection<IFeature> involvedFeatures = constraint.getContainedFeatures();
-//		        
-////		        WinVMJConsole.println("constraints " + involvedFeatures);
-////		        WinVMJConsole.println("selectedFeature " + selectedFeature);
-//		        if (involvedFeatures.contains(selectedFeature)) {
-//		            for (IFeature f : involvedFeatures) {
-//		                if (!f.equals(selectedFeature)) {
-//		                	// WinVMJConsole.println("Feature " + f.getName());
-//		                    int literal = solver.getSatInstance().getVariables().getVariable(f.getName(), true);
-//		                    solver.assignmentPush(literal);
-//		                }
-//		            }
-//		        }
-//		    }
-//		}
-
-//	    if (solver.hasSolution() == SatResult.TRUE) {
-//	        solver.setSelectionStrategy(SelectionStrategy.ORG);
-//	        int[] findsolutionORG = solver.findSolution();
-//
-//	        for (int lit : findsolutionORG) {
-//	            String fullName = solver.getSatInstance().getVariables().getName(lit);
-//	            String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
-//
-//	            if (!targetFeatures.contains(shortName)) {
-//	                selectedFeatures.put(shortName, lit);
-//	            }
-//
-//	            // WinVMJConsole.println("SAT-selected: " + shortName + " (" + lit + ")");
-//	        }
-//	    }
-		
-		WinVMJConsole.println("Final Selected Features " + targetFeatures);
 		String rootFullName = project.getFeatureModel().getStructure().getRoot().getFeature().getName();
-		String rootShortName = rootFullName.contains(".") ? rootFullName.substring(rootFullName.indexOf('.') + 1) : rootFullName;
+		String rootShortName = getShortName(rootFullName);
 		targetFeatures.remove(rootShortName);
 	
 		return targetFeatures;
 }
-	
-	
-//	private Map<String, Integer> filteredFeaturesBasedOnConstraint(HashSet<String> targetFeatures) {
-//	    Map<String, Integer> selectedFeatures = new HashMap<>();
-//	    Set<String> processedFeatures = new HashSet<>();
-//
-//	    findFeaturesRecursively(project.getFeatureModel(), targetFeatures, selectedFeatures, processedFeatures);
-//
-//	    String rootFullName = project.getFeatureModel().getStructure().getRoot().getFeature().getName();
-//	    String rootShortName = rootFullName.contains(".") ? rootFullName.substring(rootFullName.indexOf('.') + 1) : rootFullName;
-//	    selectedFeatures.remove(rootShortName);
-//
-//	    return selectedFeatures;
-//	}
-//
-//	private void findFeaturesRecursively(IFeatureModel featureModel, HashSet<String> targetFeatures, Map<String, Integer> selectedFeatures, Set<String> processedFeatures) {
-//		WinVMJConsole.println("Feature Model" + featureModel);
-//	    if (featureModel == null) return;
-//
-//	    FeatureModelFormula formula = new FeatureModelFormula(featureModel);
-//	    CNF cnf = formula.getCNF();
-//	    AdvancedSatSolver solver = new AdvancedSatSolver(cnf);
-//	    Map<String, String> nameMap = getFeatureNameMapping(formula);
-//
-//	    for (String shortName : targetFeatures) {
-//	        String fullName = nameMap.get(shortName);
-//	        if (fullName != null) {
-//	            int literal = solver.getSatInstance().getVariables().getVariable(fullName, true);
-//	            solver.assignmentPush(literal);
-//	        }
-//	    }
-//	    
-//	    WinVMJConsole.println("Simple Solution" + solver.getInternalSolution());
-//
-//	    if (solver.hasSolution() == SatResult.TRUE) {
-//	        solver.setSelectionStrategy(SelectionStrategy.ORG);
-//	        int[] solution = solver.findSolution();
-//
-//	        List<String> newlyFound = new ArrayList<>();
-//	        List<IFeature> featuresToRemove = new ArrayList<>();
-//	        List<Integer> constraintsToRemove = new ArrayList<>();
-//	        
-//	        
-//	        for (int lit : solution) {
-//	            if (lit > 0) {
-//	                String fullName = solver.getSatInstance().getVariables().getName(lit);
-//	                String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
-//
-//	                if (!targetFeatures.contains(shortName) && !selectedFeatures.containsKey(shortName) && !processedFeatures.contains(shortName)) {
-//	                    selectedFeatures.put(shortName, lit);
-//	                    newlyFound.add(fullName);
-//	                    WinVMJConsole.println("Found positive: " + shortName + " (lit " + lit + ")");
-//	                }
-//	            }
-//	        }
-//
-//	        if (!newlyFound.isEmpty()) {
-//	            for (String featureName : newlyFound) {
-//	                IFeature feature = findFeatureByName(featureModel, featureName);
-//	                if (feature != null && !feature.getStructure().hasChildren()) {
-//	                    featuresToRemove.add(feature);
-//	                }
-//	            }
-//
-//	            for (IConstraint constraint : featureModel.getConstraints()) {
-//	            	Node root = constraint.getNode();
-//	            	WinVMJConsole.println("DisplayName " + root.getSatisfyingAssignments());
-//	                for (IFeature feature : featuresToRemove) {
-//	                    if (constraint.getContainedFeatures().contains(feature)) {
-//	                        constraint.getContainedFeatures().remove(feature);
-//	                    }
-//	                }
-//	            }
-//	            
-//	            for (IFeature feature : featuresToRemove) {
-//	                featureModel.deleteFeature(feature);
-//	                WinVMJConsole.println("Removed feature: " + feature.getName());
-//	            }
-//
-//	            WinVMJConsole.println("Feature Model" + featureModel);
-//	            
-//	            processedFeatures.addAll(newlyFound);
-//
-//	            findFeaturesRecursively(featureModel, targetFeatures, selectedFeatures, processedFeatures);
-//	        }
-//	    }
-//	}
 	
 	private IFeature findFeatureByName(IFeatureModel model, String featureName) {
 	    for (IFeature feature : model.getFeatures()) {
@@ -876,6 +738,10 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	        }
 	    }
 	    return null;
+	}
+	
+	private String getShortName(String fullName) {
+	    return fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
 	}
 		
 
