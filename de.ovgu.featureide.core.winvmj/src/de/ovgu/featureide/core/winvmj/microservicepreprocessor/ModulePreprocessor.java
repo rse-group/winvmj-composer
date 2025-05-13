@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 public class ModulePreprocessor {
 
-    public static Set<String> modifyServiceImplClass(Set<IFolder> moduleDirs) {
+    public static Map<String, Set<String>> modifyServiceImplClass(Set<IFolder> moduleDirs) {
         Set<String> domainInterfacesFqn = ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs);
         Set<String> domainInterfaces = domainInterfacesFqn.stream()
                 .map(fqn -> fqn.substring(fqn.lastIndexOf('.') + 1))
@@ -31,8 +31,9 @@ public class ModulePreprocessor {
 
         PublishMessageCallAdder publishMessageCallAdder = new PublishMessageCallAdder(domainInterfaces);
         
-        Set<String> routingKeyValues = new HashSet<String>();
+        Map<String, Set<String>> moduleRoutingKeyMap = new HashMap<String, Set<String>>();
         for (IFolder moduleDir : moduleDirs) {
+        	Set<String> routingKeyValues = new HashSet<String>();
             List<IFile> serviceImplFiles = getFilesByName(moduleDir, "ServiceImpl.java");
             for (IFile serviceImplFile : serviceImplFiles ) {
             	if (serviceImplFile == null) continue;
@@ -53,9 +54,10 @@ public class ModulePreprocessor {
 
                 overwriteFile(serviceImplFile, cu);
             }
+            moduleRoutingKeyMap.put(moduleDir.getName(), routingKeyValues);
             
         }
-        return routingKeyValues;
+        return moduleRoutingKeyMap;
     }
 
     public static void modifyProductModule(Set<IFolder> moduleDirs, Set<String> routingKeyValues,

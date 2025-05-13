@@ -191,16 +191,17 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    	}
 		    	
 		    	// Pre-process duplicate feature module and product module
-		        Set<String> routingKeyValues = ModulePreprocessor.modifyServiceImplClass(duplicateModules);
+		        Map<String, Set<String>> moduleRoutingKeyMap = ModulePreprocessor.modifyServiceImplClass(duplicateModules);
 		        
 		        for (WinVMJProduct product : serviceProducts) {
 		        	IFolder productModule = featureProject.getBuildFolder()
 							.getFolder(product.getProductQualifiedName());
-		        	
+		        	Set<String> routingKeyValues = new HashSet<String>();
 		        	Set<IFolder> duplicateModulesOnProduct = new HashSet<>();
 		        	for (IFolder module : product.getModules()) {
 		        		if (duplicateModuleNames.contains(module.getName())) {
 		        			duplicateModulesOnProduct.add(module);
+		        			routingKeyValues.addAll(moduleRoutingKeyMap.get(module.getName()));
 		        		}
 		        	}
 		        	
