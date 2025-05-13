@@ -77,6 +77,7 @@ public class ProductToCompose extends WinVMJProduct {
 			        return new Feature(project.getFeatureModel(), shortName);
 			    })
 			    .collect(Collectors.toList());
+		
 		selectedModules.addAll(selectAndOrderModulesByMapping(project, features));
 		return selectedModules.stream().distinct().collect(Collectors.toList());
 	}
