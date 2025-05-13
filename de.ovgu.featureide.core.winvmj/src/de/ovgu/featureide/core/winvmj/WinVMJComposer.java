@@ -191,7 +191,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    	}
 		    	
 		    	// Pre-process duplicate feature module and product module
-		        ModulePreprocessor.modifyServiceImplClass(duplicateModules);
+		        Set<String> routingKeyValues = ModulePreprocessor.modifyServiceImplClass(duplicateModules);
 		        
 		        for (WinVMJProduct product : serviceProducts) {
 		        	IFolder productModule = featureProject.getBuildFolder()
@@ -204,7 +204,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		        		}
 		        	}
 		        	
-			        ModulePreprocessor.modifyProductModule(duplicateModulesOnProduct,productModule, product.getProductName());
+			        ModulePreprocessor.modifyProductModule(duplicateModulesOnProduct, routingKeyValues, productModule, product.getProductName());
 		    	}
 		        
 		        // Pre-process ApiGateway

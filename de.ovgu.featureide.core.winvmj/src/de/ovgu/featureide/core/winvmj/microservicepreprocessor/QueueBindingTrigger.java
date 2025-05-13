@@ -7,101 +7,103 @@ import com.github.javaparser.ast.stmt.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class QueueBindingTrigger {
-    public static void addQueueBindingCall(CompilationUnit cu) {
+	public static void addQueueBindingCall(CompilationUnit cu, Set<String> routingKeys) {
+	    cu.findAll(ClassOrInterfaceDeclaration.class).forEach(cls -> {
+	        if (!cls.isInterface()) {
+
+	            List<ConstructorDeclaration> constructors = cls.getConstructors();
+
+	            if (!constructors.isEmpty()) {
+	                constructors.forEach(constructor -> {
+	                    BlockStmt body = constructor.getBody();
+
+	                    Optional<ExplicitConstructorInvocationStmt> superCall = body
+	                            .getStatements()
+	                            .stream()
+	                            .filter(stmt -> stmt instanceof ExplicitConstructorInvocationStmt)
+	                            .map(stmt -> (ExplicitConstructorInvocationStmt) stmt)
+	                            .findFirst();
+
+	                    int insertIndex = superCall.map(stmt -> body.getStatements().indexOf(stmt) + 1).orElse(-1);
+
+	                    for (String rk : routingKeys) {
+	                        ExpressionStmt bindStmt = generateBindQueueCall(rk);
+	                        if (insertIndex >= 0) {
+	                            body.addStatement(insertIndex++, bindStmt);
+	                        } else {
+	                            body.addStatement(bindStmt);
+	                        }
+	                    }
+	                });
+	            } else {
+	                ConstructorDeclaration constructor = new ConstructorDeclaration()
+	                        .setName(cls.getNameAsString())
+	                        .setModifiers(Modifier.Keyword.PUBLIC);
+
+	                BlockStmt body = new BlockStmt();
+	                for (String rk : routingKeys) {
+	                    body.addStatement(generateBindQueueCall(rk));
+	                }
+
+	                constructor.setBody(body);
+	                cls.getMembers().addFirst(constructor);
+	            }
+	        }
+	    });
+	}
+    
+    public static String addRoutingKeyAttribute(CompilationUnit cu) {
+        final String[] routingKey = {""};
+
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(cls -> {
-            if (!cls.isInterface()) {
+            if (cls.isInterface() || cls.getFieldByName("routingKey").isPresent()) return;
 
-                // Add class attribute initialization in constructor
-                List<ConstructorDeclaration> constructors = cls.getConstructors();
+            String packageName = cu.getPackageDeclaration()
+                    .map(pd -> pd.getName().asString())
+                    .orElse("No_Package");
 
-                if (!constructors.isEmpty()) {
-                    constructors.forEach(constructor -> {
-                        BlockStmt body = constructor.getBody();
+            String className = cls.getNameAsString();
+            String baseClassName = className.endsWith("ServiceImpl")
+                    ? className.substring(0, className.length() - "ServiceImpl".length())
+                    : className;
 
-                        Optional<ExplicitConstructorInvocationStmt> superCall = body
-                                .getStatements()
-                                .stream()
-                                .filter(stmt -> stmt instanceof ExplicitConstructorInvocationStmt)
-                                .map(stmt -> (ExplicitConstructorInvocationStmt) stmt)
-                                .findFirst();
+            String routingKeyValue = packageName.replace(".", "_") + "_" + baseClassName.toLowerCase();
+            routingKey[0] = routingKeyValue;
+            FieldDeclaration routingKeyField = new FieldDeclaration()
+                    .addVariable(new VariableDeclarator()
+                            .setType("String")
+                            .setName("routingKey")
+                            .setInitializer("\"" + routingKeyValue + "\""))
+                    .setModifiers(Modifier.Keyword.PRIVATE);
 
-                        if (superCall.isPresent()) { // Memastikan statement yang ditambahkan tidak mendahului super() call
-                            int superIndex = body.getStatements().indexOf(superCall.get());
-                            body.addStatement(superIndex + 1, generateQueueAssignment());
-                            body.addStatement(superIndex + 2, generateBindQueueCall());
-                        } else {
-                            body.addStatement(generateQueueAssignment());
-                            body.addStatement(generateBindQueueCall());
-                        }
-                    });
-                } else {
-                    ConstructorDeclaration constructor = new ConstructorDeclaration()
-                            .setName(cls.getNameAsString())
-                            .setModifiers(Modifier.Keyword.PUBLIC);
-
-                    BlockStmt body = new BlockStmt();
-                    body.addStatement(generateQueueAssignment());
-                    body.addStatement(generateBindQueueCall());
-
-                    constructor.setBody(body);
-
-                    cls.getMembers().add(0, constructor);
-                }
-
-                // Add queue attribute
-                if (cls.getFieldByName("queue").isEmpty()) {
-                    FieldDeclaration fieldDeclaration = new FieldDeclaration()
-                            .addVariable(new VariableDeclarator().setType("String").setName("queue"))
-                            .setModifiers(Modifier.Keyword.PRIVATE);
-
-                    cls.getMembers().add(0, fieldDeclaration);
-                }
-
-                // Add routingKey attribute
-                if (cls.getFieldByName("routingKey").isEmpty()) {
-                    String packageName = cu.getPackageDeclaration()
-                            .map(pd -> pd.getName().asString())
-                            .orElse("No_Package");
-
-                    // Take the domain name from class name. e.g.,"OrderItemServiceImpl" --> OrderItem
-                    String className = cls.getNameAsString();
-                    String baseClassName = className.endsWith("ServiceImpl")
-                            ? className.substring(0, className.length() - "ServiceImpl".length())
-                            : className;
-
-                    String routingKeyValue = packageName.replace(".", "_") + "_" + baseClassName.toLowerCase();
-
-                    FieldDeclaration routingKeyField = new FieldDeclaration()
-                            .addVariable(new VariableDeclarator()
-                                    .setType("String")
-                                    .setName("routingKey")
-                                    .setInitializer("\"" + routingKeyValue + "\""))
-                            .setModifiers(Modifier.Keyword.PRIVATE);
-
-                    cls.getMembers().add(0, routingKeyField);
-                }
-            }
+            cls.getMembers().addFirst(routingKeyField);
         });
-    }
 
-    // this.queue = System.getenv("APP_ID") + "." + routingKey;
-    private static ExpressionStmt generateQueueAssignment() {
+        return routingKey[0];
+    }
+    
+    private static ExpressionStmt generateBindQueueCall(String routingKeyValue) {
+        // System.getenv("APP_ID")
         MethodCallExpr getenvCall = new MethodCallExpr(new NameExpr("System"), "getenv")
                 .addArgument(new StringLiteralExpr("APP_ID"));
-        BinaryExpr appIdWithDot = new BinaryExpr(getenvCall, new StringLiteralExpr("."), BinaryExpr.Operator.PLUS);
-        BinaryExpr queueValue = new BinaryExpr(appIdWithDot, new NameExpr("routingKey"), BinaryExpr.Operator.PLUS);
-        AssignExpr assignQueue = new AssignExpr(new NameExpr("this.queue"), queueValue, AssignExpr.Operator.ASSIGN);
-        return new ExpressionStmt(assignQueue);
-    }
 
-    //  RabbitMQManager.getInstance().bindQueue(queue, routingKey);
-    private static ExpressionStmt generateBindQueueCall() {
+        // System.getenv("APP_ID") + "."
+        BinaryExpr appIdWithDot = new BinaryExpr(getenvCall, new StringLiteralExpr("."), BinaryExpr.Operator.PLUS);
+
+        // System.getenv("APP_ID") + "." + "routingKeyValue"
+        BinaryExpr fullQueueName = new BinaryExpr(appIdWithDot, new StringLiteralExpr(routingKeyValue), BinaryExpr.Operator.PLUS);
+
+        // RabbitMQManager.getInstance()
         MethodCallExpr getInstanceCall = new MethodCallExpr(new NameExpr("RabbitMQManager"), "getInstance");
+
+        // bindQueue(System.getenv("APP_ID") + "." + "routingKeyValue", "routingKeyValue")
         MethodCallExpr bindQueueCall = new MethodCallExpr(getInstanceCall, "bindQueue");
-        bindQueueCall.addArgument(new NameExpr("queue"));
-        bindQueueCall.addArgument(new NameExpr("routingKey"));
+        bindQueueCall.addArgument(fullQueueName);
+        bindQueueCall.addArgument(new StringLiteralExpr(routingKeyValue));
+
         return new ExpressionStmt(bindQueueCall);
     }
 

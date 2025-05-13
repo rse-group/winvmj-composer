@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,14 +23,15 @@ import java.util.stream.Collectors;
 
 public class ModulePreprocessor {
 
-    public static void modifyServiceImplClass(Set<IFolder> moduleDirs) {
+    public static Set<String> modifyServiceImplClass(Set<IFolder> moduleDirs) {
         Set<String> domainInterfacesFqn = ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs);
         Set<String> domainInterfaces = domainInterfacesFqn.stream()
                 .map(fqn -> fqn.substring(fqn.lastIndexOf('.') + 1))
                 .collect(Collectors.toSet());
 
         PublishMessageCallAdder publishMessageCallAdder = new PublishMessageCallAdder(domainInterfaces);
-
+        
+        Set<String> routingKeyValues = new HashSet<String>();
         for (IFolder moduleDir : moduleDirs) {
             List<IFile> serviceImplFiles = getFilesByName(moduleDir, "ServiceImpl.java");
             for (IFile serviceImplFile : serviceImplFiles ) {
@@ -44,18 +46,20 @@ public class ModulePreprocessor {
                         messagingModule + ".Property",
                         messagingModule + ".rabbitmq.RabbitMQManager"
                 );
-                
+                String routingKeyValue =  QueueBindingTrigger.addRoutingKeyAttribute(cu);
+                routingKeyValues.add(routingKeyValue);
                 addImportStatement(cu, requiredImports);
-                QueueBindingTrigger.addQueueBindingCall(cu);
                 publishMessageCallAdder.addPublishMessageCall(cu);
 
                 overwriteFile(serviceImplFile, cu);
             }
             
         }
+        return routingKeyValues;
     }
 
-    public static void modifyProductModule(Set<IFolder> moduleDirs, IFolder productModule, String productName) {
+    public static void modifyProductModule(Set<IFolder> moduleDirs, Set<String> routingKeyValues,
+    		IFolder productModule, String productName) {
     	try {
     		productModule.refreshLocal(IResource.DEPTH_INFINITE, null);
     		IFolder mainClassDir = getMainClassDir(productModule);
@@ -73,6 +77,8 @@ public class ModulePreprocessor {
             
             Set<String> domainImplementationsFqnSet = ModelLayerExtractor.extractModelImplementationsFqn(moduleDirs);
             ConcreteClassCaster.modifySetAttributesMethod(messageConsumerCu, domainImplementationsFqnSet);
+            
+            QueueBindingTrigger.addQueueBindingCall(messageConsumerCu, routingKeyValues);
             
             ModelFactoryExtractor.initializeObjectFactory(moduleDirs, messageConsumerCu);
             RepositoryExtractor.initializeRepositoryMap(moduleDirs, messageConsumerCu);
