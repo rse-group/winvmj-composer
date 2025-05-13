@@ -65,13 +65,22 @@ public class QueueBindingTrigger {
                             .map(pd -> pd.getName().asString())
                             .orElse("No_Package");
 
-                    FieldDeclaration packageField = new FieldDeclaration()
+                    // Take the domain name from class name. e.g.,"OrderItemServiceImpl" --> OrderItem
+                    String className = cls.getNameAsString();
+                    String baseClassName = className.endsWith("ServiceImpl")
+                            ? className.substring(0, className.length() - "ServiceImpl".length())
+                            : className;
+
+                    String routingKeyValue = packageName.replace(".", "_") + "_" + baseClassName.toLowerCase();
+
+                    FieldDeclaration routingKeyField = new FieldDeclaration()
                             .addVariable(new VariableDeclarator()
                                     .setType("String")
                                     .setName("routingKey")
-                                    .setInitializer("\"" + packageName.replace(".", "_") + "\""))
+                                    .setInitializer("\"" + routingKeyValue + "\""))
                             .setModifiers(Modifier.Keyword.PRIVATE);
-                    cls.getMembers().add(0,packageField);
+
+                    cls.getMembers().add(0, routingKeyField);
                 }
             }
         });

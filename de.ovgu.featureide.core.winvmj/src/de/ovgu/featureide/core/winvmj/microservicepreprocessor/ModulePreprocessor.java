@@ -31,24 +31,27 @@ public class ModulePreprocessor {
         PublishMessageCallAdder publishMessageCallAdder = new PublishMessageCallAdder(domainInterfaces);
 
         for (IFolder moduleDir : moduleDirs) {
-            IFile serviceImplFile = getFileByName(moduleDir, "ServiceImpl.java");
-            if (serviceImplFile == null) continue;
+            List<IFile> serviceImplFiles = getFilesByName(moduleDir, "ServiceImpl.java");
+            for (IFile serviceImplFile : serviceImplFiles ) {
+            	if (serviceImplFile == null) continue;
 
-            CompilationUnit cu = JavaParserUtil.parse(serviceImplFile);
-            
-            String messagingModule = "vmj.messaging";
-            List<String> requiredImports = List.of(
-                    "java.util.*",
-                    messagingModule + ".StateTransferMessage",
-                    messagingModule + ".Property",
-                    messagingModule + ".rabbitmq.RabbitMQManager"
-            );
-            
-            addImportStatement(cu, requiredImports);
-            QueueBindingTrigger.addQueueBindingCall(cu);
-            publishMessageCallAdder.addPublishMessageCall(cu);
+                CompilationUnit cu = JavaParserUtil.parse(serviceImplFile);
+                
+                String messagingModule = "vmj.messaging";
+                List<String> requiredImports = List.of(
+                        "java.util.*",
+                        messagingModule + ".StateTransferMessage",
+                        messagingModule + ".Property",
+                        messagingModule + ".rabbitmq.RabbitMQManager"
+                );
+                
+                addImportStatement(cu, requiredImports);
+                QueueBindingTrigger.addQueueBindingCall(cu);
+                publishMessageCallAdder.addPublishMessageCall(cu);
 
-            overwriteFile(serviceImplFile, cu);
+                overwriteFile(serviceImplFile, cu);
+            }
+            
         }
     }
 
@@ -173,6 +176,24 @@ public class ModulePreprocessor {
             throw new RuntimeException("Error accessing folder: " + folder.getFullPath(), e);
         }
         return null;
+    }
+    
+    private static List<IFile> getFilesByName(IFolder folder, String fileName) {
+        List<IFile> matchedFiles = new ArrayList<>();
+
+        try {
+            for (IResource resource : folder.members()) {
+                if (resource instanceof IFile file && file.getName().contains(fileName)) {
+                    matchedFiles.add(file);
+                } else if (resource instanceof IFolder subFolder) {
+                    matchedFiles.addAll(getFilesByName(subFolder, fileName));
+                }
+            }
+        } catch (CoreException e) {
+            throw new RuntimeException("Error accessing folder: " + folder.getFullPath(), e);
+        }
+
+        return matchedFiles;
     }
     
     private static void addImportStatement(CompilationUnit cu, List<String> requiredImports) {
