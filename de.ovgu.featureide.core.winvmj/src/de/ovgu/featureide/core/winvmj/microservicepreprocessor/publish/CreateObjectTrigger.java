@@ -17,18 +17,32 @@ public class CreateObjectTrigger extends PublishMessageTrigger{
 
     @Override
     protected void collectProperties(MethodDeclaration method, String objectDomainVar){
-        VariableDeclarationExpr objectDomainDeclaration = null;
-        for (VariableDeclarationExpr varExpr : method.findAll(VariableDeclarationExpr.class)) {
-            for (VariableDeclarator var : varExpr.getVariables()) {
-                if (var.getNameAsString().equals(objectDomainVar)) {
-                    objectDomainDeclaration = varExpr;
-                    break;
-                }
-            }
-            if (objectDomainDeclaration != null) {
-                break;
-            }
-        }
+    	VariableDeclarationExpr objectDomainDeclaration = null;
+
+    	for (VariableDeclarationExpr varExpr : method.findAll(VariableDeclarationExpr.class)) {
+    	    for (VariableDeclarator var : varExpr.getVariables()) {
+    	        if (!var.getNameAsString().equals(objectDomainVar)) continue;
+
+    	        Optional<Expression> initializer = var.getInitializer();
+    	        if (initializer.isEmpty()) continue;
+
+    	        Expression initExpr = initializer.get();
+    	        MethodCallExpr callExpr = initExpr.findFirst(MethodCallExpr.class).orElse(null);
+    	        if (callExpr == null) continue;
+
+    	        // check scope -> 'Factory' class
+    	        Optional<Expression> scopeOpt = callExpr.getScope();
+    	        if (scopeOpt.isPresent()) {
+    	            Expression scopeExpr = scopeOpt.get();
+    	            String scopeStr = scopeExpr.toString();
+    	            if (scopeStr.endsWith("Factory")) {
+    	                objectDomainDeclaration = varExpr;
+    	                break;
+    	            }
+    	        }
+    	    }
+    	    if (objectDomainDeclaration != null) break;
+    	}
 
         if (objectDomainDeclaration != null) {
             MethodCallExpr factoryCall = (MethodCallExpr) objectDomainDeclaration.getVariable(0).getInitializer().orElse(null);
