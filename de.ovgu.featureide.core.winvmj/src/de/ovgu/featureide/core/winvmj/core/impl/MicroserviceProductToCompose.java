@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,31 +37,42 @@ public class MicroserviceProductToCompose extends ProductToCompose {
 	}
 	
 	public List<IFolder> resolveDependencies(List<IFolder> selectedFeatures,
-			Map<String, IFolder> allModuleMapping ) throws CoreException, IOException {
-		
-		Set<IFolder> resolvedFeatures = new HashSet<>(selectedFeatures);
-        List<IFolder> toProcess = new ArrayList<>(selectedFeatures);
+	        Map<String, IFolder> allModuleMapping) throws CoreException, IOException {
 
-        while (!toProcess.isEmpty()) {
-            IFolder currentFeature = toProcess.remove(0);
+	    List<IFolder> resolvedFeatures = new ArrayList<>();
+	    Set<IFolder> visited = new HashSet<>();
+	    Deque<IFolder> stack = new LinkedList<>(selectedFeatures);
 
-            IFile moduleInfoFile = currentFeature.getFile("module-info.java");
-            if (moduleInfoFile.exists()) {
-                List<String> dependencies = extractModuleInfoDependencies(moduleInfoFile);
+	    while (!stack.isEmpty()) {
+	        IFolder current = stack.peek();
+	        if (visited.contains(current)) {
+	            stack.pop();
+	            continue;
+	        }
 
-                // Process each dependency
-                for (String dependency : dependencies) {
-                	IFolder dependencyFolder = allModuleMapping.get(dependency);
-                    if (dependencyFolder != null && !resolvedFeatures.contains(dependencyFolder)) {
-                        resolvedFeatures.add(dependencyFolder);
-                        toProcess.add(dependencyFolder);
-                    }
-                }
-            }
-        }
+	        boolean dependenciesResolved = true;
+	        IFile moduleInfoFile = current.getFile("module-info.java");
 
-        return new ArrayList<>(resolvedFeatures);
-    }
+	        if (moduleInfoFile.exists()) {
+	            List<String> dependencies = extractModuleInfoDependencies(moduleInfoFile);
+	            for (String dependency : dependencies) {
+	                IFolder depFolder = allModuleMapping.get(dependency);
+	                if (depFolder != null && !visited.contains(depFolder)) {
+	                    dependenciesResolved = false;
+	                    stack.push(depFolder);
+	                }
+	            }
+	        }
+
+	        if (dependenciesResolved) {
+	            visited.add(current);
+	            resolvedFeatures.add(current);
+	            stack.pop();
+	        }
+	    }
+
+	    return resolvedFeatures;
+	}
 	
     private List<String> extractModuleInfoDependencies(IFile moduleInfoFile) throws IOException, CoreException {
         List<String> dependencies = new ArrayList<>();
