@@ -265,6 +265,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	private void composeProduct(WinVMJProduct product, List<IFeature> features) {
 		try {
 			selectModulesFromProject(featureProject, product);
+//			WinVMJConsole.println("config " + featureProject.loadConfiguration(config).getSelectedFeatures());
 			checkMultiLevelDelta(
 				featureProject,
 				product,
@@ -400,6 +401,14 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		WinVMJProduct product,
 		List<IFeature> features
 	) throws CoreException, ParserException {
+		features = features.stream()
+			    .map(f -> {
+			        String name = f.getName();
+			        String shortName = name.contains(".") ? name.substring(name.indexOf('.') + 1) : name;
+			        return new Feature(project.getFeatureModel(), shortName);
+			    })
+			    .collect(Collectors.toList());
+		
 		IFile featureToModuleMapper = project.getProject()
 				.getFile(FEATURE_MODULE_MAPPER_FILENAME);
 		final FormulaFactory formulaFactory = new FormulaFactory();

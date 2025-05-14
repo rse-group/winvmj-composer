@@ -35,8 +35,23 @@ public class ProjectNameWizardPage extends WizardPage {
         projectNameText = new Text(container, SWT.BORDER);
         projectNameText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         
+        projectNameText.addVerifyListener(e -> {
+            String input = e.text;
+            if (!input.matches("[a-zA-Z]*")) {
+                e.doit = false;
+            }
+        });
+        
+        Label infoLabel = new Label(container, SWT.NONE);
+        infoLabel.setText("Only alphabetic characters (A–Z, a–z) are allowed.");
+        GridData infoGridData = new GridData();
+        infoGridData.horizontalSpan = 2;
+        infoLabel.setLayoutData(infoGridData);
+        
         projectNameText.addModifyListener(e -> {
-            setPageComplete(!projectNameText.getText().trim().isEmpty());
+            String text = projectNameText.getText().trim();
+            boolean isValid = text.matches("[a-zA-Z]+");
+            setPageComplete(isValid);
         });
 
         setPageComplete(!projectNameText.getText().trim().isEmpty());
