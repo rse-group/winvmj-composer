@@ -36,7 +36,7 @@ public abstract class PublishMessageTrigger {
         String methodId = method.getSignature().asString();
         
         propertiesVarName = "properties";
-        messageVarName = "message";
+        messageVarName = "stateTransferMessage";
         if (modifiedMethods.getOrDefault(methodId, 0) > 0) {
         	propertiesVarName += String.valueOf(modifiedMethods.get(methodId));
         	messageVarName += String.valueOf(modifiedMethods.get(methodId));
