@@ -48,4 +48,15 @@ public class InternalResourceManager {
 	    }
 	    jar.close();
 	}
+	
+	public static void loadResourceFile(String resourceFilePath, String outPath) throws IOException {
+		final File file = new File(InternalResourceManager.class
+				.getProtectionDomain().getCodeSource()
+				.getLocation().getPath());
+		System.out.println(file.getAbsolutePath());
+		if (! file.isFile()){
+			Path srcResource = Path.of(file.getAbsolutePath(), "resources", resourceFilePath);
+			FileUtils.copyFile(srcResource.toFile(), new File(outPath));
+		}
+	}
 }

@@ -1,9 +1,6 @@
 package de.ovgu.featureide.core.winvmj.core.impl;
 
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -16,25 +13,19 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.Utils;
-import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
 
 public class ComposedProduct extends WinVMJProduct {
 	private IFeatureProject featureProject;
 	
-	public ComposedProduct(IFeatureProject project)
+	public ComposedProduct(IFeatureProject project, IFolder productModule)
 			throws CoreException {
 		this.featureProject = project;
-		IFolder productModule = getProductModuleFromComposedProduct();
 		this.splName = productModule.getName().split(".product.")[0];
 		this.productName = getProductClassName(productModule);
 		this.modules = getModulesFromComposedProduct();
-		
 	}
 	
 	private String getProductClassName(IFolder productModule) throws CoreException {
@@ -52,16 +43,6 @@ public class ComposedProduct extends WinVMJProduct {
 		}
 
 		return FilenameUtils.getBaseName(productFileName);
-	}
-	
-	private IFolder getProductModuleFromComposedProduct()
-			throws CoreException {
-		IResource productModule = Stream
-				.of(featureProject.getBuildFolder().members())
-				.filter(module -> module.getName().contains(".product."))
-				.findFirst().get();
-		
-		return (IFolder) productModule;
 	}
 	
 	private List<IFolder> getModulesFromComposedProduct() throws CoreException {
@@ -88,11 +69,7 @@ public class ComposedProduct extends WinVMJProduct {
 			moduleOrders.addAll(getModuleOrdersByMappings(externalProject));
 		}
 		
-		Reader mapReader = new InputStreamReader(project
-				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents());
-		Gson gson = new Gson();
-		Map<String, List<String>> splMappings = gson.fromJson(mapReader,
-				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+		Map<String, List<String>> splMappings = Utils.getFeatureToModuleMap(project);
 
 		for (Entry<String, List<String>> mapping: splMappings.entrySet()) {
 			String key = mapping.getKey();

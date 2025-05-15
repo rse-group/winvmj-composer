@@ -8,6 +8,7 @@ import java.io.Reader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -33,19 +34,20 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.Utils;
 import de.ovgu.featureide.core.winvmj.WinVMJComposer;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.ComposedMicroserviceProduct;
 import de.ovgu.featureide.core.winvmj.core.impl.ComposedProduct;
 import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
+import de.ovgu.featureide.core.winvmj.microservicepreprocessor.ModulePreprocessor;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.CorsPropertiesRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.DeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.EndpointsConfigRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.HibernatePropertiesRenderer;
-import de.ovgu.featureide.core.winvmj.templates.impl.RunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixDeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunAllScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.UnixRunScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.WindowsDeploymentScriptRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.WindowsRunScriptRenderer;
+import de.ovgu.featureide.fm.core.base.IFeature;
 
 public class SourceCompiler {
 
@@ -65,18 +67,126 @@ public class SourceCompiler {
 
 	public static void compileSource(IFeatureProject project) {
 		try {
-			WinVMJProduct sourceProduct = new ComposedProduct(project);
-			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
-			if (!compiledProductDir.exists())
-				compiledProductDir.create(false, true, null);
-			compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
-			if (!compiledProductDir.exists())
-				compiledProductDir.create(false, true, null);
-			importWinVMJLibraries(compiledProductDir, sourceProduct);
-			importWinVMJProductConfigs(compiledProductDir);
-			generateConfigFiles(project, sourceProduct);
-			compileModules(project, compiledProductDir, sourceProduct);
-			insertSqlFolder(compiledProductDir, project);
+			// Get All Product Modules
+			List<IFolder> productModules = Stream
+				    .of(project.getBuildFolder().members())  
+				    .filter(module -> module instanceof IFolder)  
+				    .map(module -> (IFolder) module)  
+				    .filter(folder -> folder.getName().contains(".product."))
+				    .collect(Collectors.toList()); 
+			
+			boolean isMicroservices = productModules.size() > 1;
+			
+			if (isMicroservices) {
+				String messagingModuleName = "vmj.messaging";
+				
+				Map<String,Integer> modulesCount = new HashMap<String, Integer>();
+		    	Set<WinVMJProduct> serviceProducts = new HashSet<WinVMJProduct>();
+				for (IFolder productModule : productModules) {
+					WinVMJProduct sourceProduct = new ComposedMicroserviceProduct(project, productModule);
+					serviceProducts.add(sourceProduct);
+					
+					for (IFolder module : sourceProduct.getModules()) {
+						String moduleName = module.getName();
+						if (moduleName.equals(messagingModuleName)) {
+							continue;
+						}
+						modulesCount.put(moduleName, modulesCount.getOrDefault(moduleName, 0) + 1);
+					}
+			    	
+				}
+				
+				Set<String> duplicateModuleNames = new HashSet<>();
+		    	for (Map.Entry<String, Integer> entry : modulesCount.entrySet()) {
+		    		String module = entry.getKey();
+					Integer moduleCount = entry.getValue();
+					
+					if (moduleCount >= 2) {
+						duplicateModuleNames.add(module);
+					}
+		    	}
+		    	Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(project.getProject());
+		    	Map<String,List<IFeature>> serviceDefMap = Utils.getMicroservicesDefinition(project);
+				
+				for (WinVMJProduct sourceProduct : serviceProducts) {
+		        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+					if (!compiledProductDir.exists())
+						compiledProductDir.create(false, true, null);
+					compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
+					if (!compiledProductDir.exists())
+						compiledProductDir.create(false, true, null);
+					importWinVMJLibraries(compiledProductDir, sourceProduct);
+					importWinVMJProductConfigs(compiledProductDir);
+					importRabbitmqLibraries(compiledProductDir, sourceProduct);
+					generateConfigFiles(project, sourceProduct);
+					
+		        	// Pre-process module for specific product
+					String productModuleName = sourceProduct.getProductQualifiedName();
+					
+						// backup to save the module before modification
+					IFolder tempBackupModules = project.getProject().getFolder(".tmp_module_backup");
+				    if (!tempBackupModules.exists()) tempBackupModules.create(true, true, null);
+				    
+				   
+				    List<IFolder> modifiedModules = new ArrayList<>();
+				    
+				    	// get all selected feature module of a micro-service from service-def.json 
+				    List<IFeature> selectedFeatures = serviceDefMap.getOrDefault((sourceProduct.getProductName()), null);
+				    Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(selectedFeatures, featureToModuleNameMap);
+
+				    for (IFolder module : sourceProduct.getModules()) {
+				    	boolean isDuplicatedModule = duplicateModuleNames.contains(module.getName());
+				    	boolean isSelectedFeatureModule = selectedFeatureModulesName.contains(module.getName());
+				    	boolean isPreprocessedModule = isDuplicatedModule || !isSelectedFeatureModule;
+				    	
+				    	if (isPreprocessedModule) {
+				    		// backup module
+				            IFolder backup = tempBackupModules.getFolder(module.getName());
+				            if (backup.exists()) backup.delete(true, null); 
+				            module.copy(backup.getFullPath(), true, null);   
+				            modifiedModules.add(module);
+				    	}
+				    	
+				        if (isDuplicatedModule) {
+				            ModulePreprocessor.modifyModuleInfo(module, productModuleName);
+				        }
+				        
+				        if (!isSelectedFeatureModule) {
+				        	ModulePreprocessor.deleteResourceLayer(module);
+				        }
+				    }
+
+				    compileModules(project, compiledProductDir, sourceProduct);
+
+				    // Restore module
+				    for (IFolder module : modifiedModules) {
+				        IFolder backup = tempBackupModules.getFolder(module.getName());
+				        if (module.exists()) module.delete(true, null);
+				        backup.copy(module.getFullPath(), true, null); 
+				    }
+				    
+					insertSqlFolder(compiledProductDir, project);
+				}
+				compileAndPackageApiGateway(project);
+				
+				
+			} else {
+				IFolder productModule = productModules.get(0);
+				WinVMJProduct sourceProduct = new ComposedProduct(project, productModule);
+				IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+				if (!compiledProductDir.exists())
+					compiledProductDir.create(false, true, null);
+				compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
+				if (!compiledProductDir.exists())
+					compiledProductDir.create(false, true, null);
+				importWinVMJLibraries(compiledProductDir, sourceProduct);
+				importWinVMJProductConfigs(compiledProductDir);
+				generateConfigFiles(project, sourceProduct);
+				compileModules(project, compiledProductDir, sourceProduct);
+				insertSqlFolder(compiledProductDir, project);
+
+			}
+			
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -222,6 +332,16 @@ public class SourceCompiler {
 			productModule.create(false, true, null);
 		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
 		InternalResourceManager.loadResourceDirectory("winvmj-libraries", productModule.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+	
+	private static void importRabbitmqLibraries(IFolder compiledProductDir, WinVMJProduct product)
+			throws IOException, URISyntaxException, CoreException {
+		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+		if (!productModule.exists())
+			productModule.create(false, true, null);
+		WinVMJConsole.println("Unpack RabbitMQ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("microservice-preprocessor/rabbitmq-libraries", productModule.getLocation().toOSString());
 		WinVMJConsole.println("WinVMJ Libraries unpacked");
 	}
 
@@ -650,4 +770,62 @@ public class SourceCompiler {
 		}
 		WinVMJConsole.println("SQL Files inserted");
 	}
+	
+	public static void compileAndPackageApiGateway(IFeatureProject project) throws IOException, CoreException {
+		String apiGatewayDirName = "ApiGateway";
+		
+		IFolder binFolder = project.getProject().getFolder("bin-comp");
+		if (!binFolder.exists()){
+			binFolder.create(true, true, null);
+		}
+		
+		IFolder apiGatewayBin = binFolder.getFolder(apiGatewayDirName); // bin-comp/ApiGateway
+		IFolder compiledApiGatewayDir = project.getProject().getFolder(OUTPUT_FOLDER).getFolder(apiGatewayDirName); // src-gen/ApiGateway
+
+	    if (!apiGatewayBin.exists()) {
+	    	apiGatewayBin.create(true, true, null);
+	    }
+	    if (!compiledApiGatewayDir.exists()) {
+	    	compiledApiGatewayDir.create(true, true, null);
+	    }
+
+	    String sourceFile = project.getBuildFolder().getFolder("ApiGateway").getFile("ApiGateway.java").getLocation().toOSString();
+
+	    // Compile command
+	    List<String> compileCommand = new ArrayList<>();
+	    compileCommand.add("javac");
+	    compileCommand.add("-d");
+	    compileCommand.add(apiGatewayBin.getLocation().toOSString());
+	    compileCommand.add(sourceFile);
+
+	    JavaCLI.execute(
+	            "Compiling ApiGateway...", 
+	            "ApiGateway compiled", 
+	            compileCommand
+	    );
+
+	    // Jar command
+	    List<String> jarCommand = new ArrayList<>();
+	    jarCommand.add("jar");
+	    jarCommand.add("--create");
+	    jarCommand.add("--file");
+	    jarCommand.add(compiledApiGatewayDir.getLocation().append(apiGatewayDirName + ".jar").toOSString()); // src-gen/ApiGateway/ApiGateway.jar
+	    jarCommand.add("--main-class");
+	    jarCommand.add("ApiGateway");
+	    jarCommand.add("-C");
+	    jarCommand.add(apiGatewayBin.getLocation().toOSString());
+	    jarCommand.add(".");
+
+	    System.out.println(String.join(" ", jarCommand));
+
+	    JavaCLI.execute(
+	            "Packaging ApiGateway...", 
+	            "ApiGateway packaged", 
+	            jarCommand
+	    );
+	    
+	    InternalResourceManager.loadResourceFile("microservice-preprocessor/api-gateway/run.bat",
+				compiledApiGatewayDir.getLocation().toOSString() + "/run.bat");
+	}
+
 }
