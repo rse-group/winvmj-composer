@@ -116,7 +116,7 @@ public class SourceCompiler {
 	        long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
 
 	        
-	        Set<String> requirements = extractDelta(project, moduleFromSrcFolder);
+	        Set<String> requirements = extractRequirements(project, moduleFromSrcFolder);
 	        boolean requiresUpdate = false;
 
 	        for (String require : requirements) {
@@ -551,7 +551,7 @@ public class SourceCompiler {
 		return compileCommand;
 	}
 	
-	private static Set<String> extractDelta(IFeatureProject project, IFolder moduleFolder) throws CoreException {
+	private static Set<String> extractRequirements(IFeatureProject project, IFolder moduleFolder) throws CoreException {
 	    Set<String> dependencies = new HashSet<>();
 	    
 	    IFile moduleInfoFile = moduleFolder.getFile("module-info.java");
