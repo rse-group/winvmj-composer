@@ -46,13 +46,13 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	private Map<String, List<String>> featureToModuleMap;
-	private List<String> selectedFeature;
+	protected List<String> selectedFeature;
 	private Map<String, Integer> variableNameCounts = new HashMap<>();
 
 	public ProductClassRenderer(IFeatureProject project) {
 		super(project);
 		try {
-			loadFeatureToModuleMap(project);
+			featureToModuleMap = Utils.getFeatureToModuleMap(project.getProject());
 		} catch (CoreException e) {
 			e.printStackTrace();
 		}
@@ -126,22 +126,6 @@ public class ProductClassRenderer extends TemplateRenderer {
 		}
 		return models;
 	}
-
-	private void loadFeatureToModuleMap(IFeatureProject project) throws CoreException {
-        IFile mapFile = project.getProject().getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
-        if (mapFile.exists()) {
-            try (Reader mapReader = new InputStreamReader(mapFile.getContents())) {
-                Gson gson = new Gson();
-                featureToModuleMap = gson.fromJson(mapReader,
-                    new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            System.err.println("Feature to module map file does not exist");
-            featureToModuleMap = new LinkedHashMap<>();
-        }
-    }
 	
 	private void getSelectedFeature(IFeatureProject winVmjProject) {
 		Configuration config = winVmjProject.loadCurrentConfiguration();
@@ -386,7 +370,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return count == 1 ? baseName : baseName + count; 
 	}
 
-	private Set<String> getImports(WinVMJProduct product) throws IOException, CoreException {
+	protected Set<String> getImports(WinVMJProduct product) throws IOException, CoreException {
 		Set<String> imports = new LinkedHashSet<>();
 		for (String module : product.getModuleNames()) {
 			imports.addAll(constructImport(module));
@@ -394,7 +378,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		return imports;
 	}
 
-	private List<String> constructImport(String module) throws IOException, CoreException { 
+	protected List<String> constructImport(String module) throws IOException, CoreException { 
 		List<String> modulesToImport = new ArrayList<>();
 		String coreModule = getCoreByModule(module); 
 		String mainModule = coreModule.replace(".core", ""); 
