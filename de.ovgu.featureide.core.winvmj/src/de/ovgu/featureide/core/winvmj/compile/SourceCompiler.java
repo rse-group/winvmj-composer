@@ -312,10 +312,19 @@ public class SourceCompiler {
 				String internalBaseName = getBaseNameFromFile(internalResource.getName());
 
 				if (internalBaseName.equals(moduleName)) {
-					System.out.println(
-							"Copying internal JAR: " + internalResource.getName() + " to " + productModule.getName());
-					copyFile((IFile) internalResource, productModule);
-					return true;
+					IFolder moduleFolder = project.getProject().getFolder(MODULES_FOLDER).getFolder(moduleName);
+		            long moduleLastModified = getLastModifiedTime(moduleFolder);
+		            long JarLastModified = internalResource.exists() ? internalResource.getLocalTimeStamp() : -1;
+		            if (moduleLastModified > JarLastModified) {
+		                WinVMJConsole.println("Required module " + moduleName + " is outdated. Recompiling...");
+		                return false;
+		            }
+					else {
+						WinVMJConsole.println(
+								"Copying internal JAR: " + internalResource.getName() + " to " + productModule.getName());
+						copyFile((IFile) internalResource, productModule);
+						return true;
+					}
 				}
 			}
 		}
