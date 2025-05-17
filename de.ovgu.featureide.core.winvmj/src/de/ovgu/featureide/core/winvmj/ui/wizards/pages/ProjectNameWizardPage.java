@@ -83,7 +83,12 @@ public class ProjectNameWizardPage extends WizardPage {
     private void validateInput(Composite container) {
         String name = projectNameText.getText().trim();
 
-        if (doesProjectExist(name)) {
+        if (name.length() <= 1) {
+            errorLabel.setText("Product name must be more than one character.");
+            errorLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_RED));
+            setPageComplete(false);
+        }
+        else if (doesProjectExist(name)) {
             errorLabel.setText("This name is already taken in the configs folder.");
             errorLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_RED));
             setPageComplete(false);
