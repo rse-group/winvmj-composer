@@ -189,6 +189,8 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    		
 		    		composeMicroserviceProduct(product, featureList);
 		    	}
+		    	// refresh src directory
+		    	featureProject.getBuildFolder().refreshLocal(IResource.DEPTH_INFINITE, null);
 		    	
 		    	// Pre-process duplicate feature module and product module
 		        Map<String, Set<String>> moduleRoutingKeyMap = ModulePreprocessor.modifyServiceImplClass(duplicateModules);
@@ -226,8 +228,8 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    	apiGatewayDir.refreshLocal(IResource.DEPTH_INFINITE, null);
 		        ModulePreprocessor.registerRoutingToApiGateway(serviceFeatureModuleMap, apiGatewayDir.getFile(apiGatewayFilename));
 		        
-		        
-		        
+		        // refresh src directory
+		        featureProject.getBuildFolder().refreshLocal(IResource.DEPTH_INFINITE, null);
 		        WinVMJConsole.println("Completed compose microservices product");
 		    	
 		        return true;
