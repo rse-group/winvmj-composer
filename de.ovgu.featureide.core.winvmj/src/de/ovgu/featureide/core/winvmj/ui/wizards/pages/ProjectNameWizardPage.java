@@ -47,16 +47,14 @@ public class ProjectNameWizardPage extends WizardPage {
         projectNameText = new Text(container, SWT.BORDER);
         projectNameText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         
-        checkButton = new Button(container, SWT.PUSH);
-        checkButton.setText("Check Name");
-        checkButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false));
-        
         projectNameText.addVerifyListener(e -> {
             String input = e.text;
             if (!input.matches("[a-zA-Z]*")) {
                 e.doit = false;
             }
         });
+        
+        projectNameText.addModifyListener(e -> validateInput(container));
         
         Label infoLabel = new Label(container, SWT.NONE);
         infoLabel.setText("Only alphabetic characters (A–Z, a–z) are allowed.");
@@ -70,10 +68,7 @@ public class ProjectNameWizardPage extends WizardPage {
         GridData errorGridData = new GridData(SWT.FILL, SWT.CENTER, true, false);
         errorGridData.horizontalSpan = 3;
         errorLabel.setLayoutData(errorGridData);
-        
-        checkButton.addListener(SWT.Selection, event -> {
-            validateInput(container);
-        });
+       
 
         setPageComplete(false);
         
@@ -83,8 +78,8 @@ public class ProjectNameWizardPage extends WizardPage {
     private void validateInput(Composite container) {
         String name = projectNameText.getText().trim();
 
-        if (name.length() <= 1) {
-            errorLabel.setText("Product name must be more than one character.");
+        if (name.length() < 1) {
+            errorLabel.setText("Product name must be one character or more.");
             errorLabel.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_RED));
             setPageComplete(false);
         }
