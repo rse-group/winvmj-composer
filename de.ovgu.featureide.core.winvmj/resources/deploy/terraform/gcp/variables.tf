@@ -28,3 +28,8 @@ variable "ssh_user" {
   description = "The SSH username for the instance"
   type        = string
 }
+
+variable "ssh_public_key_path" {
+  type    = string
+  default = "~/.ssh/id_rsa.pub"
+}

@@ -7,6 +7,7 @@ ZONE=$3
 CREDENTIALS=$4
 PROVIDER=$5
 INSTANCE_NAME=$6
+PUBLIC_KEY=$7
 
 # Save current directory
 current_dir=$(pwd)
@@ -55,6 +56,7 @@ if [ "$PROVIDER" == "gcp" ]; then
   -var="instance_name=$INSTANCE_NAME" \
   -var="zone=$ZONE" \
   -var="project_name=$PROJECT_NAME" \
+  -var="ssh_public_key_path=$PUBLIC_KEY" \
   -auto-approve 2>&1)
 
 elif [ "$PROVIDER" == "aws" ]; then
@@ -67,6 +69,7 @@ elif [ "$PROVIDER" == "aws" ]; then
   -var="instance_type=$MACHINE_TYPE" \
   -var="instance_name=$INSTANCE_NAME" \
   -var="region=$ZONE" \
+  -var="ssh_public_key_path=$PUBLIC_KEY" \
   -auto-approve 2>&1) 
 
 else

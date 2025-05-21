@@ -9,11 +9,12 @@ PRODUCT_NAME=$3
 CERTIFICATE_NAME=$4
 NGINX_CERTIFICATE_NAME=$5
 PRODUCT_PREFIX=$6
+PRIVATE_KEY_PATH=$7
 
 # Ensure SSH key authentication is set up beforehand
 
 # Copy scripts to run
-scp -o StrictHostKeyChecking=no \
+scp -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no \
     $FILES_DIRECTORIES/setup_before_propagate.sh \
     $FILES_DIRECTORIES/setup_after_propagate.sh \
     $FILES_DIRECTORIES/check_if_propagated.sh \
@@ -22,7 +23,7 @@ scp -o StrictHostKeyChecking=no \
     $USERNAME@$INSTANCE_IP:$VM_ROOT_FILES
 
 # Change permissions for check_if_propagated.sh
-ssh -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "sudo chmod 777 $VM_ROOT_FILES/check_if_propagated.sh"
+ssh -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "sudo chown $USERNAME:$USERNAME $VM_ROOT_FILES/check_if_propagated.sh && sudo chmod 700 $VM_ROOT_FILES/check_if_propagated.sh"
 
 # Run setup_before_propagate.sh on the remote VM
-ssh -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "sudo bash $VM_ROOT_FILES/setup_before_propagate.sh $USERNAME $PRODUCT_NAME $CERTIFICATE_NAME $NGINX_CERTIFICATE_NAME $PRODUCT_PREFIX --y"
+ssh  -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "sudo bash $VM_ROOT_FILES/setup_before_propagate.sh $USERNAME $PRODUCT_NAME $CERTIFICATE_NAME $NGINX_CERTIFICATE_NAME $PRODUCT_PREFIX --y"

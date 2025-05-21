@@ -6,6 +6,16 @@ NGINX_CERTIFICATE_NAME_OUT=$4
 PRODUCT_PREFIX="$5"
 PRODUCT_PREFIX="${PRODUCT_PREFIX:-aisco}"
 
+DB_URL="$6"
+DB_URL="${DB_URL:-localhost:5432}"
+
+DB_USERNAME="$7"
+DB_USERNAME="${DB_USERNAME:-postgres}"
+
+DB_PASSWORD="$8"
+DB_PASSWORD="${DB_PASSWORD:-postgres}"
+
+
 init_deployment() {
   product_name=$1
   product_dir=$2
@@ -37,15 +47,36 @@ init_port() {
   product_jmx_exporter_port=$(port_reserver $product_name-jmx-exporter $deployed_ports_file 50000 60000)
 }
 
+# stored used port information for product redeployment
+load_ports_from_file() {
+  trap 'error_deployment' ERR
+  echo "Loading reserved ports for $product_name from $deployed_ports_file"
+
+  product_static_port=$(grep "^${product_name}-static-service," "$deployed_ports_file" | cut -d',' -f2)
+  product_be_port=$(grep "^${product_name}-backend-service," "$deployed_ports_file" | cut -d',' -f2)
+  product_jmx_exporter_port=$(grep "^${product_name}-jmx-exporter," "$deployed_ports_file" | cut -d',' -f2)
+
+  if [[ -z "$product_static_port" || -z "$product_be_port" || -z "$product_jmx_exporter_port" ]]; then
+    echo "Error: Could not find all required ports for $product_name in $deployed_ports_file"
+    exit 1
+  fi
+
+  echo "Loaded ports:"
+  echo "Static port: $product_static_port"
+  echo "Backend port: $product_be_port"
+  echo "JMX exporter port: $product_jmx_exporter_port"
+}
+
+
 be_env_config_setup() {
   trap 'error_deployment' ERR
   echo "Generating backend environment variable configuration for $product_name product"
   be_env_file=/etc/default/products/$product_name
   sudo touch $be_env_file
   sudo tee $be_env_file > /dev/null <<EOL
-AMANAH_DB_URL="jdbc:postgresql://localhost:5432/`echo $product_name_full | tr . _`"
-AMANAH_DB_USERNAME="postgres"
-AMANAH_DB_PASSWORD="postgres"
+AMANAH_DB_URL="jdbc:postgresql://$DB_URL/`echo $product_name_full | tr . _`"
+AMANAH_DB_USERNAME="$DB_USERNAME"
+AMANAH_DB_PASSWORD="$DB_PASSWORD"
 AMANAH_HOST_BE="localhost"
 AMANAH_PORT_BE=${product_be_port}
 _JAVA_OPTIONS="-javaagent:/usr/local/bin/jmx_prometheus_javaagent-0.18.0.jar=${product_jmx_exporter_port}:/etc/jmx/config.yml"
@@ -114,7 +145,7 @@ generate_nginx_config() {
   STATIC_PORT=$product_static_port
   BE_PORT=$product_be_port
   OUT=$NGINX_CERTIFICATE_NAME_OUT
-  # OUT=procom.procom-rzk
+
   cat <<EOF | sudo tee $OUT >/dev/null
 server {
   listen 443 ssl;
@@ -217,10 +248,45 @@ nginx_setup() {
   sudo systemctl restart nginx
 }
 
+wait_for_db() {
+  trap 'error_deployment' ERR
+  if [ -z "$product_name_full" ]; then
+    echo "Error: product_name_full is not set!"
+    return 1
+  fi
+  db_name="${product_name_full//./_}"
+
+  echo "Waiting for database to be ready..."
+
+  export PGPASSWORD="$DB_PASSWORD"
+
+  # Timeout maksimal dalam detik (5 menit = 300 detik)
+  MAX_WAIT_TIME=300
+  WAIT_INTERVAL=5
+  elapsed=0
+
+  until psql -U postgres -h localhost -d "$db_name" -c '\l' >/dev/null 2>&1; do
+    echo "Database $db_name not ready, retrying in $WAIT_INTERVAL seconds..."
+    sleep $WAIT_INTERVAL
+    elapsed=$((elapsed + WAIT_INTERVAL))
+
+    if [ $elapsed -ge $MAX_WAIT_TIME ]; then
+      echo "Warning: Database $db_name for product $product_name_full not ready after $((MAX_WAIT_TIME / 60)) minutes."
+      unset PGPASSWORD
+      return 1
+    fi
+  done
+
+  echo "Database $product_name_full is ready!"
+
+  # Hapus PGPASSWORD setelah selesai
+  unset PGPASSWORD
+}
+
 database_setup() {
   trap 'error_deployment' ERR
   echo "Setting up database..."
-  echo "SELECT 'CREATE DATABASE `echo $product_name_full | tr . _`' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '`echo $product_name_full | tr . _`') \gexec" | psql "postgresql://postgres:postgres@localhost"
+  echo "SELECT 'CREATE DATABASE `echo $product_name_full | tr . _`' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '`echo $product_name_full | tr . _`') \gexec" | psql "postgresql://$DB_USERNAME:$DB_PASSWORD@localhost"
 }
 
 database_seeding() {
@@ -230,7 +296,7 @@ database_seeding() {
   do
     DB_SEED_NAME=echo $product_name_full | tr . _
     SEED_FILE=$sql_file
-    psql postgresql://postgres:postgres@localhost:5432/$DB_SEED_NAME -f $SEED_FILE
+    psql postgresql://postgres:postgres@$DB_URL/$DB_SEED_NAME -f $SEED_FILE
   done
 }
 
@@ -271,7 +337,7 @@ abort_deployment() {
   sudo rm -f $product_dir/logs/nginx_proxy_access.log $product_dir/logs/nginx_proxy_error.log
   sudo systemctl daemon-reload
   sudo systemctl restart nginx
-  echo "DROP DATABASE IF EXISTS ${PRODUCT_PREFIX}_product_$product_name;" | psql "postgresql://postgres:postgres@localhost"
+  echo "DROP DATABASE IF EXISTS ${PRODUCT_PREFIX}_product_$product_name;" | psql "postgresql://$DB_USERNAME:$DB_PASSWORD@localhost"
   sudo grep -v "$product_name-static" $deployed_ports_file > /tmp/tmp_port_file && sudo mv /tmp/tmp_port_file $deployed_ports_file
   sudo grep -v "$product_name-backend" $deployed_ports_file > /tmp/tmp_port_file && sudo mv /tmp/tmp_port_file $deployed_ports_file
   sudo grep -v "$product_name-jmx-exporter" $deployed_ports_file > /tmp/tmp_port_file && sudo mv /tmp/tmp_port_file $deployed_ports_file
@@ -293,6 +359,7 @@ new_deployment() {
   generate_be_systemd_config
   generate_static_systemd_config
   database_setup
+  wait_for_db
   be_systemd_setup
   static_systemd_setup
   generate_nginx_config
@@ -303,6 +370,9 @@ new_deployment() {
 
 redeployment() {
   reload_processes
+  load_ports_from_file
+  generate_nginx_config
+  nginx_setup
   database_seeding
   echo "Redeployment finished!"
 }

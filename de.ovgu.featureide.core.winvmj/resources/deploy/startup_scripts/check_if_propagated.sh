@@ -11,11 +11,13 @@ PRODUCT_PREFIX=$5
 LOG_FILE_LOCATION=$VM_ROOT_FILES/propagated_log.log
 ERROR_LOG="${LOG_FILE_LOCATION%.log}_error.log" 
 
-touch "$LOG_FILE" "$ERROR_LOG"
+touch "$LOG_FILE_LOCATION" "$ERROR_LOG"
 
 # Perform the curl request and store the status code
 sudo systemctl restart systemd-resolved
-status_code=$(curl -s -o /dev/null -w "%{http_code}" -m 30 http://$CERTIFICATE_NAME)
+
+# curl with location flag (-L) to make sure redeployment is also handled
+status_code=$(curl -L -s -o /dev/null -w "%{http_code}" -m 30 http://$CERTIFICATE_NAME)
 
 # Function to handle errors
 error_deployment() {

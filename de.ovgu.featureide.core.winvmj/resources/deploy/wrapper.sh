@@ -33,6 +33,8 @@ PROVIDER=$8
 INSTANCE_NAME=$9
 PRODUCT_PREFIX=${10}
 PRODUCT_DIR=${11}
+PUBLIC_KEY=${12}
+PRIVATE_KEY_PATH=${13}
 
 # Set Other Variables based on Provider selected
 if [ "$PROVIDER" == "aws" ]; then
@@ -60,6 +62,16 @@ if [ ! -f "$PRODUCT_DIR" ]; then
   exit 1
 fi
 
+# Validasi file public key
+if [ ! -f "$PUBLIC_KEY" ]; then
+  echo "Error: Product not found at $PUBLIC_KEY"
+  exit 1
+fi
+
+if [ ! -f "$PRIVATE_KEY_PATH" ] || [ ! -r "$PRIVATE_KEY_PATH" ]; then
+  echo "Error: Private key $PRIVATE_KEY_PATH not found or not readable!"
+  exit 1
+fi
 
 echo "Using username: $USERNAME for provider: $PROVIDER"
 
@@ -85,7 +97,7 @@ chmod +x main_scripts/before_propagate.sh
 
 # Create VM
 # e.g. ./main_scripts/create_vm.sh ubuntu t2.medium ap-southeast-1 aws amanah-instance-aws
-./terraform/create_vm.sh $USERNAME $MACHINE_TYPE $ZONE $CREDENTIALS $PROVIDER $INSTANCE_NAME
+./terraform/create_vm.sh $USERNAME $MACHINE_TYPE $ZONE $CREDENTIALS $PROVIDER $INSTANCE_NAME $PUBLIC_KEY
 
 echo "Please wait for a minute to make sure your instance is ready..."
 sleep 60
@@ -94,7 +106,7 @@ INSTANCE_IP=$(cat instance_ip.txt)
 
 # Initial setup before deployment ready
 # e.g. ./main_scripts/setup_step_1.sh ubuntu 35.21.12.240 hightide hightide.rikza.net hightide.rikza
-./main_scripts/setup_step_1.sh $USERNAME $INSTANCE_IP $PRODUCT_NAME $CERTIFICATE_NAME $NGINX_CERTIFICATE_NAME
+./main_scripts/setup_step_1.sh $USERNAME $INSTANCE_IP $PRODUCT_NAME $CERTIFICATE_NAME $NGINX_CERTIFICATE_NAME $PRIVATE_KEY_PATH
 
 # 2
 
@@ -108,14 +120,14 @@ sleep 30
 
 # Initial setup in VM
 # e.g. ./main_scripts/initial_setup.sh ubuntu 35.21.12.240 hightide hightide.rikza.net
-./main_scripts/initial_setup.sh $USERNAME $INSTANCE_IP $PRODUCT_NAME $CERTIFICATE_NAME $PRODUCT_DIR
+./main_scripts/initial_setup.sh $USERNAME $INSTANCE_IP $PRODUCT_NAME $CERTIFICATE_NAME $PRODUCT_DIR $PRIVATE_KEY_PATH
 # Additional necessary setup in VM
 # e.g. ./main_scripts/initial_setup_2.sh ubuntu 35.21.12.240 
-./main_scripts/initial_setup_2.sh $USERNAME $INSTANCE_IP
+./main_scripts/initial_setup_2.sh $USERNAME $INSTANCE_IP $PRIVATE_KEY_PATH
 
 # Before propagate
 # ./main_scripts/before_propagate.sh ubuntu 35.21.12.240 hightide hightide.rikza.net hightide.rikza
-./main_scripts/before_propagate.sh $USERNAME $INSTANCE_IP $PRODUCT_NAME $CERTIFICATE_NAME $NGINX_CERTIFICATE_NAME $PRODUCT_PREFIX
+./main_scripts/before_propagate.sh $USERNAME $INSTANCE_IP $PRODUCT_NAME $CERTIFICATE_NAME $NGINX_CERTIFICATE_NAME $PRODUCT_PREFIX $PRIVATE_KEY_PATH
 
 
 echo "Finished! It may takes few minutes for the application to run"
