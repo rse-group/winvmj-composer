@@ -39,17 +39,8 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("requiredModules", getRequiredModules(product));
 		dataModel.put("exportedModules", exportedModules);
-		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		
 		return dataModel;
-	}
-
-	protected boolean checkDefaultAuthModel(WinVMJProduct product) {
-		for (String module : product.getModuleNames()) {
-			if (module.startsWith(PREFIX_AUTH_MODEL_PRODUCT))
-				return false;
-		}
-		return true;
 	}
 	
 	protected String loadTemplateFilename() {
