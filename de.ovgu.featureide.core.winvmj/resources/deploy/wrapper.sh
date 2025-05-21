@@ -133,9 +133,3 @@ sleep 30
 echo "Finished! It may takes few minutes for the application to run"
 echo "Check directory /home/{USER} and look for propagated_log.log file to check deployment status"
 echo "Check propagated_log_error.log file to check error message"
-read -p "You can exit now..."
-
-# Deploy product
-# ./wrapper.sh rikza MEDIUM JAKARTA hightide hightide.rikza.net hightide.rikza terraform-sa.json gcp amanah-instance-gcp
-# OR
-# ./wrapper.sh ubuntu MEDIUM SINGAPORE procom procom.rikza.net procom.rikza aws-key.json aws amanah-instance-aws

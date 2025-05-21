@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-
+import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -120,9 +120,6 @@ public class DeploymentWizard extends Wizard {
         }
         
         
-        
-    	
-    	
     	
         String credentialPath = filePage.getCredentialFilePath();
         String productZipPath = filePage.getProductFilePath();
@@ -134,8 +131,11 @@ public class DeploymentWizard extends Wizard {
         String instanceName = configPage.getInstanceName();
         String productPrefix = configPage.getProductPrefix();
         String productName = configPage.getProductName();
+        String pubKeyPath = filePage.getPubKeyFilePath();
+        String privKeyPath = filePage.getPrivKeyFilePath();
         
-        printAllSelectedOption(selectedOption,credentialPath, productZipPath, username, machineType,  region, certificateName, nginxCertName,  instanceName,  productPrefix,  productName);
+        
+        printAllSelectedOption(selectedOption,credentialPath, productZipPath, username, machineType,  region, certificateName, nginxCertName,  instanceName,  productPrefix,  productName, pubKeyPath, privKeyPath);
         
         // Temukan direktori script wrapper.sh berada
         String scriptDir = locateScriptDir();
@@ -150,6 +150,15 @@ public class DeploymentWizard extends Wizard {
                 String wslScriptPath = convertWindowsPathToWslPath(finalScriptPath); // ubah format path script wrapper.sh ke format sesuai linux (/mnt/.../wrapper.sh)
                 String wslCredentialPath = convertWindowsPathToWslPath(credentialPath);
                 String wslProductPath = convertWindowsPathToWslPath(productZipPath);
+                String wslPubKeyPath = convertWindowsPathToWslPath(pubKeyPath);
+                String wslPrivKeyPath = convertWindowsPathToWslPath(privKeyPath);
+                
+                // Ambil nama file dari path private key
+                String privKeyFileName = Paths.get(privKeyPath).getFileName().toString();
+                
+                String wslHomeKeyPath = "~/.ssh/" + privKeyFileName;
+                
+                WinVMJConsole.println("[DEBUG] wsl new location: " + wslHomeKeyPath);
                 
                 WinVMJConsole.println("[WIZARD] Converted WSL Path: " + wslScriptPath);
             	
@@ -158,19 +167,30 @@ public class DeploymentWizard extends Wizard {
                     List<String> chmodCommand = List.of("wsl", "chmod", "+x", wslScriptPath);
                     new ProcessBuilder(chmodCommand).start().waitFor();
                     WinVMJConsole.println("[WIZARD] chmod +x executed on script");
+                    
+                    // Buat ~/.ssh jika belum ada
+                    new ProcessBuilder("wsl", "mkdir", "-p", "~/.ssh").start().waitFor();
+
+                    // Salin private key ke ~/.ssh/
+                    new ProcessBuilder("wsl", "cp", wslPrivKeyPath, wslHomeKeyPath).start().waitFor();
+
+                    // Ubah permission jadi 600
+                    new ProcessBuilder("wsl", "chmod", "600", wslHomeKeyPath).start().waitFor();
+
+                    WinVMJConsole.println("[WIZARD] Copied private key to ~/.ssh/ and set permission");
                 } catch (Exception e) {
-                    WinVMJConsole.println("[ERROR] Failed to chmod script: " + e.getMessage());
+                    WinVMJConsole.println("[ERROR] Failed during script and key preparation: " + e.getMessage());
                 }
             	
             	// NOTE: Pastikan encoding script LF (linux) tidak berubah menjadi CRLF (windows) agar bisa dieksekusi
-            	command = generateCommandForWin(wslScriptPath, username, machineType, region, productName, certificateName, nginxCertName, wslCredentialPath,  selectedOption, instanceName, productPrefix, wslProductPath);
+            	command = generateCommandForWin(wslScriptPath, username, machineType, region, productName, certificateName, nginxCertName, wslCredentialPath,  selectedOption, instanceName, productPrefix, wslProductPath, wslPubKeyPath, wslHomeKeyPath);
             } else {
                 WinVMJConsole.println("Detected Unix-based OS. Running directly.");
-                command = generateCommandForLinux(finalScriptPath, username, machineType, region, productName, certificateName, nginxCertName, credentialPath, selectedOption, instanceName,productPrefix, productZipPath);
+                command = generateCommandForLinux(finalScriptPath, username, machineType, region, productName, certificateName, nginxCertName, credentialPath, selectedOption, instanceName,productPrefix, productZipPath, pubKeyPath, privKeyPath);
             }
 
             try {
-                WinVMJConsole.println("[DEBUG] Running command: " + command);
+                WinVMJConsole.println("[WIZARD] Running command: " + command);
                 ProcessBuilder builder = new ProcessBuilder(command);
                 builder.redirectErrorStream(true);
                 Process process = builder.start();
@@ -249,7 +269,7 @@ public class DeploymentWizard extends Wizard {
     
     private void printAllSelectedOption(String selectedOption, 
     		String credentialPath, String productZipPath, String username, String machineType, String region,  String certificateName,
-    		String nginxCertName, String instanceName, String productPrefix, String productName) {
+    		String nginxCertName, String instanceName, String productPrefix, String productName, String pubkey, String privkey) {
     	
     	WinVMJConsole.println("=== Deployment Wizard Configuration ===");
         WinVMJConsole.println("Selected Deployment Option: " + selectedOption);
@@ -263,6 +283,8 @@ public class DeploymentWizard extends Wizard {
         WinVMJConsole.println("Instance Name: " + instanceName);
         WinVMJConsole.println("Product Prefix: " + productPrefix);
         WinVMJConsole.println("Product Name: " + productName);
+        WinVMJConsole.println("Public Key File Path: " + pubkey);
+        WinVMJConsole.println("Private Key File Path: " + privkey);
     }
     
     
@@ -288,7 +310,8 @@ public class DeploymentWizard extends Wizard {
     }
     private List<String> generateCommandForWin(String wslScriptPath, String username, String machineType,
     		String region, String productName, String certificateName, String nginxCertName, String wslCredentialPath, 
-    		String selectedOption, String instanceName, String productPrefix, String wslProductPath) {
+    		String selectedOption, String instanceName, String productPrefix, String wslProductPath, String wslPubKeyPath,
+    		String wslPrivKeyPath) {
     	
     	List<String> command = new ArrayList<>();
     	command.clear();
@@ -306,12 +329,15 @@ public class DeploymentWizard extends Wizard {
     	command.add(instanceName);
     	command.add(productPrefix);
     	command.add(wslProductPath);
+    	command.add(wslPubKeyPath);
+    	command.add(wslPrivKeyPath);
     	return command;
     }
     
     private List<String> generateCommandForLinux(String finalScriptPath, String username, String machineType,
     		String region, String productName, String certificateName, String nginxCertName, String credentialPath, 
-    		String selectedOption, String instanceName, String productPrefix, String productZipPath) {
+    		String selectedOption, String instanceName, String productPrefix, String productZipPath, String pubKeyPath,
+    		String privKeyPath) {
     	
     	List<String> command = new ArrayList<>();
     	command.clear();
@@ -328,6 +354,8 @@ public class DeploymentWizard extends Wizard {
         command.add(instanceName);
         command.add(productPrefix);
         command.add(productZipPath);
+        command.add(pubKeyPath);
+        command.add(privKeyPath);
     	return command;
     }
     

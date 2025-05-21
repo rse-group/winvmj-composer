@@ -10,11 +10,13 @@ public class CredentialAndProductPage extends WizardPage {
 
     private Text credentialFileText;
     private Text productFileText;
+    private Text privKeyText;
+    private Text pubKeyText;
 
     public CredentialAndProductPage(String pageName) {
         super(pageName);
-        setTitle("Select Credential and Product Files");
-        setDescription("Choose the credential (.json) and product (.zip) files.");
+        setTitle("Select Credential, Product and Key Files");
+        setDescription("Choose the credential (.json product (.zip), and key (public and private) files.");
     }
 
     @Override
@@ -55,6 +57,38 @@ public class CredentialAndProductPage extends WizardPage {
                 setPageComplete(isPageComplete());
             }
         });
+        
+        // Private key file
+        new Label(container, SWT.NONE).setText("Private Key File:");
+        privKeyText = new Text(container, SWT.BORDER);
+        privKeyText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+        Button browsePrivKeyButton = new Button(container, SWT.PUSH);
+        browsePrivKeyButton.setText("Browse...");
+        browsePrivKeyButton.addListener(SWT.Selection, e -> {
+            FileDialog dialog = new FileDialog(getShell(), SWT.OPEN);
+            String selected = dialog.open();
+            if (selected != null) {
+            	privKeyText.setText(selected);
+                setPageComplete(isPageComplete());
+            }
+        });
+        
+        // Public key file
+        new Label(container, SWT.NONE).setText("Public Key File:");
+        pubKeyText = new Text(container, SWT.BORDER);
+        pubKeyText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+
+        Button browsePubKeyButton = new Button(container, SWT.PUSH);
+        browsePubKeyButton.setText("Browse...");
+        browsePubKeyButton.addListener(SWT.Selection, e -> {
+            FileDialog dialog = new FileDialog(getShell(), SWT.OPEN);
+            String selected = dialog.open();
+            if (selected != null) {
+            	pubKeyText.setText(selected);
+                setPageComplete(isPageComplete());
+            }
+        });
 
         setControl(container);
         setPageComplete(false);
@@ -65,7 +99,9 @@ public class CredentialAndProductPage extends WizardPage {
         return !credentialFileText.getText().trim().isEmpty() &&
                credentialFileText.getText().endsWith(".json") &&
                !productFileText.getText().trim().isEmpty() &&
-               productFileText.getText().endsWith(".zip");
+               productFileText.getText().endsWith(".zip") &&
+               !privKeyText.getText().trim().isEmpty() &&
+               !pubKeyText.getText().trim().isEmpty() ;
     }
 
     public String getCredentialFilePath() {
@@ -74,5 +110,13 @@ public class CredentialAndProductPage extends WizardPage {
 
     public String getProductFilePath() {
         return productFileText.getText();
+    }
+    
+    public String getPrivKeyFilePath() {
+        return privKeyText.getText();
+    }
+    
+    public String getPubKeyFilePath() {
+        return pubKeyText.getText();
     }
 }
