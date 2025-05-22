@@ -95,6 +95,14 @@ public class ApiGateway {
             }
 
             int responseCode = conn.getResponseCode();
+            conn.getHeaderFields().forEach((key, values) -> {
+                if (key != null) {
+                    for (String value : values) {
+                        exchange.getResponseHeaders().add(key, value);
+                    }
+                }
+            });
+
             InputStream backendResponse = responseCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
             byte[] responseBytes = backendResponse.readAllBytes();
 
