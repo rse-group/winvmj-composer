@@ -1,0 +1,29 @@
+# TEMPLATES
+services:     
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        PRODUCTLINE: ${PRODUCTLINE}
+        MAIN_CLASS: ${BACKEND_MAIN_CLASS}
+    container_name: ${BACKEND_CONTAINER_NAME}
+    restart: always
+    environment:
+      AMANAH_PORT_BE: ${AMANAH_PORT_BE}
+      AMANAH_DB_URL: ${AMANAH_DB_URL}
+      AMANAH_DB_USERNAME: ${POSTGRES_USER}
+      AMANAH_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_ID: ${APP_ID}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+    ports:
+      - "${AMANAH_PORT_BE}:${AMANAH_PORT_BE}"
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    external: true
+    name: ${NET}

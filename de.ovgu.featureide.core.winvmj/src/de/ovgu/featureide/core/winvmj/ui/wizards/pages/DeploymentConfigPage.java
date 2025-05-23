@@ -18,6 +18,8 @@ public class DeploymentConfigPage extends WizardPage {
     private Text instanceNameText;
     private Text productPrefixText;
     private Text productNameText;
+    private Text numBackendsText;
+
 
     public DeploymentConfigPage(String pageName) {
         super(pageName);
@@ -43,7 +45,9 @@ public class DeploymentConfigPage extends WizardPage {
         instanceNameText = createField(container, "Instance Name:", "Nama unik untuk VM instance");
         productPrefixText = createField(container, "Product Prefix:", "Prefix folder produk (contoh: 'aisco' atau 'webshop')");
         productNameText = createField(container, "Product Name:", "Nama produk spesifik yang akan di-deploy");
+        numBackendsText = createField(container, "Number of Backends:", "Jumlah service backend yang ingin dideploy");
 
+       
         Listener validationListener = e -> setPageComplete(isPageComplete());
 
         usernameText.addListener(SWT.Modify, validationListener);
@@ -54,6 +58,7 @@ public class DeploymentConfigPage extends WizardPage {
         instanceNameText.addListener(SWT.Modify, validationListener);
         productPrefixText.addListener(SWT.Modify, validationListener);
         productNameText.addListener(SWT.Modify, validationListener);
+        numBackendsText.addListener(SWT.Modify, validationListener);
 
         setControl(container);
         setPageComplete(false);
@@ -102,7 +107,9 @@ public class DeploymentConfigPage extends WizardPage {
         super.setVisible(visible);
 
         if (visible) {
-            String deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentPage().getSelectedOption();
+            String deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentPage().getSelectedProvider();
+            String deploymentMethod = ((DeploymentWizard) getWizard()).getDeploymentPage().getSelectedDeploymentMethod();
+       
 
             if ("AWS".equalsIgnoreCase(deploymentTarget)) {
                 regionCombo.setItems(new String[]{"US", "EUROPE", "SINGAPORE"});
@@ -129,6 +136,13 @@ public class DeploymentConfigPage extends WizardPage {
 
             if (regionCombo.isVisible() && regionCombo.getItemCount() > 0) {
                 regionCombo.select(0);
+            }
+            
+            
+            if ("docker".equalsIgnoreCase(deploymentMethod)) {
+            	numBackendsText.setEnabled(true);
+            } else if ("systemd".equalsIgnoreCase(deploymentMethod)) {
+            	numBackendsText.setEnabled(false);
             }
 
             setPageComplete(isPageComplete());
@@ -167,4 +181,10 @@ public class DeploymentConfigPage extends WizardPage {
     public String getProductName() {
         return productNameText.getText();
     }
+    
+    public String getNumBackends() {
+        return numBackendsText.getText();
+    }
+    
+    
 }

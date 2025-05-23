@@ -1,0 +1,22 @@
+services:  
+  rabbitmq:
+      image: rabbitmq:4-management
+      container_name: ${RABBITMQ_CONTAINER_NAME}
+      ports:
+        - "${RABBITMQ_PORT}:5672"
+        - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+      environment:
+        RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+        RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      networks:
+        - app_network
+      healthcheck:
+        test: ["CMD-SHELL", "rabbitmq-diagnostics check_running -q"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+networks:
+  app_network:
+    external: true
+    name: ${NET}

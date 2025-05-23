@@ -29,6 +29,7 @@ public class DeploymentWizard extends Wizard {
     private CredentialAndProductPage filePage;
     private DeploymentConfigPage configPage;
     private AmanahDeploymentPage amanahPage;
+    private DeploymentTargetPage deploymentTargetPage;
 
     public DeploymentWizard() {
         setWindowTitle("Deployment Wizard");
@@ -36,11 +37,13 @@ public class DeploymentWizard extends Wizard {
 
     @Override
     public void addPages() {
+    	deploymentTargetPage = new DeploymentTargetPage("Deployment Target");
     	deploymentPage = new SelectDeploymentPage("Deployment Selection");
         filePage = new CredentialAndProductPage("File Selection");
         configPage = new DeploymentConfigPage("Configuration");
         amanahPage = new AmanahDeploymentPage("Amanah Configuration");
-
+        
+        addPage(deploymentTargetPage);
         addPage(deploymentPage);
         addPage(filePage);
         addPage(configPage);
@@ -49,9 +52,12 @@ public class DeploymentWizard extends Wizard {
     
     @Override
     public IWizardPage getNextPage(IWizardPage page) {
-        if (page == deploymentPage) {
-            String method = deploymentPage.getSelectedOption();
-            if ("amanah".equalsIgnoreCase(method)) {
+    	if (page == deploymentTargetPage) {
+    		return deploymentPage;
+    	}
+    	else if (page == deploymentPage) {
+            String target = deploymentTargetPage.getSelectedDeploymentTarget();
+            if ("amanah".equalsIgnoreCase(target)) {
                 return amanahPage;
             } else {
                 return filePage;
@@ -66,7 +72,7 @@ public class DeploymentWizard extends Wizard {
 
     @Override
     public boolean performFinish() {
-    	String selectedOption = deploymentPage.getSelectedOption().toLowerCase();
+    	String selectedOption = deploymentPage.getSelectedDeploymentMethod();
 
         if ("amanah".equalsIgnoreCase(selectedOption)) {
             String tunnelPort = amanahPage.getTunnelPort();
@@ -226,11 +232,12 @@ public class DeploymentWizard extends Wizard {
     
     @Override
     public boolean canFinish() {
-        String method = deploymentPage.getSelectedOption();
+        String method = deploymentPage.getSelectedArchitecture();
         if ("amanah".equalsIgnoreCase(method)) {
-            return deploymentPage.isPageComplete() && amanahPage.isPageComplete();
+            return deploymentPage.isPageComplete() && amanahPage.isPageComplete() && deploymentTargetPage.isPageComplete();
         } else {
             return deploymentPage.isPageComplete()
+            	&& deploymentTargetPage.isPageComplete()
                 && filePage.isPageComplete()
                 && configPage.isPageComplete();
         }
@@ -360,10 +367,13 @@ public class DeploymentWizard extends Wizard {
     }
     
     
+    public DeploymentTargetPage getDeploymentTargetPage() {
+        return deploymentTargetPage;
+    }
+    
     public SelectDeploymentPage getDeploymentPage() {
         return deploymentPage;
     }
-
 
 
 }
