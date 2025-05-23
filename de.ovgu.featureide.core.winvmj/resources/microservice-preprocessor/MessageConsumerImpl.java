@@ -49,7 +49,7 @@ class MessageConsumerImpl implements MessageConsumer {
                 fqn = property.getValue().toString();
                 continue;
             }
-            arguments.add(parsingObject(property));
+            arguments.add(getTypedValue(property));
         }
 
     }
@@ -82,7 +82,7 @@ class MessageConsumerImpl implements MessageConsumer {
         Map<String, Object> attributes = new HashMap<>();
         for (Property property : message.getProperties()) {
             String attributeName = property.getVarName();
-            Object attributeValue = parsingObject(property);
+            Object attributeValue = getTypedValue(property);
             attributes.put(attributeName,attributeValue);
         }
         String domainClassImpl = moduleName + "." + domainInterface + "Impl";
@@ -103,7 +103,7 @@ class MessageConsumerImpl implements MessageConsumer {
         }
     }
 
-    private Object parsingObject(Property property) throws ParseException {
+    private Object getTypedValue(Property property) throws ParseException {
         String varName = property.getVarName();
         String type = property.getType();
         Object value = property.getValue();
