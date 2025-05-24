@@ -112,7 +112,6 @@ public class AmanahDeploymentPage extends WizardPage {
     public boolean isPageComplete() {
         return !tunnelPortText.getText().trim().isEmpty() &&
                !privateKeyText.getText().trim().isEmpty() &&
-               !privateKeyText.getText().trim().isEmpty() &&
                !productFileText.getText().trim().isEmpty() &&
                !productNameText.getText().trim().isEmpty() &&
                !productPrefixText.getText().trim().isEmpty() &&
@@ -141,6 +140,10 @@ public class AmanahDeploymentPage extends WizardPage {
     
     public String getProductFile() {
         return productFileText.getText();
+    }
+    
+    public String getNumBackends() {
+    	return numBackendsText.getText();
     }
     
     
