@@ -27,11 +27,19 @@ scp -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $PRODUCT_DIRECTORY \
 # Unzip product files on the remote VM
 ssh -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "sudo unzip -o $VM_ROOT_FILES/$PRODUCT_NAME.zip -d $PRODUCT_PATH"
 
-# Upload Dockerfiles
-scp -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $DOCKERFILES_DIRECTORY/docker-compose.base.yml \
+# Copy and move docker configs
+scp -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no \
+    $DOCKERFILES_DIRECTORY/docker-compose.base.yml \
     $DOCKERFILES_DIRECTORY/docker-compose.db.yml \
     $DOCKERFILES_DIRECTORY/docker-compose.rabbitmq.yml \
     $DOCKERFILES_DIRECTORY/Dockerfile.backend \
     $DOCKERFILES_DIRECTORY/Dockerfile.frontend \
     $DOCKERFILES_DIRECTORY/Dockerfile.apigateway \
-    $USERNAME@$INSTANCE_IP:$PRODUCT_PATH/$PRODUCT_NAME
+    $USERNAME@$INSTANCE_IP:/tmp/
+
+ssh -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "
+    ls -l /tmp/docker-compose.* /tmp/Dockerfile.* &&
+    sudo mv /tmp/docker-compose.* $PRODUCT_PATH/$PRODUCT_NAME &&
+    sudo mv /tmp/Dockerfile.* $PRODUCT_PATH/$PRODUCT_NAME &&
+    ls -l $PRODUCT_PATH/
+"

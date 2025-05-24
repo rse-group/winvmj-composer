@@ -55,6 +55,14 @@ echo "Running initial_setup.sh to install dependencies and copy products..."
 echo "Running copy_port_reserver.sh to install dependencies and copy products..."
 ./external_scripts/copy_port_reserver.sh $USERNAME $IP_ADDRESS $PRIVATE_KEY_PATH
 
+# Wait for user to confirm DNS setup
+echo "=========================================================================="
+echo "==========================IMPORTANT!!!!!=================================="
+echo "Please set up the DNS A record to point $CERTIFICATE_NAME to $INSTANCE_IP."
+echo "You can verify it by running: nslookup $CERTIFICATE_NAME"
+echo "The process will continue in a few second"
+sleep 30
+
 # Run Script
 echo "Running Installation Script..."
 ./external_scripts/copy_and_run_script.sh $USERNAME $IP_ADDRESS $PRODUCT_NAME $PRODUCT_PREFIX $PRIVATE_KEY_PATH $NUM_BACKENDS $CERTIFICATE_NAME $NGINX_CERTIFICATE_NAME

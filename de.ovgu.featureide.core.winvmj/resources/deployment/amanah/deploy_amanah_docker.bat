@@ -75,13 +75,23 @@ ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -
 echo:
 
 :: Step 2 - Copy file-file docker ke server amanah
-echo:
-echo Meng-copy konfigurasi Docker ke server Amanah...
-scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %dockerfile_location%\* %username_amanah%@localhost:/var/www/products/%product_name% && (
-    echo Sukses menyalin konfigurasi Docker!
+echo.
+echo Meng-copy konfigurasi Docker ke server Amanah ke /tmp dulu...
+scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %dockerfile_location%\* %username_amanah%@localhost:/tmp/%product_name% && (
+    echo Sukses menyalin konfigurasi Docker ke /tmp/%product_name%!
 ) || (
-    echo Gagal menyalin konfigurasi Docker.
+    echo Gagal menyalin konfigurasi Docker ke /tmp/%product_name%.
     exit /b 1
+)
+
+echo.
+echo Memindahkan file ke /var/www/products/%product_name% ...
+ssh -i %private_key_amanah% -p %local_tunnel_port% %username_amanah%@localhost "sudo mkdir -p /var/www/products/%product_name% && sudo mv /tmp/%product_name%/* /var/www/products/%product_name%/ && sudo rm -rf /tmp/%product_name%"
+if errorlevel 1 (
+    echo Gagal memindahkan file ke /var/www/products/%product_name%.
+    exit /b 1
+) else (
+    echo File berhasil dipindahkan ke /var/www/products/%product_name%.
 )
 
 
