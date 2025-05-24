@@ -58,7 +58,7 @@ echo "Running copy_port_reserver.sh to install dependencies and copy products...
 # Wait for user to confirm DNS setup
 echo "=========================================================================="
 echo "==========================IMPORTANT!!!!!=================================="
-echo "Please set up the DNS A record to point $CERTIFICATE_NAME to $INSTANCE_IP."
+echo "Please set up the DNS A record to point $CERTIFICATE_NAME to $IP_ADDRESS."
 echo "You can verify it by running: nslookup $CERTIFICATE_NAME"
 echo "The process will continue in a few second"
 sleep 30

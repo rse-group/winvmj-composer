@@ -38,8 +38,6 @@ scp -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no \
     $USERNAME@$INSTANCE_IP:/tmp/
 
 ssh -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "
-    ls -l /tmp/docker-compose.* /tmp/Dockerfile.* &&
     sudo mv /tmp/docker-compose.* $PRODUCT_PATH/$PRODUCT_NAME &&
-    sudo mv /tmp/Dockerfile.* $PRODUCT_PATH/$PRODUCT_NAME &&
-    ls -l $PRODUCT_PATH/
+    sudo mv /tmp/Dockerfile.* $PRODUCT_PATH/$PRODUCT_NAME 
 "
