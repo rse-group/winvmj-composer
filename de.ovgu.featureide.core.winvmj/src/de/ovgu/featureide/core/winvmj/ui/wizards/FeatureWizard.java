@@ -139,6 +139,7 @@ public class FeatureWizard extends Wizard {
     @Override
     public void addPages() {
         projectNamePage = new ProjectNameWizardPage();
+        projectNamePage.setProject(this.project);
         addPage(projectNamePage);
 
 		// Section for Sorting Model
@@ -278,7 +279,7 @@ public class FeatureWizard extends Wizard {
 		MessageDialog.openInformation(
 		        getShell(),
 		        "Configuration Complete",
-		        "Product configuration finished.\nConfiguration file has been generated successfully."
+		        "Product configuration finished.\nConfiguration file has been generated."
 		);
         
         return true;

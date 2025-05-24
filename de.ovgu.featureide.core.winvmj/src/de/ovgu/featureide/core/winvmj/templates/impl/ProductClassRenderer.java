@@ -145,7 +145,12 @@ public class ProductClassRenderer extends TemplateRenderer {
 	
 	private void getSelectedFeature(IFeatureProject winVmjProject) {
 		Configuration config = winVmjProject.loadCurrentConfiguration();
-		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();    
+		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();   
+
+		features = features.stream()
+        	.map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
+        	.collect(Collectors.toSet());
+
 	    selectedFeature = new ArrayList<>(features);
 	}
 
