@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,7 +120,7 @@ public class ModulePreprocessor {
     
     public static void registerRoutingToApiGateway(Map<String, Set<IFolder>> serviceFeatureModuleMap, IFile apiGatewayFile) {
     	
-    	Map<String, Set<String>> serviceToEndpointsMap = new HashMap<String, Set<String>>();
+    	Map<String, Set<String>> serviceToEndpointsMap = new LinkedHashMap<String, Set<String>>();
     	for (Map.Entry<String, Set<IFolder>> entry : serviceFeatureModuleMap.entrySet()) {
 			String serviceName = entry.getKey();
 			Set<IFolder> selectedFeatureModules = entry.getValue();

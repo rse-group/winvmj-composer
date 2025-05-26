@@ -212,7 +212,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		        
 		        // Pre-process ApiGateway
 		        Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(featureProject.getProject());
-		        Map<String, Set<IFolder>> serviceFeatureModuleMap = new HashMap<String, Set<IFolder>>();
+		        Map<String, Set<IFolder>> serviceFeatureModuleMap = new LinkedHashMap<String, Set<IFolder>>();
 		        for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
 					String productName = entry.getKey();
 					List<IFeature> selectedFeatures = entry.getValue();

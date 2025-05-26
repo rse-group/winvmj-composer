@@ -161,7 +161,7 @@ public class Utils {
 	}
 	
 	public static Map<String, List<IFeature>> getMicroservicesDefinition(IFeatureProject project) {
-        Map<String, List<IFeature>> serviceDefinition = new HashMap<>();
+        Map<String, List<IFeature>> serviceDefinition = new LinkedHashMap<>();
         
         IFile servicesDefFile = project.getProject().getFile("services-def.json");
 
