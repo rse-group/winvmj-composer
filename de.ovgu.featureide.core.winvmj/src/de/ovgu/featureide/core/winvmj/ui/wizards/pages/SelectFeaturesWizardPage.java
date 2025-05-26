@@ -232,43 +232,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			}
 		});
 
-		final Composite buttonGroup = new Composite(container, 0);
-		buttonGroup.setLayoutData(new GridData(SWT.FILL, SWT.BOTTOM, true, false));
-		final GridLayout gridLayout = new GridLayout();
-		gridLayout.numColumns = 2;
-		buttonGroup.setLayout(gridLayout);
-
-		final Button selectAllButton = new Button(buttonGroup, SWT.PUSH);
-		selectAllButton.setText("Select All");
-		selectAllButton.addSelectionListener(new SelectionListener() {
-
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				checkItems(true);
-				validateConfiguration();
-			}
-
-			@Override
-			public void widgetDefaultSelected(SelectionEvent e) {}
-		});
-
-		final Button deselectAllButton = new Button(buttonGroup, SWT.PUSH);
-		deselectAllButton.setText("Deselect All");
-		deselectAllButton.addSelectionListener(new SelectionListener() {
-
-
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				checkItems(false);
-				validateConfiguration();
-			}
-
-			@Override
-			public void widgetDefaultSelected(SelectionEvent e) {}
-		});
-
-		// buttonGroup.pack();
-		// container.pack();
 		setPageComplete(false);
 	}
 	
@@ -637,9 +600,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	        for (int lit : findsolutionORG) {
 	            String fullName = solver.getSatInstance().getVariables().getName(lit);
 	            String shortName = getShortName(fullName);
-//	            boolean isInSelectedFile = currentSelectedFileFeatures.stream().anyMatch(f -> {
-//	                return f.getName().equals(shortName);
-//	            });
 	            if (!selectedFeatures.contains(shortName)) {
 	                targetFeatures.put(shortName, lit);
 	                if (lit > 0) {
