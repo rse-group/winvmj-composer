@@ -107,7 +107,8 @@ public class SourceCompiler {
 		    	}
 		    	Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(project.getProject());
 		    	Map<String,List<IFeature>> serviceDefMap = Utils.getMicroservicesDefinition(project);
-				
+		    	Map<String,List<IFeature>> serviceNonExposedFeaturesMap = Utils.getMicroserviceNonExposedFeatures(project);
+		    	
 				for (WinVMJProduct sourceProduct : serviceProducts) {
 		        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 					if (!compiledProductDir.exists())
@@ -132,12 +133,17 @@ public class SourceCompiler {
 				    
 				    	// get all selected feature module of a micro-service from service-def.json 
 				    List<IFeature> selectedFeatures = serviceDefMap.getOrDefault((sourceProduct.getProductName()), null);
-				    Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(selectedFeatures, featureToModuleNameMap);
+				    List<IFeature> nonExposedFeatures = serviceNonExposedFeaturesMap.getOrDefault((sourceProduct.getProductName()), null);
+				    
+				    List<IFeature> exposedFeatures = new ArrayList<>(selectedFeatures);
+				    exposedFeatures.removeAll(nonExposedFeatures);
+				    
+;				    Set<String> exposedFeatureModulesName = Utils.getSelectedFeatureModulesName(exposedFeatures, featureToModuleNameMap);
 
 				    for (IFolder module : sourceProduct.getModules()) {
 				    	boolean isDuplicatedModule = duplicateModuleNames.contains(module.getName());
-				    	boolean isSelectedFeatureModule = selectedFeatureModulesName.contains(module.getName());
-				    	boolean isPreprocessedModule = isDuplicatedModule || !isSelectedFeatureModule;
+				    	boolean isExposedFeatureModule = exposedFeatureModulesName.contains(module.getName());
+				    	boolean isPreprocessedModule = isDuplicatedModule || !isExposedFeatureModule;
 				    	
 				    	if (isPreprocessedModule) {
 				    		// backup module
@@ -151,7 +157,7 @@ public class SourceCompiler {
 				            ModulePreprocessor.modifyModuleInfo(module, productModuleName);
 				        }
 				        
-				        if (!isSelectedFeatureModule) {
+				        if (!isExposedFeatureModule) {
 				        	ModulePreprocessor.deleteResourceLayer(module);
 				        }
 				    }

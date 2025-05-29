@@ -198,6 +198,48 @@ public class Utils {
         return serviceDefinition;
     }
 	
+	public static Map<String, List<IFeature>> getMicroserviceNonExposedFeatures(IFeatureProject project) {
+	    Map<String, List<IFeature>> disabledFeaturesMap = new HashMap<>();
+
+	    IFile servicesDefFile = project.getProject().getFile("services-def.json");
+
+	    try (InputStream inputStream = servicesDefFile.getContents();
+	         InputStreamReader reader = new InputStreamReader(inputStream);
+	         BufferedReader bufferedReader = new BufferedReader(reader)) {
+
+	        JsonObject jsonObject = JsonParser.parseReader(bufferedReader).getAsJsonObject();
+	        JsonArray servicesArray = jsonObject.getAsJsonArray("services");
+
+	        for (JsonElement serviceElement : servicesArray) {
+	            JsonObject serviceObject = serviceElement.getAsJsonObject();
+	            String productName = serviceObject.get("productName").getAsString();
+
+	            List<IFeature> disabledFeatures = new ArrayList<>();
+
+	            if (serviceObject.has("disabledEndpoints")) {
+	                JsonArray disabledArray = serviceObject.getAsJsonArray("disabledEndpoints");
+
+	                for (JsonElement disabledElement : disabledArray) {
+	                    String featureName = disabledElement.getAsString();
+	                    IFeature feature = project.getFeatureModel().getFeature(featureName);
+	                    if (feature != null) {
+	                        disabledFeatures.add(feature);
+	                    }
+	                }
+	            }
+
+	            disabledFeaturesMap.put(productName, disabledFeatures);
+	        }
+
+	    } catch (CoreException e) {
+	        e.printStackTrace();
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
+
+	    return disabledFeaturesMap;
+	}
+	
 	public static Set<String> getSelectedFeatureModulesName(List<IFeature> selectedFeatures, 
 			IProject project) throws CoreException{
 		Map<String, List<String>> featureToModuleNameMap = getFeatureToModuleMap(project);

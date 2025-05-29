@@ -115,6 +115,8 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		multiLevelDeltaMappings = null;
 		
 		Map<String, List<IFeature>> serviceDefinition = Utils.getMicroservicesDefinition(featureProject);
+		Map<String,List<IFeature>> serviceNonExposedFeaturesMap = Utils.getMicroserviceNonExposedFeatures(featureProject);
+	  
 		Map<String, IFolder> allModulesMapping = null;
 		try {
 			allModulesMapping = Utils.getAllModulesMapping(featureProject);
@@ -186,8 +188,12 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		    	for (WinVMJProduct product : serviceProducts) {
 		    		String productName = product.getProductName();
 		    		List<IFeature> featureList = serviceDefinition.get(productName);
+		    		List<IFeature> nonExposedFeatures = serviceNonExposedFeaturesMap.get(productName);
+		    	    
+		    	    List<IFeature> exposedFeatures = new ArrayList<>(featureList);
+		    	    exposedFeatures.removeAll(nonExposedFeatures);
 		    		
-		    		composeMicroserviceProduct(product, featureList);
+		    		composeMicroserviceProduct(product, exposedFeatures);
 		    	}
 		    	// refresh src directory
 		    	featureProject.getBuildFolder().refreshLocal(IResource.DEPTH_INFINITE, null);
@@ -216,8 +222,12 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		        for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
 					String productName = entry.getKey();
 					List<IFeature> selectedFeatures = entry.getValue();
+		    		List<IFeature> nonExposedFeatures = serviceNonExposedFeaturesMap.get(productName);
+		    	  
+		    	    List<IFeature> exposedFeatures = new ArrayList<>(selectedFeatures);
+		    	    exposedFeatures.removeAll(nonExposedFeatures);
 					
-					Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(selectedFeatures, featureToModuleNameMap);
+					Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(exposedFeatures, featureToModuleNameMap);
 					Set<IFolder> selectedModules = new HashSet<IFolder>();
 					for (String moduleName : selectedFeatureModulesName) {
 						selectedModules.add(buildDir.getFolder(moduleName));
