@@ -107,6 +107,9 @@ class MessageConsumerImpl implements MessageConsumer {
         String varName = property.getVarName();
         String type = property.getType();
         Object value = property.getValue();
+        if (value == null) {
+            return null;
+        }
         String valueStr = value.toString();
 
         if (repositoryMap.containsKey(type)){
