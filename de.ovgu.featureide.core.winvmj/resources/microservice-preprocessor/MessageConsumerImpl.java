@@ -68,6 +68,12 @@ class MessageConsumerImpl implements MessageConsumer {
                 int intId = ((Number) id).intValue();
                 domainObject = repositoryMap.get(domainInterface).getObject(intId);
             }
+            
+            // Jika diakses bukan dari tableName maka model berasal dari core module
+            int lastDotIndex = moduleName.lastIndexOf('.');
+            if (lastDotIndex != -1) {
+                moduleName = moduleName.substring(0, lastDotIndex) + ".core";
+            }
         } else {
             String columnName =  domainInterface.substring(0, 1).toLowerCase() + domainInterface.substring(1) + "Id";
             try {
