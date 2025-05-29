@@ -405,11 +405,7 @@ public class FeatureWizard extends Wizard {
     @Override
     public boolean canFinish() {
     	IWizardPage currentPage = getContainer().getCurrentPage();
-    	
-        if (currentPage instanceof SelectFeaturesWizardPage) {
-            return getPageIndex(currentPage) == getPageCount() - 1;
-        }
-
-        return false;
+        boolean onLastPage = getPageIndex(currentPage) == getPageCount() - 1;
+        return onLastPage && currentPage.isPageComplete();
     }
 }
