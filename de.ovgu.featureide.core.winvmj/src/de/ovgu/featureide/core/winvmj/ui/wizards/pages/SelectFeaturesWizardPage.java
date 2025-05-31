@@ -320,7 +320,17 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 					setErrorMessage("Please select a Project in the previous page.");
 					
 				}
-				setPageComplete(false);
+				Collection<IFeature> allModelFeatures = multiLevelConfiguration.loadFeatureModel(selectedFile).getFeatures();
+				
+				boolean allDisabled = allModelFeatures.stream()
+					    .map(IFeature::getName)
+					    .allMatch(disabledFeatureNames::contains);
+				
+				if (allDisabled) {
+				    setPageComplete(true);
+				} else {
+				    setPageComplete(false);
+				}
 			}
 		}		
 		else {
@@ -340,6 +350,13 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 			}
 		}
 		super.setVisible(visible);
+	}
+	
+	private void collectTreeItemNames(TreeItem[] items, Set<String> collector) {
+	    for (TreeItem item : items) {
+	        collector.add(item.getText());
+	        collectTreeItemNames(item.getItems(), collector);
+	    }
 	}
 	
 	private void updateGrayedState(TreeItem item) {
