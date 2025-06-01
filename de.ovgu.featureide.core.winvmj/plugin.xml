@@ -59,6 +59,20 @@
                   label="Generate SelectedFeature"
                   style="push">
             </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.migrationhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.migrationhandler"
+                  label="Makemigration"
+                  style="push">
+            </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.migratehandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.migratehandler"
+                  label="Migrate"
+                  style="push">
+            </command>
          </menu>
       </menuContribution>
    </extension>
@@ -71,6 +85,14 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.RoutingGenHandler"
             commandId="de.ovgu.featureide.core.winvmj.routinggenhandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.MigrationHandler"
+            commandId="de.ovgu.featureide.core.winvmj.migrationhandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.MigrateHandler"
+            commandId="de.ovgu.featureide.core.winvmj.migratehandler">
       </handler>
    </extension>
 

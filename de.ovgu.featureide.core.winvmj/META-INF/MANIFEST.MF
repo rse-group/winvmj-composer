@@ -30,5 +30,10 @@ Bundle-ClassPath: .,
  libs/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar,
  libs/logicng-2.2.0.jar,
  libs/commons-io-2.11.0.jar,
- libs/commons-lang3-3.12.0.jar
+ libs/commons-lang3-3.12.0.jar,
+ libs/migration-prototype-1.0-SNAPSHOT.jar,
+ libs/sqlite.jdbc.jar,
+ libs/postgresql-42.2.21.jar,
+ libs/mysql-connector-java-8.0.26.jar,
+ libs/json-20250107.jar
 Eclipse-BundleShape: dir
