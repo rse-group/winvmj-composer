@@ -145,9 +145,12 @@ public class ProductClassRenderer extends TemplateRenderer {
 	
 	private void getSelectedFeature(IFeatureProject winVmjProject) {
 		Configuration config = winVmjProject.loadCurrentConfiguration();
-		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
-		
-	    
+		Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();   
+
+		features = features.stream()
+        	.map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
+        	.collect(Collectors.toSet());
+
 	    selectedFeature = new ArrayList<>(features);
 	}
 
@@ -203,35 +206,67 @@ public class ProductClassRenderer extends TemplateRenderer {
         return featureTableMappings;
     }
 
+
 	private List<List<Map<String, Object>>> getRequiredBindings(WinVMJProduct product)
 			throws IOException, CoreException {
 		List<List<Map<String, Object>>> bindings = new ArrayList<>();
 
 		Set<String> productModules = new HashSet<>(product.getModuleNames());
+				
+		// Distinguish Duplicate Module
+		Map<String, Integer> duplicate = new HashMap<>();
 
 		// Iterate over the entries of the featureToModuleMap
 		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
 			String feature = entry.getKey();
-	        if (selectedFeature.contains(feature)) {
-				List<String> modules = entry.getValue();
-				for (String module : modules) {
-					if (productModules.contains(module)) {
-						try {
-							List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
-							if (bindingSpec != null) {
-								bindings.add(bindingSpec);
+			if (feature.contains("|")) {
+				for (String ft : feature.replaceAll(" ", "").split("\\|")) {
+					if (selectedFeature.contains(ft)) {
+						List<String> modules = entry.getValue();
+						for (String module : modules) {
+							if ((productModules.contains(module)) && (!duplicate.containsKey(module))) {
+								try {
+									duplicate.put(module, 1);
+									List<Map<String, Object>> bindingSpec = constructBindingSpec(module, ft);
+									if (bindingSpec != null) {
+										bindings.add(bindingSpec);
+									}
+								} catch (IOException | CoreException e) {
+									e.printStackTrace();
+								}
 							}
-						} catch (IOException | CoreException e) {
-							e.printStackTrace();
+						}
+		
+						if (Utils.isMultiLevelDelta(entry)) {
+							List<Map<String, Object>> bindingSpec = processMultiLevelDelta(ft, modules);
+							if (bindingSpec != null) bindings.add(bindingSpec);
 						}
 					}
 				}
+			}
+			
+			else {
+				if (selectedFeature.contains(feature)) {
+					List<String> modules = entry.getValue();
+					for (String module : modules) {
+						if ((productModules.contains(module)) && (!duplicate.containsKey(module))) {
+							try {
+								List<Map<String, Object>> bindingSpec = constructBindingSpec(module, feature);
+								if (bindingSpec != null) {
+									bindings.add(bindingSpec);
+								}
+							} catch (IOException | CoreException e) {
+								e.printStackTrace();
+							}
+						}
+					}
 
-				if (Utils.isMultiLevelDelta(entry)) {
-					List<Map<String, Object>> bindingSpec = processMultiLevelDelta(feature, modules);
-					if (bindingSpec != null) bindings.add(bindingSpec);
+					if (Utils.isMultiLevelDelta(entry)) {
+						List<Map<String, Object>> bindingSpec = processMultiLevelDelta(feature, modules);
+						if (bindingSpec != null) bindings.add(bindingSpec);
+					}
 				}
-	        }
+			}
 		}
 		return bindings;
 	}
@@ -247,26 +282,44 @@ public class ProductClassRenderer extends TemplateRenderer {
 		boolean isServiceExist = checkArtifactDirectoryOfModule(module, SERVICE_FOLDERNAME);
 
 		if (isControllerExist && isServiceExist){
-			Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
-			if (controllerSpec != null) {
-				controllerSpec.put("notSingleStructured", true);
-				listBindingSpec.add(controllerSpec);
+			List<Map<String, Object>> listControllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+			if (listControllerSpec != null)
+			{
+				for (Map<String, Object> controllerSpec: constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME)) {
+					if (controllerSpec != null) {
+						controllerSpec.put("notSingleStructured", true);
+						listBindingSpec.add(controllerSpec);
+					}
+				}
 			}
-			Map<String, Object> serviceSpec = constructComponentSpec(module, feature, SERVICE_FOLDERNAME);
-			if (serviceSpec != null) {
-				listBindingSpec.add(serviceSpec);
+
+			List<Map<String, Object>> listServiceSpec = constructComponentSpec(module, feature, SERVICE_FOLDERNAME);
+			if (listServiceSpec != null)
+			{
+				for (Map<String, Object> serviceSpec : constructComponentSpec(module, feature, SERVICE_FOLDERNAME))
+				{
+					if (serviceSpec != null) {
+						listBindingSpec.add(serviceSpec);
+					}
+				}
 			}
+			
 		// Only Resource structure support
 		} else if (isControllerExist) {
-			Map<String, Object> controllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
-			if (controllerSpec != null) {
-				listBindingSpec.add(controllerSpec);
+			List<Map<String, Object>> listControllerSpec = constructComponentSpec(module, feature, CONTROLLER_FOLDERNAME);
+			if (listControllerSpec != null)
+			{	for  (Map<String, Object> controllerSpec: listControllerSpec) {
+					if (controllerSpec != null) {
+						listBindingSpec.add(controllerSpec);
+					}
+				}
 			}
+			
 		}
 		return listBindingSpec.isEmpty() ? null : listBindingSpec;
 	}
 
-	private Map<String, Object> constructComponentSpec(String module, String feature, String componentType)
+	private List<Map<String, Object>> constructComponentSpec(String module, String feature, String componentType)
 			throws IOException, CoreException {
 		String implClass = getCoreImplClass(module, componentType);
 		boolean isCoreConstructed = true;
@@ -285,38 +338,40 @@ public class ProductClassRenderer extends TemplateRenderer {
 		List<String> fileNames = getListModuleImplClass(module, componentType);
 		if (fileNames.isEmpty())
 			return null;
-		String fileName = fileNames.get(0);
-		
 		
 		List<Map<String, Object>> listBindingSpec = new ArrayList<>();
 
-		Map<String, Object> bindingSpec = new HashMap<>();
-		String baseClass = implClass.replace("Impl", ""); 
-		String featureClass = componentType.equals("service")
-				? baseClass.replace("Service", "")
-				: baseClass.replace("Resource", "");
-		bindingSpec.put("factory", baseClass + "Factory");
-		bindingSpec.put("module", module);
-		bindingSpec.put("class", baseClass);
-		bindingSpec.put("implClass", fileName);
-		bindingSpec.put("componentType", componentType);
+		for (String fileName : fileNames) {
+			Map<String, Object> bindingSpec = new HashMap<>();
+			String baseClass = fileName.replace("Impl", ""); 
+			String featureClass = componentType.equals("service")
+					? baseClass.replace("Service", "")
+					: baseClass.replace("Resource", "");
 
-		String variableName = getVariableNameFromModule(module) + featureClass; 
-    	bindingSpec.put("variableName", addUniqueVariableName(variableName, componentTypeCap) + componentTypeCap); 
+			bindingSpec.put("factory", baseClass + "Factory");
+			bindingSpec.put("module", module);
+			bindingSpec.put("class", baseClass);
+			bindingSpec.put("implClass", fileName);
+			bindingSpec.put("componentType", componentType);
 
-		if (!isCoreModule(module) && isCoreConstructed) {
-			String upperLevelModule = getUpperLevelModuleName(feature, module);
-			if (upperLevelModule != null) {
-				String wrappedVariableName = getVariableNameFromModule(upperLevelModule) + featureClass; 
-				bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
-			} else {
-				String coreModule = getCoreByModule(module);
-				String wrappedVariableName = getVariableNameFromModule(coreModule) + featureClass; 
-				bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+			String variableName = getVariableNameFromModule(module) + featureClass; 
+			bindingSpec.put("variableName", addUniqueVariableName(variableName, componentTypeCap) + componentTypeCap); 
+
+			if (!isCoreModule(module) && isCoreConstructed) {
+				String upperLevelModule = getUpperLevelModuleName(feature, module);
+				if (upperLevelModule != null) {
+					String wrappedVariableName = getVariableNameFromModule(upperLevelModule) + featureClass; 
+					bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+				} else {
+					String coreModule = getCoreByModule(module);
+					String wrappedVariableName = getVariableNameFromModule(coreModule) + featureClass; 
+					bindingSpec.put("wrappedVariableName", getUniqueVariableName(wrappedVariableName, componentTypeCap));
+				}
 			}
+			listBindingSpec.add(bindingSpec);
 		}
-
-		return bindingSpec;
+		
+		return listBindingSpec;
 	}
 
 	// Helps distinguish variableName if a delta is being used multiple times in creating a feature

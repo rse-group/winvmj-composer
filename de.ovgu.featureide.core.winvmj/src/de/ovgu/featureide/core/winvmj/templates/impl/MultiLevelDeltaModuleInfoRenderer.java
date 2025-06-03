@@ -34,7 +34,6 @@ public class MultiLevelDeltaModuleInfoRenderer extends ModuleInfoRenderer {
 		dataModel.put("productPackage", featureFullyQualifiedName);
 		dataModel.put("requiredModules", requiredModules);
         dataModel.put("exportedModules", exportedModules);
-		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		
 		return dataModel;
     }

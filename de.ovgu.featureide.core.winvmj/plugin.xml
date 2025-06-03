@@ -39,6 +39,7 @@
                         operator="or">
                      <test
                            property="de.ovgu.featureide.fm.ui.properties.composer"
+                           property="de.ovgu.featureide.fm.ui.properties.composer"
                            args="de.ovgu.featureide.core.winvmj.composer"
                            value="de.ovgu.featureide.core.winvmj.composer">
                      </test>
@@ -73,6 +74,53 @@
                   label="Migrate"
                   style="push">
             </command>
+             <command
+                  commandId="de.ovgu.featureide.core.winvmj.compileModulesHandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.compileModulesHandler"
+                  label="Compile Modules Folder"
+                  style="push">
+                  <visibleWhen checkEnabled="false">
+	                  <with variable="activeMenuSelection">
+	                     <iterate ifEmpty="false">
+	                        <adapt type="org.eclipse.core.resources.IFolder">
+ 								<test property="org.eclipse.core.resources.name" value="modules"/>
+	                        </adapt>
+	                     </iterate>
+	                  </with>
+	               </visibleWhen>
+            </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.compileModuleHandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.compileModuleHandler"
+                  label="Compile This Module"
+                  style="push">
+                  <visibleWhen checkEnabled="false">
+	                  <with variable="activeMenuSelection">
+	                     <iterate ifEmpty="false">
+	                        <adapt type="org.eclipse.core.resources.IFolder">
+								<test property="org.eclipse.core.resources.path" value="*/modules/*"/>
+	                        </adapt>
+	                     </iterate>
+	                  </with>
+	               </visibleWhen>
+	        </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler"
+                  label="Multi Level Configuration"
+                  style="push"
+            >
+            </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
+                  label="Deployment Menu"
+                  style="push">
+            </command>
          </menu>
       </menuContribution>
    </extension>
@@ -94,6 +142,21 @@
             class="de.ovgu.featureide.core.winvmj.ui.handlers.MigrateHandler"
             commandId="de.ovgu.featureide.core.winvmj.migratehandler">
       </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileModulesHandler"
+            commandId="de.ovgu.featureide.core.winvmj.compileModulesHandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileModuleHandler"
+            commandId="de.ovgu.featureide.core.winvmj.compileModuleHandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.OpenFeatureWizardHandler"
+            commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.DeploymentMenuWizardHandler"
+            commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler">
+      </handler>
    </extension>
-
 </plugin>

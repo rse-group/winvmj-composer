@@ -108,6 +108,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	private void composeProduct(WinVMJProduct product, Path config) {
 		try {
 			selectModulesFromProject(featureProject, product);
+//			WinVMJConsole.println("config " + featureProject.loadConfiguration(config).getSelectedFeatures());
 			checkMultiLevelDelta(
 				featureProject,
 				product,
@@ -147,7 +148,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return new UVLFeatureModelFormat();
 	}
 	
-	private void selectModulesFromProject(
+	public void selectModulesFromProject(
 		IFeatureProject project, WinVMJProduct product) throws CoreException {
 		for (IFolder sourceModule: product.getModules()) {
 			IFolder destModule = project.getBuildFolder().getFolder(sourceModule.getName());
@@ -193,7 +194,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		return true;
 	}
 
-	private void checkMultiLevelDelta(
+	public void checkMultiLevelDelta(
 		IFeatureProject project,
 		WinVMJProduct product,
 		List<IFeature> features
@@ -213,6 +214,10 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				.map(pr -> CorePlugin.getFeatureProject(pr))
 				.collect(Collectors.toMap(pr -> Utils.getSplName(pr), Function.identity()));
 		
+	    if (refProjectMap.isEmpty()) {
+	        return;
+	    }
+	    
 		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
 		if (multiFetureModel.isMultiProductLineModel()) {
 			for (Entry<String, UsedModel> interfaceModel: multiFetureModel
@@ -239,6 +244,14 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		WinVMJProduct product,
 		List<IFeature> features
 	) throws CoreException, ParserException {
+		features = features.stream()
+			    .map(f -> {
+			        String name = f.getName();
+			        String shortName = name.contains(".") ? name.substring(name.indexOf('.') + 1) : name;
+			        return new Feature(project.getFeatureModel(), shortName);
+			    })
+			    .collect(Collectors.toList());
+		
 		IFile featureToModuleMapper = project.getProject()
 				.getFile(FEATURE_MODULE_MAPPER_FILENAME);
 		final FormulaFactory formulaFactory = new FormulaFactory();
@@ -263,7 +276,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				Utils.isMultiLevelDelta(mapping)
 			) {
 				MultiLevelDeltaComposer multiLevelDeltaComposer = new MultiLevelDeltaComposer(
-					featureProject, product, key, value);
+						featureProject != null ? featureProject : project, product, key, value);
 				multiLevelDeltaComposer.compose();
 
 				if (multiLevelDeltaMappings == null) multiLevelDeltaMappings = new HashMap<>();

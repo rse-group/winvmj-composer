@@ -2,10 +2,11 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: %Bundle-Name
 Bundle-SymbolicName: de.ovgu.featureide.core.winvmj;singleton:=true
-Bundle-Version: 3.2.6.qualifier
+Bundle-Version: 3.4.3.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Automatic-Module-Name: de.ovgu.featureide.core.winvmj
 Export-Package: de.ovgu.featureide.core.winvmj
+Import-Package: org.eclipse.ui.ide
 Require-Bundle: org.eclipse.ui;bundle-version="3.118.100",
  org.eclipse.core.runtime;bundle-version="3.20.0",
  org.eclipse.core.resources;bundle-version="3.13.900",
@@ -14,7 +15,8 @@ Require-Bundle: org.eclipse.ui;bundle-version="3.118.100",
  de.ovgu.featureide.fm.core;bundle-version="3.11.1",
  de.ovgu.featureide.ui;bundle-version="3.11.1",
  de.ovgu.featureide.fm.ui;bundle-version="3.11.1",
- org.apache.commons.io;bundle-version="2.8.0"
+ org.apache.commons.io;bundle-version="2.8.0",
+ org.eclipse.ui.ide;bundle-version="3.22.0"
 Bundle-Activator: WinVMJCorePlugin
 Bundle-ClassPath: .,
  resources/,
@@ -36,4 +38,5 @@ Bundle-ClassPath: .,
  libs/postgresql-42.2.21.jar,
  libs/mysql-connector-java-8.0.26.jar,
  libs/json-20250107.jar
+Eclipse-BundleShape: dir
 Eclipse-BundleShape: dir

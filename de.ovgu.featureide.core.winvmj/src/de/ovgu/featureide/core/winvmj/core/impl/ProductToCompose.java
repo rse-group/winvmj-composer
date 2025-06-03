@@ -4,6 +4,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,10 +55,29 @@ public class ProductToCompose extends WinVMJProduct {
 		}
 	}
 	
+    public ProductToCompose(IFeatureProject featureProject, String productName, ArrayList<IFeature> selectedFeatures) {
+        this.productName = productName;
+        this.splName = Utils.getSplName(featureProject);
+        try {
+            this.modules = selectModules(featureProject, selectedFeatures);
+        } catch (CoreException | ParserException e) {
+            this.modules = null;
+        }
+    }
+    
 	private List<IFolder> selectModules(IFeatureProject project, List<IFeature> features) 
 			throws CoreException, ParserException {
 		List<IFolder> selectedModules = new ArrayList<>();
 		selectedModules.addAll(selectExternalModules(project, features));
+		
+		features = features.stream()
+			    .map(f -> {
+			        String name = f.getName();
+			        String shortName = name.contains(".") ? name.substring(name.indexOf('.') + 1) : name;
+			        return new Feature(project.getFeatureModel(), shortName);
+			    })
+			    .collect(Collectors.toList());
+		
 		selectedModules.addAll(selectAndOrderModulesByMapping(project, features));
 		return selectedModules.stream().distinct().collect(Collectors.toList());
 	}
@@ -65,12 +85,18 @@ public class ProductToCompose extends WinVMJProduct {
 	private List<IFolder> selectExternalModules(IFeatureProject project, 
 			List<IFeature> features) throws CoreException, ParserException {
 		CorePlugin.getDefault();
+		
 		Map<String, IFeatureProject> refProjectMap = 
 				Stream.of(project.getProject().getReferencedProjects())
 				.map(pr -> CorePlugin.getFeatureProject(pr))
 				.collect(Collectors.toMap(pr -> Utils.getSplName(pr), Function.identity()));
 		
 		List<IFolder> selectedModules = new ArrayList<>();
+		
+		if (refProjectMap.isEmpty()) {
+	        return selectedModules;
+	    }
+		
 		MultiFeatureModel multiFetureModel = (MultiFeatureModel) project.getFeatureModel();
 		if (multiFetureModel.isMultiProductLineModel()) {
 			for (Entry<String, UsedModel> interfaceModel: multiFetureModel
