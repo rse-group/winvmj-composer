@@ -39,4 +39,3 @@ Bundle-ClassPath: .,
  libs/mysql-connector-java-8.0.26.jar,
  libs/json-20250107.jar
 Eclipse-BundleShape: dir
-Eclipse-BundleShape: dir
