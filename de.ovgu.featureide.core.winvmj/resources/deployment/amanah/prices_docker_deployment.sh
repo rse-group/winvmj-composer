@@ -95,8 +95,8 @@ generate_nginx_config() {
   cat <<EOF | sudo tee "$OUT" >/dev/null
 server {
   server_name ${PRODUCT}.amanah-staging.cs.ui.ac.id;
-  listen 443 ssl http2;
-  listen [::]:443 ssl http2;
+  listen 80;
+  listen [::]:80;
 
   access_log ${PRODUCT_DIR}/logs/nginx_proxy_access.log;
   error_log ${PRODUCT_DIR}/logs/nginx_proxy_error.log;
@@ -148,21 +148,6 @@ server {
     try_files \$uri @admin_endpoint;
   }
   
-  # Only required for staging server
-  ssl_certificate /etc/letsencrypt/live/amanah-staging.cs.ui.ac.id/fullchain.pem; # managed by Certbot
-  ssl_certificate_key /etc/letsencrypt/live/amanah-staging.cs.ui.ac.id/privkey.pem; # managed by Certbot
-
-}
-
-server {
-  if (\$host = ${PRODUCT}.amanah-staging.cs.ui.ac.id) {
-    return 301 https://\$host\$request_uri;
-  } # managed by Certbot
-
-  server_name     ${PRODUCT}.amanah-staging.cs.ui.ac.id;
-  listen          80;
-  listen          [::]:80;
-  return 404; # managed by Certbot
 
 }
 EOF
@@ -278,6 +263,7 @@ locate_backend_service(){
         mv "$original_path" "$new_path"
 
         BACKENDS=("$product_name")
+        break
       fi
     fi
 

@@ -277,6 +277,7 @@ locate_backend_service(){
         mv "$original_path" "$new_path"
 
         BACKENDS=("$product_name")
+        break
       fi
     fi
 
