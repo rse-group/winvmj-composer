@@ -55,7 +55,7 @@ scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %product_local_director
 )
 echo:
 echo Meng-extract produk %product_name%...
-ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /var/www/products && sudo unzip /tmp/%product_name%.zip && rm /tmp/%product_name%.zip" && (
+ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /var/www/products && sudo unzip -o /tmp/%product_name%.zip && rm /tmp/%product_name%.zip" && (
     echo Sukses!
     echo:
     echo Selesai memindahkan produk %product_name% ke server Amanah!
@@ -71,7 +71,7 @@ echo:
 echo Melakukan deployment produk %product_name% ke server Amanah...
 set product_remote_directory=/var/www/products/%product_name%
 
-ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /home/prices-deployment/nix-environment && nix-shell --run 'bash prices_product_deployment.sh %product_name% %product_remote_directory% %product_prefix%'" && (
+ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /home/prices-deployment/nix-environment && nix-shell --run 'bash new_prices_product_deployment.sh %product_name% %product_remote_directory% %product_prefix%'" && (
     echo:
     echo Produk %product_name% berhasil di-deploy!
     echo Dengan ini, deployment produk PRICES-IDE berakhir dengan sukses.

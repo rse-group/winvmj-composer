@@ -37,7 +37,6 @@ set product_name=%4
 set product_local_directory=%5
 set product_prefix=%6
 set num_backends=%7
-set dockerfile_location=..\docker\docker_config
 
 echo Menjalankan Deployment Ke Server Amanah dengan parameter:
 echo Lokasi private key : %private_key_amanah%
@@ -48,6 +47,8 @@ echo Lokasi produk : %product_local_directory%
 echo Prefiks produk : %product_prefix%
 echo Jumlah backend : %num_backends%
 
+:: Set direktori ke lokasi file bat saat ini
+cd /d %~dp0
 
 :: Step 1 - Copy komponen produk ke server Amanah
 echo:
@@ -60,9 +61,9 @@ scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %product_local_director
     echo Note: Pastikan credential akses server sudah benar serta tersedia produk dengan informasi dan susunan yang tepat.
     exit
 )
-echo:
+
 echo Meng-extract produk %product_name%...
-ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /var/www/products && sudo unzip /tmp/%product_name%.zip && rm /tmp/%product_name%.zip" && (
+ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /var/www/products && sudo unzip -o /tmp/%product_name%.zip && rm /tmp/%product_name%.zip" && (
     echo Sukses!
     echo:
     echo Selesai memindahkan produk %product_name% ke server Amanah!
@@ -75,14 +76,24 @@ ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -
 echo:
 
 :: Step 2 - Copy file-file docker ke server amanah
+
+cd ../docker/docker_config
 echo.
 echo Meng-copy konfigurasi Docker ke server Amanah ke /tmp dulu...
-scp -B -i %private_key_amanah% -P %local_tunnel_port% -r %dockerfile_location%\* %username_amanah%@localhost:/tmp/%product_name% && (
+scp -B -i %private_key_amanah% -P %local_tunnel_port% ^
+  Dockerfile.apigateway ^
+  Dockerfile.backend ^
+  Dockerfile.frontend ^
+  docker-compose.base.yml ^
+  docker-compose.db.yml ^
+  docker-compose.rabbitmq.yml ^
+  %username_amanah%@localhost:/tmp/%product_name% && (
     echo Sukses menyalin konfigurasi Docker ke /tmp/%product_name%!
 ) || (
     echo Gagal menyalin konfigurasi Docker ke /tmp/%product_name%.
     exit /b 1
 )
+
 
 echo.
 echo Memindahkan file ke /var/www/products/%product_name% ...
@@ -99,13 +110,12 @@ if errorlevel 1 (
 echo Melakukan deployment produk %product_name% ke server Amanah...
 set product_remote_directory=/var/www/products/%product_name%
 
-ssh -i %private_key_amanah% %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /home/prices-deployment/nix-environment/docker_deployment && nix-shell --run 'bash prices_docker_deployment.sh %product_name% %product_remote_directory% %num_backends% %product_prefix%'" && (
-    echo:
-    echo Produk %product_name% berhasil di-deploy!
-    echo Dengan ini, deployment produk PRICES-IDE berakhir dengan sukses.
+ssh -i "%private_key_amanah%" %username_amanah%@localhost -p %local_tunnel_port% -o BatchMode=yes "cd /home/prices-deployment/nix-environment/docker_deployment && sudo bash prices_docker_deployment.sh \"%product_name%\" \"%product_remote_directory%\" \"%num_backends%\" \"%product_prefix%\"" 2>&1 && (
+    echo Deployment produk berhasil.
 ) || (
-    echo:
-    echo Terdapat error dalam deployment produk %product_name% ke server Amanah.
-    echo Note: Periksa komponen produk dan mohon deployment dicoba kembali.
+    echo Deployment produk gagal.
+    exit /b 1
 )
-exit
+
+echo Deployment selesai...
+exit /b

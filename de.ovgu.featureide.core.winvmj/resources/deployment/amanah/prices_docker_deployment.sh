@@ -5,13 +5,13 @@ PRODUCT_PREFIX="$4"
 PRODUCT_PREFIX="${PRODUCT_PREFIX:-aisco}"
 
 DB_URL="$5"
-DB_URL="${DB_URL:-localhost:5432}"
+DB_URL="${DB_URL:-10.119.106.132:5432}"
 
 DB_USERNAME="$6"
-DB_USERNAME="${DB_USERNAME:-postgres}"
+DB_USERNAME="${DB_USERNAME:-deployer}"
 
 DB_PASSWORD="$7"
-DB_PASSWORD="${DB_PASSWORD:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-rseamanah}"
 
 RABBITMQ_HOST="$8"
 RABBITMQ_HOST="${RABBITMQ_HOST:-rabbitmq}"
@@ -151,9 +151,6 @@ server {
 
 }
 EOF
-
-  sudo mv "$OUT" /var/www/products/nginx/
-  sudo chown -R "${service_user}:${service_user}" "/var/www/products/nginx/${OUT}"
 }
 
 nginx_setup() {
@@ -162,7 +159,7 @@ nginx_setup() {
   sudo mkdir -p "$product_dir"/logs
   sudo touch "$product_dir"/logs/nginx_proxy_access.log "$product_dir"/logs/nginx_proxy_error.log
   sudo mv "$product_name".conf /var/www/products/nginx
-  sudo /var/www/add_ssl_cert.sh staging "$product_name".amanah-staging.cs.ui.ac.id
+  sudo systemctl restart nginx
 }
 
 wait_for_db() {
@@ -351,7 +348,14 @@ docker_backend(){
 
     # Making sure hibernate.properties is correct
     HIBERNATE_PROPERTIES_FILE="${product_dir}/${SERVICE_NAME}/${PRODUCT_FULL_NAME}/hibernate.properties"
-    sed -i "s/localhost:5432/${BACKEND_DB_URL}/g" "$HIBERNATE_PROPERTIES_FILE"
+    if [[ "$DB_URL" == *"localhost"* || "$DB_URL" == *"127.0.0.1"* ]]; then
+      sed -i "s/localhost:5432/${BACKEND_DB_URL}/g" "$HIBERNATE_PROPERTIES_FILE"
+    else
+      sed -i "s/localhost:5432/${DB_URL}/g" "$HIBERNATE_PROPERTIES_FILE"
+      BACKEND_DB_URL=$DB_URL
+    fi
+
+    echo "Final DB URL: $BACKEND_DB_URL"
 
     echo "Starting Service full name: $SERVICE_FULL_NAME or service name: $SERVICE_NAME on port $BE_PORT"
 
