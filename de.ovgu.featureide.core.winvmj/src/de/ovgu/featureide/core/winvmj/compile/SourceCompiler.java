@@ -101,7 +101,7 @@ public class SourceCompiler {
 		}
 	}
 
-	public static void compileModuleSource(IFolder moduleFromSrcFolder, IFeatureProject project)
+	public static void compileModuleSource(IFolder module, IFeatureProject project)
 	        throws URISyntaxException {
         IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
         IFolder externalDir = project.getProject().getFolder("external");
@@ -110,13 +110,13 @@ public class SourceCompiler {
 	        if (!compiledModulesDir.exists())
 	            compiledModulesDir.create(false, true, null);
 
-	        IFile compiledJar = compiledModulesDir.getFile(moduleFromSrcFolder.getName() + ".jar");
+	        IFile compiledJar = compiledModulesDir.getFile(module.getName() + ".jar");
 
-	        long moduleLastModified = getLastModifiedTime(moduleFromSrcFolder);
+	        long moduleLastModified = getLastModifiedTime(module);
 	        long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
 
 	        
-	        Set<String> requirements = extractRequirements(project, moduleFromSrcFolder);
+	        Set<String> requirements = extractRequirements(project, module);
 	        boolean requiresUpdate = false;
 
 	        for (String require : requirements) {
@@ -137,14 +137,14 @@ public class SourceCompiler {
 	            }
 	        }
 	        if (requiresUpdate || moduleLastModified > jarLastModified) {
-	            WinVMJConsole.println("Compiling module " + moduleFromSrcFolder.getName() + "...");
+	            WinVMJConsole.println("Compiling module " + module.getName() + "...");
 	            List<IResource> externalLibraries = listAllExternalLibraries(project);
 	            importWinVMJLibrariesForModules(compiledModulesDir);
-	            importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, moduleFromSrcFolder);
-	            compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "compileModule");
+	            importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, module);
+	            compileModuleForProduct(project, compiledModulesDir, module, "compileModule");
 	            cleanBinaries(project);
 	        } else {
-	            WinVMJConsole.println("Module " + moduleFromSrcFolder.getName() + " is up-to-date. Skipping compilation.");
+	            WinVMJConsole.println("Module " + module.getName() + " is up-to-date. Skipping compilation.");
 	        }
 	        
             deleteLibraries(compiledModulesDir, librariesDir);
