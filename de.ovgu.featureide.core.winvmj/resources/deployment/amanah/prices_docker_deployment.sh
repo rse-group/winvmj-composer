@@ -98,6 +98,8 @@ server {
   listen 80;
   listen [::]:80;
 
+  client_max_body_size 20M;
+
   access_log ${PRODUCT_DIR}/logs/nginx_proxy_access.log;
   error_log ${PRODUCT_DIR}/logs/nginx_proxy_error.log;
 

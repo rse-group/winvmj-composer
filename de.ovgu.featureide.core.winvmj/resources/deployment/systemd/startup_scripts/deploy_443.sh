@@ -150,6 +150,7 @@ generate_nginx_config() {
 server {
   listen 443 ssl;
   server_name ${CERTIFICATE_NAME};
+  client_max_body_size 20M;
 
   ssl_certificate /etc/letsencrypt/live/${CERTIFICATE_NAME}/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/${CERTIFICATE_NAME}/privkey.pem;
