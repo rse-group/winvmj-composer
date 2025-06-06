@@ -9,6 +9,7 @@ import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -264,34 +265,32 @@ public class SourceCompiler {
 	public static void deleteLibraries(IFolder compiledModulesDir, Path winvmjLibrariesDir) throws CoreException {
 		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
 
-		Set<String> baseNames = new HashSet<>();
-//		for (IResource resource : winvmjLibrariesDir.members()) {
-//			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
-//				String baseName = getBaseNameFromFile(resource.getName());
-//				baseNames.add(baseName);
-//			}
-//		}
-		try (DirectoryStream<Path> stream = Files.newDirectoryStream(winvmjLibrariesDir, "*.jar")) {
+		Set<String> jarNamesFromLibraries = new HashSet<>();
+	    try (DirectoryStream<Path> stream = Files.newDirectoryStream(winvmjLibrariesDir, "*.jar")) {
 	        for (Path jarPath : stream) {
-	            String baseName = getBaseNameFromFile(jarPath.getFileName().toString());
-	            baseNames.add(baseName);
+	            jarNamesFromLibraries.add(jarPath.getFileName().toString());
 	        }
 	    } catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	        e.printStackTrace();
+	    }
 
-		Set<String> filesToDelete = new HashSet<>(
-				Arrays.asList("cas.client.jar", "commons-logging-1.2.jar", "sqlite.jdbc.jar"));
+	    // Add specific files to delete manually
+	    Set<String> filesToDelete = new HashSet<>(Arrays.asList(
+	        "cas.client.jar",
+	        "commons-logging-1.2.jar",
+	        "sqlite.jdbc.jar"
+	    ));
 
-		for (IResource resource : compiledModulesDir.members()) {
-			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
-				String baseName = getBaseNameFromFile(resource.getName());
-				if (baseNames.contains(baseName) || filesToDelete.contains(resource.getName())) {
-					resource.delete(true, null);
-				}
-			}
-		}
+	    jarNamesFromLibraries.addAll(filesToDelete);
+
+	    // Delete matching files from compiledModulesDir
+	    for (IResource resource : compiledModulesDir.members()) {
+	        if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+	            if (jarNamesFromLibraries.contains(resource.getName())) {
+	                resource.delete(true, null);
+	            }
+	        }
+	    }
 	}
 
 	private static void deleteExternal(IFolder compiledModulesDir, IFolder externalDir)
