@@ -104,11 +104,39 @@ EOF
   echo "CREATING DB FINISHED..."
 fi
 
-# Start RabbitMQ
+
 if [[ "$NUM_BACKENDS" -gt 1 ]]; then
   echo "Starting RabbitMQ..."
 
   RABBITMQ_CONTAINER_NAME="${PRODUCT_NAME}-rabbitmq-container"
+  RABBITMQ_SERVICE_NAME="${PRODUCT_NAME}_rabbitmq"
+  RABBIT_COMPOSE_FILE="$PRODUCT_DIR/docker-compose.rabbitmq.yml"
+
+cat <<EOF > "$RABBIT_COMPOSE_FILE"
+services:
+  $RABBITMQ_SERVICE_NAME:
+    image: rabbitmq:4-management
+    container_name: $RABBITMQ_CONTAINER_NAME
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: $RABBITMQ_USER
+      RABBITMQ_DEFAULT_PASS: $RABBITMQ_PASS
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics check_running -q"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+networks:
+  app_network:
+    external: true
+    name: $NETWORK_NAME
+EOF
 
   RABBIT_ENV_FILE=$(mktemp)
   cat <<EOF > "$RABBIT_ENV_FILE"

@@ -31,7 +31,6 @@ ssh -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no $USERNAME@$INSTANCE_IP "s
 scp -i "$PRIVATE_KEY_PATH" -o StrictHostKeyChecking=no \
     $DOCKERFILES_DIRECTORY/docker-compose.base.yml \
     $DOCKERFILES_DIRECTORY/docker-compose.db.yml \
-    $DOCKERFILES_DIRECTORY/docker-compose.rabbitmq.yml \
     $DOCKERFILES_DIRECTORY/Dockerfile.backend \
     $DOCKERFILES_DIRECTORY/Dockerfile.frontend \
     $DOCKERFILES_DIRECTORY/Dockerfile.apigateway \

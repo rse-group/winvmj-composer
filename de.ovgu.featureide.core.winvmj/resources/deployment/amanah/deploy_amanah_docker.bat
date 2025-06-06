@@ -86,7 +86,6 @@ scp -B -i %private_key_amanah% -P %local_tunnel_port% ^
   Dockerfile.frontend ^
   docker-compose.base.yml ^
   docker-compose.db.yml ^
-  docker-compose.rabbitmq.yml ^
   %username_amanah%@localhost:/tmp/%product_name% && (
     echo Sukses menyalin konfigurasi Docker ke /tmp/%product_name%!
 ) || (
