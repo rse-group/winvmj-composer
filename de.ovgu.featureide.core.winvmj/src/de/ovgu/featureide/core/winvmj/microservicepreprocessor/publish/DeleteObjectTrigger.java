@@ -9,7 +9,7 @@ public class DeleteObjectTrigger extends PublishMessageTrigger{
     }
 
     @Override
-    protected void collectProperties(MethodDeclaration method, String objectDomainVar) {}
+    protected void collectProperties(MethodDeclaration method, String objectModelVar) {}
 
 }
 

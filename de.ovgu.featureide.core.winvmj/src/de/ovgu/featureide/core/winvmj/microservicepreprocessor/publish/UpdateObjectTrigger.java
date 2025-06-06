@@ -15,8 +15,8 @@ public class UpdateObjectTrigger extends PublishMessageTrigger{
     }
 
     @Override
-    protected void collectProperties(MethodDeclaration method, String objectDomainVar) {
-        // Get arguments from the setter method for objectDomainVar
+    protected void collectProperties(MethodDeclaration method, String objectModelVar) {
+        // Get arguments from the setter method for objectModelVar
         method.findAll(MethodCallExpr.class).forEach(call -> {
             if (call.getScope().isPresent()) {
                 Expression scopeExpr = call.getScope().get();
@@ -32,7 +32,7 @@ public class UpdateObjectTrigger extends PublishMessageTrigger{
                     scopeVar = nameExpr.getNameAsString(); 
                 }
 
-                if (scopeVar != null && scopeVar.equals(objectDomainVar)) {
+                if (scopeVar != null && scopeVar.equals(objectModelVar)) {
                     String methodName = call.getNameAsString();
                     if (methodName.startsWith("set") && call.getArguments().size() == 1) {
                         Expression arg = call.getArgument(0);

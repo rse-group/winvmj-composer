@@ -9,14 +9,14 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import java.util.*;
 
 public class PublishMessageCallAdder {
-    Set<String> domainInterfaces;
+    Set<String> modelInterfaces;
 
     PublishMessageTrigger createObjectTrigger;
     PublishMessageTrigger updateObjectTrigger;
     PublishMessageTrigger deleteObjectTrigger;
 
-    public PublishMessageCallAdder(Set<String> domainInterfaces) {
-        this.domainInterfaces = domainInterfaces;
+    public PublishMessageCallAdder(Set<String> modelInterfaces) {
+        this.modelInterfaces = modelInterfaces;
         this.createObjectTrigger = new CreateObjectTrigger();
         this.updateObjectTrigger = new UpdateObjectTrigger();
         this.deleteObjectTrigger = new DeleteObjectTrigger();
@@ -35,14 +35,14 @@ public class PublishMessageCallAdder {
         List<RepositoryCallInfo> repositoryCallInfos = getAllRepositoryCall(cu);
         for (RepositoryCallInfo repositoryCallInfo : repositoryCallInfos) {
             switch (repositoryCallInfo.repositoryOperation()) {
-                case "saveObject" -> createObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces, moduleName);
-                case "updateObject" -> updateObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces, moduleName);
-                case "deleteObject" -> deleteObjectTrigger.addPublishMessageCall(repositoryCallInfo,domainInterfaces, moduleName);
+                case "saveObject" -> createObjectTrigger.addPublishMessageCall(repositoryCallInfo,modelInterfaces, moduleName);
+                case "updateObject" -> updateObjectTrigger.addPublishMessageCall(repositoryCallInfo,modelInterfaces, moduleName);
+                case "deleteObject" -> deleteObjectTrigger.addPublishMessageCall(repositoryCallInfo,modelInterfaces, moduleName);
                 default -> System.out.println("Invalid repository operation");
             }
             
             if (isInCoreModule && ! isDecoratorImportStatementAdded) {
-            	String decoratorClassName = moduleName + "." + repositoryCallInfo.domainInterface() + "Decorator";
+            	String decoratorClassName = moduleName + "." + repositoryCallInfo.modelInterface() + "Decorator";
             	ImportDeclaration decoratorImport = new ImportDeclaration(decoratorClassName, false, false);
 
             	if (!cu.getImports().stream().anyMatch(i -> i.getNameAsString().equals(decoratorClassName))) {
@@ -66,15 +66,15 @@ public class PublishMessageCallAdder {
                         repositoryOperation.equals("deleteObject")) {
 
                     Optional<Expression> firstArgument = call.getArguments().stream().findFirst();
-                    String domainInterface = "Unknown";
-                    String objectDomainVar = "Unknown";
+                    String modelInterface = "Unknown";
+                    String objectModelVar = "Unknown";
 
                     if (call.getScope().isPresent()) {
                         String scopeString = call.getScope().get().toString();
 
                         if (scopeString.endsWith("Repository")) {
-                            // Ambil nama domainInterface dari nama repository (e.g catalogRepository -> Catalog)
-                            domainInterface = Character.toUpperCase(scopeString.charAt(0)) + scopeString.substring(1, scopeString.length() - 10);
+                            // Ambil nama modelInterface dari nama repository (e.g catalogRepository -> Catalog)
+                            modelInterface = Character.toUpperCase(scopeString.charAt(0)) + scopeString.substring(1, scopeString.length() - 10);
                         }
                     }
 
@@ -82,11 +82,11 @@ public class PublishMessageCallAdder {
                         Expression argument = firstArgument.get();
 
                         if (argument.isNameExpr()) {
-                            objectDomainVar = argument.asNameExpr().getNameAsString();
+                            objectModelVar = argument.asNameExpr().getNameAsString();
                         }
                     }
 
-                    repositoryCallInfos.add(new RepositoryCallInfo(method, domainInterface, objectDomainVar, repositoryOperation));
+                    repositoryCallInfos.add(new RepositoryCallInfo(method, modelInterface, objectModelVar, repositoryOperation));
                 }
             });
         });

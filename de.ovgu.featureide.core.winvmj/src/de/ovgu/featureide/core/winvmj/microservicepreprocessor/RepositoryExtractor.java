@@ -53,7 +53,7 @@ public class RepositoryExtractor {
             classDecl.findAll(FieldDeclaration.class).forEach(field -> {
                 if (field.getElementType() instanceof ClassOrInterfaceType type) {
                     if (type.getNameAsString().equals("RepositoryUtil") && type.getTypeArguments().isPresent()) {
-                        String domainInterface = type.getTypeArguments().get().get(0).toString();
+                        String modelInterface = type.getTypeArguments().get().get(0).toString();
                         String repositoryName = field.getVariable(0).getNameAsString();
 
                         Optional<String> modelComponent = findModelComponent(classDecl, repositoryName);
@@ -61,7 +61,7 @@ public class RepositoryExtractor {
                             if (component.endsWith(".class")) {
                                 component = component.substring(0, component.length() - 6);
                             }
-                            repositoryMap.put(domainInterface, component);
+                            repositoryMap.put(modelInterface, component);
                         });
                     }
                 }
@@ -90,14 +90,14 @@ public class RepositoryExtractor {
 
         cu.findAll(ClassOrInterfaceDeclaration.class).stream()
                 .findFirst().flatMap(classDecl -> classDecl.getConstructors().stream().findFirst()).ifPresent(constructor -> {
-                    repositoryMap.forEach((domain, component) -> {
-                        // Add repositoryMap.put(domain, new RepositoryUtil<>(component));
+                    repositoryMap.forEach((model, component) -> {
+                        // Add repositoryMap.put(model, new RepositoryUtil<>(component));
                         MethodCallExpr putCall = new MethodCallExpr(new NameExpr("repositoryMap"), "put");
-                        putCall.addArgument(new StringLiteralExpr(domain));
+                        putCall.addArgument(new StringLiteralExpr(model));
                         Expression repoInstance = new ObjectCreationExpr(
                                 null,
                                 new ClassOrInterfaceType(null, "RepositoryUtil")
-                                        .setTypeArguments(new ClassOrInterfaceType(null, domain)),
+                                        .setTypeArguments(new ClassOrInterfaceType(null, model)),
                                 new NodeList<>(new FieldAccessExpr(new NameExpr(component), "class"))
                         );
                         putCall.addArgument(repoInstance);

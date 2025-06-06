@@ -25,26 +25,26 @@ import java.util.stream.Collectors;
 public class ModelFactoryExtractor 	{
 
     private static Map<String, String> extractFactories(Set<IFolder> moduleDirs) {
-        Set<String> domainInterfacesFqn = ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs);
-        Set<String> domainInterfaces = domainInterfacesFqn.stream()
+        Set<String> modelInterfacesFqn = ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs);
+        Set<String> modelInterfaces = modelInterfacesFqn.stream()
                 .map(fqn -> fqn.substring(fqn.lastIndexOf('.') + 1))
                 .collect(Collectors.toSet());
 
         Map<String, String> factoryMap = new HashMap<>();
         for (IFolder moduleDir : moduleDirs) {
-            factoryMap.putAll(extractFactoriesFromModule(moduleDir, domainInterfaces));
+            factoryMap.putAll(extractFactoriesFromModule(moduleDir, modelInterfaces));
         }
         return factoryMap;
     }
 
-    private static Map<String, String> extractFactoriesFromModule(IFolder moduleDir, Set<String> domainInterfaces) {
+    private static Map<String, String> extractFactoriesFromModule(IFolder moduleDir, Set<String> modelInterfaces) {
         Map<String, String> factoryMap = new HashMap<>();
         try {
             for (IResource resource : moduleDir.members()) {
                 if (resource instanceof IFolder) {
-                    factoryMap.putAll(extractFactoriesFromModule((IFolder) resource, domainInterfaces));
+                    factoryMap.putAll(extractFactoriesFromModule((IFolder) resource, modelInterfaces));
                 } else if (resource instanceof IFile && resource.getName().endsWith("Factory.java")) {
-                    parseFactoryFile((IFile) resource, domainInterfaces, factoryMap);
+                    parseFactoryFile((IFile) resource, modelInterfaces, factoryMap);
                 }
             }
         } catch (CoreException e) {
@@ -54,15 +54,15 @@ public class ModelFactoryExtractor 	{
         return factoryMap;
     }
 
-    private static void parseFactoryFile(IFile file, Set<String> domainInterfaces, Map<String, String> factoryMap) {
+    private static void parseFactoryFile(IFile file, Set<String> modelInterfaces, Map<String, String> factoryMap) {
         String fileName = file.getName();
-        for (String domain : domainInterfaces) {
-            if (fileName.equals(domain + "Factory.java")) {
+        for (String model : modelInterfaces) {
+            if (fileName.equals(model + "Factory.java")) {
                 try {
                     CompilationUnit cu = StaticJavaParser.parse(file.getContents());
                     cu.findAll(ClassOrInterfaceDeclaration.class).forEach(decl -> {
                         if (!decl.isInterface()) {
-                            decl.getFullyQualifiedName().ifPresent(fqn -> factoryMap.put(domain, fqn));
+                            decl.getFullyQualifiedName().ifPresent(fqn -> factoryMap.put(model, fqn));
                         }
                     });
                 } catch (CoreException e) {
@@ -82,15 +82,15 @@ public class ModelFactoryExtractor 	{
                     IfStmt previousIfStmt = null;
 
                     for (Map.Entry<String, String> entry : factoryMap.entrySet()) {
-                        String domain = entry.getKey();
+                        String model = entry.getKey();
                         String factoryFqn = entry.getValue();
                         String factory = factoryFqn.substring(factoryFqn.lastIndexOf('.') + 1);
 
-                        String objectCreation = domain + " obj = " + factory + ".create" + domain + "(fqn, arguments.toArray());";
-                        String repoSave = "repositoryMap.get(\"" + domain + "\").saveObject(obj);";
+                        String objectCreation = model + " obj = " + factory + ".create" + model + "(fqn, arguments.toArray());";
+                        String repoSave = "repositoryMap.get(\"" + model + "\").saveObject(obj);";
 
                         IfStmt ifStmt = new IfStmt(
-                        	    new MethodCallExpr(new NameExpr("domainInterface"), "equals", NodeList.nodeList(new StringLiteralExpr(domain))),
+                        	    new MethodCallExpr(new NameExpr("modelInterface"), "equals", NodeList.nodeList(new StringLiteralExpr(model))),
                         	    new BlockStmt(NodeList.nodeList(
                         	        StaticJavaParser.parseStatement(objectCreation),
                         	        StaticJavaParser.parseStatement(repoSave)

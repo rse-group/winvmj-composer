@@ -23,8 +23,8 @@ public class ConcreteClassCaster {
                     IfStmt previousIfStmt = null;
 
                     for (String fqn : modelImplFqns) {
-                        // Create if (domainClassImpl.equals("..."))
-                        Expression condition = new MethodCallExpr(new NameExpr("domainClassImpl"), "equals")
+                        // Create if (modelClassImpl.equals("..."))
+                        Expression condition = new MethodCallExpr(new NameExpr("modelClassImpl"), "equals")
                                 .addArgument(new StringLiteralExpr(fqn));
 
                         // Create body: obj = (<FQN>) obj;

@@ -16,12 +16,12 @@ public class CreateObjectTrigger extends PublishMessageTrigger{
     }
 
     @Override
-    protected void collectProperties(MethodDeclaration method, String objectDomainVar){
-    	VariableDeclarationExpr objectDomainDeclaration = null;
+    protected void collectProperties(MethodDeclaration method, String objectModelVar){
+    	VariableDeclarationExpr objectModelDeclaration = null;
 
     	for (VariableDeclarationExpr varExpr : method.findAll(VariableDeclarationExpr.class)) {
     	    for (VariableDeclarator var : varExpr.getVariables()) {
-    	        if (!var.getNameAsString().equals(objectDomainVar)) continue;
+    	        if (!var.getNameAsString().equals(objectModelVar)) continue;
 
     	        Optional<Expression> initializer = var.getInitializer();
     	        if (initializer.isEmpty()) continue;
@@ -36,16 +36,16 @@ public class CreateObjectTrigger extends PublishMessageTrigger{
     	            Expression scopeExpr = scopeOpt.get();
     	            String scopeStr = scopeExpr.toString();
     	            if (scopeStr.endsWith("Factory")) {
-    	                objectDomainDeclaration = varExpr;
+    	                objectModelDeclaration = varExpr;
     	                break;
     	            }
     	        }
     	    }
-    	    if (objectDomainDeclaration != null) break;
+    	    if (objectModelDeclaration != null) break;
     	}
 
-        if (objectDomainDeclaration != null) {
-            MethodCallExpr factoryCall = (MethodCallExpr) objectDomainDeclaration.getVariable(0).getInitializer().orElse(null);
+        if (objectModelDeclaration != null) {
+            MethodCallExpr factoryCall = (MethodCallExpr) objectModelDeclaration.getVariable(0).getInitializer().orElse(null);
             if (factoryCall != null) {
                 Optional<Statement> stmtOpt = factoryCall.findAncestor(Statement.class);
                 Optional<BlockStmt> blockOpt = factoryCall.findAncestor(BlockStmt.class);

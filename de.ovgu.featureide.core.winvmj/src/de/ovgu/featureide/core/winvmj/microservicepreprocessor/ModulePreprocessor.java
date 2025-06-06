@@ -25,12 +25,12 @@ import java.util.stream.Collectors;
 public class ModulePreprocessor {
 
     public static Map<String, Set<String>> modifyServiceImplClass(Set<IFolder> moduleDirs) {
-        Set<String> domainInterfacesFqn = ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs);
-        Set<String> domainInterfaces = domainInterfacesFqn.stream()
+        Set<String> modelInterfacesFqn = ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs);
+        Set<String> modelInterfaces = modelInterfacesFqn.stream()
                 .map(fqn -> fqn.substring(fqn.lastIndexOf('.') + 1))
                 .collect(Collectors.toSet());
 
-        PublishMessageCallAdder publishMessageCallAdder = new PublishMessageCallAdder(domainInterfaces);
+        PublishMessageCallAdder publishMessageCallAdder = new PublishMessageCallAdder(modelInterfaces);
         
         Map<String, Set<String>> moduleRoutingKeyMap = new HashMap<String, Set<String>>();
         for (IFolder moduleDir : moduleDirs) {
@@ -75,11 +75,11 @@ public class ModulePreprocessor {
             // Modify MessageConsumer
             CompilationUnit messageConsumerCu = JavaParserUtil.parse(messageConsumerFile);
             
-            List<String> domainModelInterfacesFqn = new ArrayList<String>(ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs));
-            addImportStatement(messageConsumerCu, domainModelInterfacesFqn);
+            List<String> modelInterfacesFqn = new ArrayList<String>(ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs));
+            addImportStatement(messageConsumerCu, modelInterfacesFqn);
             
-            Set<String> domainImplementationsFqnSet = ModelLayerExtractor.extractModelImplementationsFqn(moduleDirs);
-            ConcreteClassCaster.modifySetAttributesMethod(messageConsumerCu, domainImplementationsFqnSet);
+            Set<String> modelImplementationsFqnSet = ModelLayerExtractor.extractModelImplementationsFqn(moduleDirs);
+            ConcreteClassCaster.modifySetAttributesMethod(messageConsumerCu, modelImplementationsFqnSet);
             
             QueueBindingTrigger.addQueueBindingCall(messageConsumerCu, routingKeyValues);
             

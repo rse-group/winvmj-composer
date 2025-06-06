@@ -19,20 +19,20 @@ public abstract class PublishMessageTrigger {
     
     protected Map<String,String> variableTypeMap = new HashMap<>();
     protected Set<String> nullInitializedVariables = new HashSet<>();
-    protected Set<String> domainInterfaces = new HashSet<>();
+    protected Set<String> modelInterfaces = new HashSet<>();
     
     protected String propertiesVarName;
     protected String messageVarName;
 
     public static void clearModifiedMethods() {modifiedMethods.clear();}
 
-    public void addPublishMessageCall(RepositoryCallInfo repositoryCallInfo, Set<String> domainInterfaces, String moduleName) {
-        String domainInterface = repositoryCallInfo.domainInterface();
-        String objectDomainVar = repositoryCallInfo.domainObjectVar();
+    public void addPublishMessageCall(RepositoryCallInfo repositoryCallInfo, Set<String> modelInterfaces, String moduleName) {
+        String modelInterface = repositoryCallInfo.modelInterface();
+        String objectModelVar = repositoryCallInfo.modelObjectVar();
         String repositoryOperation = repositoryCallInfo.repositoryOperation();
         MethodDeclaration method = repositoryCallInfo.method();
         
-        this.domainInterfaces = domainInterfaces;
+        this.modelInterfaces = modelInterfaces;
         String methodId = method.getSignature().asString();
         
         propertiesVarName = "properties";
@@ -49,13 +49,13 @@ public abstract class PublishMessageTrigger {
         }
         setVariableTypeMap(method);
         initializePropertiesVar(method);
-        collectProperties(method, objectDomainVar);
-        addPublishCallStatement(method, objectDomainVar, domainInterface, repositoryOperation, moduleName);
+        collectProperties(method, objectModelVar);
+        addPublishCallStatement(method, objectModelVar, modelInterface, repositoryOperation, moduleName);
         
         modifiedMethods.put(methodId, modifiedMethods.getOrDefault(methodId, 0) + 1);
     }
 
-    protected abstract void collectProperties(MethodDeclaration method, String objectDomainVar);
+    protected abstract void collectProperties(MethodDeclaration method, String objectModelVar);
 
     protected Map<String,String> setVariableTypeMap(MethodDeclaration method) {
         variableTypeMap = new HashMap<>();
@@ -89,7 +89,7 @@ public abstract class PublishMessageTrigger {
     protected Statement createPropertyAddStatement(String fieldName, String fieldType, String fieldValue) {
     	Expression valueExpression;
 
-        if (domainInterfaces.contains(fieldType)) {
+        if (modelInterfaces.contains(fieldType)) {
             if (nullInitializedVariables.contains(fieldValue)) {
                 valueExpression = new ConditionalExpr(
                         new BinaryExpr(new NameExpr(fieldValue), new NullLiteralExpr(), BinaryExpr.Operator.NOT_EQUALS),
@@ -116,8 +116,8 @@ public abstract class PublishMessageTrigger {
     }
 
     protected void addPublishCallStatement(MethodDeclaration method, 
-    		String objectDomainVar, 
-    		String domainInterface,
+    		String objectModelVar,
+    		String modelInterface,
     		String repositoryOperation,
     		String moduleName) 
     {
@@ -125,38 +125,38 @@ public abstract class PublishMessageTrigger {
     	
     	// StateTranferMessage Argument : id
         String objectIdVar;
-        if (objectDomainVar.toLowerCase().contains("id")) {
-            objectIdVar = objectDomainVar;
+        if (objectModelVar.toLowerCase().contains("id")) {
+            objectIdVar = objectModelVar;
         } else {
-            objectIdVar = objectDomainVar + "Identifier"; // avoid the same variable name, usually use id
+            objectIdVar = objectModelVar + "Identifier"; // avoid the same variable name, usually use id
             
             boolean isInCoreModule = moduleName.endsWith(".core");
             if (isInCoreModule) { // Get record or Component from Decorator
-                String decoratorClassName = domainInterface + "Decorator";
-                // if (<objectDomainVar> instanceof <DomainInterface>Decorator) { <objectDomainVar> = ((<DomainInterface>Decorator) <objectDomainVar>).getRecord(); }
+                String decoratorClassName = modelInterface + "Decorator";
+                // if (<objectModelVar> instanceof <ModelInterface>Decorator) { <objectModelVar> = ((<ModelInterface>Decorator) <objectModelVar>).getRecord(); }
                 AssignExpr unwrapAssign = new AssignExpr(
-                	    new NameExpr(objectDomainVar),
+                	    new NameExpr(objectModelVar),
                 	    new ConditionalExpr(
                 	        new InstanceOfExpr(
-                	            new NameExpr(objectDomainVar),
+                	            new NameExpr(objectModelVar),
                 	            StaticJavaParser.parseClassOrInterfaceType(decoratorClassName)
                 	        ),
                 	        new MethodCallExpr(
                 	            new EnclosedExpr(new CastExpr(
                 	                StaticJavaParser.parseClassOrInterfaceType(decoratorClassName),
-                	                new NameExpr(objectDomainVar)
+                	                new NameExpr(objectModelVar)
                 	            )),
                 	            "getRecord"
                 	        ),
-                	        new NameExpr(objectDomainVar)
+                	        new NameExpr(objectModelVar)
                 	    ),
                 	    AssignExpr.Operator.ASSIGN
                 	);
                 newExpressionList.add(unwrapAssign);
             }	
             
-            // Create method call <objectDomainVar>.get<DomainInterface>Id()
-            MethodCallExpr getIdCall = new MethodCallExpr(new NameExpr(objectDomainVar), "get" + domainInterface + "Id");
+            // Create method call <objectModelVar>.get<ModelInterface>Id()
+            MethodCallExpr getIdCall = new MethodCallExpr(new NameExpr(objectModelVar), "get" + modelInterface + "Id");
             VariableDeclarator idVar = new VariableDeclarator(
                     StaticJavaParser.parseClassOrInterfaceType("Object"),
                     objectIdVar,
@@ -178,9 +178,9 @@ public abstract class PublishMessageTrigger {
                 new ClassOrInterfaceType(null, "StateTransferMessage"),
                 NodeList.nodeList(
                         new NameExpr(objectIdVar), // id
-                        new StringLiteralExpr(domainInterface), // type
+                        new StringLiteralExpr(modelInterface), // type
                         new StringLiteralExpr(action), // action
-                        new StringLiteralExpr(getTableName(method, objectDomainVar)), // table name
+                        new StringLiteralExpr(getTableName(method, objectModelVar)), // table name
                         new StringLiteralExpr(moduleName), // module name
                         new NameExpr(propertiesVarName) // properties
                 )
@@ -215,7 +215,7 @@ public abstract class PublishMessageTrigger {
                 String scopeString = methodCall.getScope().get().toString();
                 if (scopeString.endsWith("Repository")) {
                     boolean hasMatchingArg = methodCall.getArguments().stream()
-                            .anyMatch(arg -> arg.toString().equals(objectDomainVar));
+                            .anyMatch(arg -> arg.toString().equals(objectModelVar));
 
                     if (hasMatchingArg) {
                         methodCall.findAncestor(BlockStmt.class).ifPresent(blockStmt -> {
@@ -240,9 +240,9 @@ public abstract class PublishMessageTrigger {
     }
     
     // To access delta objects use the repository call getListObject
-    private String getTableName(MethodDeclaration method, String objectDomainVar) {
+    private String getTableName(MethodDeclaration method, String objectModelVar) {
         for (VariableDeclarator varDecl : method.findAll(VariableDeclarator.class)) {
-            if (varDecl.getNameAsString().equals(objectDomainVar)) {
+            if (varDecl.getNameAsString().equals(objectModelVar)) {
                 Expression initializer = varDecl.getInitializer().orElse(null);
 
                 if (initializer instanceof MethodCallExpr callExpr) {

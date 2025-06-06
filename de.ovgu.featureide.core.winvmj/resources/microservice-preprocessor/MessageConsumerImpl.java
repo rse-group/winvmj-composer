@@ -40,7 +40,7 @@ class MessageConsumerImpl implements MessageConsumer {
     }
 
     private void createObjectHandler(StateTransferMessage message) throws Exception {
-        String domainInterface = message.getType();
+        String modelInterface = message.getType();
 
         String fqn = "";
         List<Object> arguments = new ArrayList<>();
@@ -55,18 +55,18 @@ class MessageConsumerImpl implements MessageConsumer {
     }
 
     private void updateObjectHandler(StateTransferMessage message) throws Exception {
-        Object domainObject;
-        String domainInterface = message.getType();
+        Object modelObject;
+        String modelInterface = message.getType();
         String moduleName = message.getModuleName();
         Object id = message.getId();
         String idStr = id.toString();
         if (message.getTableName().isEmpty()){
             try {
                 UUID uuid = UUID.fromString(idStr);
-                domainObject = repositoryMap.get(domainInterface).getObject(uuid);
+                modelObject = repositoryMap.get(modelInterface).getObject(uuid);
             } catch (IllegalArgumentException e) {
                 int intId = ((Number) id).intValue();
-                domainObject = repositoryMap.get(domainInterface).getObject(intId);
+                modelObject = repositoryMap.get(modelInterface).getObject(intId);
             }
             
             // Jika diakses bukan dari tableName maka model berasal dari core module
@@ -75,13 +75,13 @@ class MessageConsumerImpl implements MessageConsumer {
                 moduleName = moduleName.substring(0, lastDotIndex) + ".core";
             }
         } else {
-            String columnName =  domainInterface.substring(0, 1).toLowerCase() + domainInterface.substring(1) + "Id";
+            String columnName =  modelInterface.substring(0, 1).toLowerCase() + modelInterface.substring(1) + "Id";
             try {
                 UUID uuid = UUID.fromString(idStr);
-                domainObject = repositoryMap.get(domainInterface).getListObject(message.getTableName(),columnName,uuid).get(0);
+                modelObject = repositoryMap.get(modelInterface).getListObject(message.getTableName(),columnName,uuid).get(0);
             } catch (IllegalArgumentException e) {
                 int intId = ((Number) id).intValue();
-                domainObject = repositoryMap.get(domainInterface).getListObject(message.getTableName(),columnName,intId).get(0);
+                modelObject = repositoryMap.get(modelInterface).getListObject(message.getTableName(),columnName,intId).get(0);
             }
         }
 
@@ -91,10 +91,10 @@ class MessageConsumerImpl implements MessageConsumer {
             Object attributeValue = getTypedValue(property);
             attributes.put(attributeName,attributeValue);
         }
-        String domainClassImpl = moduleName + "." + domainInterface + "Impl";
+        String modelClassImpl = moduleName + "." + modelInterface + "Impl";
 
-        setAttributes(domainObject, domainClassImpl, attributes);
-        repositoryMap.get(domainInterface).updateObject(domainObject);
+        setAttributes(modelObject, modelClassImpl, attributes);
+        repositoryMap.get(modelInterface).updateObject(modelObject);
     }
 
     private void deleteObjectHandler(StateTransferMessage message) {
@@ -145,7 +145,7 @@ class MessageConsumerImpl implements MessageConsumer {
         return value;
     }
 
-    private void setAttributes(Object obj, String domainClassImpl, Map<String, Object> attributes) throws Exception	 {
+    private void setAttributes(Object obj, String modelClassImpl, Map<String, Object> attributes) throws Exception	 {
         Class<?> clazz = obj.getClass();
 
         for (Map.Entry<String, Object> entry : attributes.entrySet()) {

@@ -4,7 +4,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 
 public record RepositoryCallInfo(
         MethodDeclaration method,
-        String domainInterface,
-        String domainObjectVar,
+        String modelInterface,
+        String modelObjectVar,
         String repositoryOperation
 ) { }

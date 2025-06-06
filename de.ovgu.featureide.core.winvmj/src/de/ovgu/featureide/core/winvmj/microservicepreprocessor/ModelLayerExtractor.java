@@ -22,12 +22,12 @@ public class ModelLayerExtractor {
 	}
 
     private static Set<String> extractModelsFqn(Set<IFolder> moduleDirs, String modelType) {
-        Set<String> domainModel = new HashSet<>();
+        Set<String> allModel = new HashSet<>();
 
         for (IFolder moduleDir : moduleDirs) {
-        	domainModel.addAll(extractModelFqn(moduleDir, modelType));
+        	allModel.addAll(extractModelFqn(moduleDir, modelType));
         }
-        return domainModel;
+        return allModel;
     }
 
     private static Set<String> extractModelFqn(IFolder moduleDir, String modelType) {
