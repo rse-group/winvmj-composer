@@ -1,11 +1,14 @@
 package de.ovgu.featureide.core.winvmj.compile;
 
 import java.io.BufferedReader;
-
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URISyntaxException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -89,12 +92,16 @@ public class SourceCompiler {
 				compiledModulesDir.create(false, true, null);
 			IFolder modulesDir = project.getProject().getFolder(MODULES_FOLDER);
 
-			IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+			final File file = new File(SourceCompiler.class
+					.getProtectionDomain().getCodeSource()
+					.getLocation().getPath());
+			
+			Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
 			IFolder externalDir = project.getProject().getFolder("external");
 
 			importWinVMJLibrariesForModules(compiledModulesDir);
 			compileInternalModules(project, compiledModulesDir, modulesDir);
-			deleteLibraries(compiledModulesDir, librariesDir);
+			deleteLibraries(compiledModulesDir, srcResource);
 			deleteExternal(compiledModulesDir, externalDir);
 		} catch (CoreException | IOException e) {
 			e.printStackTrace();
@@ -103,7 +110,11 @@ public class SourceCompiler {
 
 	public static void compileModuleSource(IFolder module, IFeatureProject project)
 	        throws URISyntaxException {
-        IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+		final File file = new File(SourceCompiler.class
+				.getProtectionDomain().getCodeSource()
+				.getLocation().getPath());
+		
+		Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
         IFolder externalDir = project.getProject().getFolder("external");
 	    try {
 	        IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
@@ -147,7 +158,7 @@ public class SourceCompiler {
 	            WinVMJConsole.println("Module " + module.getName() + " is up-to-date. Skipping compilation.");
 	        }
 	        
-            deleteLibraries(compiledModulesDir, librariesDir);
+            deleteLibraries(compiledModulesDir, srcResource);
             deleteExternal(compiledModulesDir, externalDir);
 	    } catch (CoreException | IOException e) {
 	        e.printStackTrace();
@@ -250,15 +261,24 @@ public class SourceCompiler {
 		cleanBinaries(project);
 	}
 
-	public static void deleteLibraries(IFolder compiledModulesDir, IFolder winvmjLibrariesDir) throws CoreException {
+	public static void deleteLibraries(IFolder compiledModulesDir, Path winvmjLibrariesDir) throws CoreException {
 		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
 
 		Set<String> baseNames = new HashSet<>();
-		for (IResource resource : winvmjLibrariesDir.members()) {
-			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
-				String baseName = getBaseNameFromFile(resource.getName());
-				baseNames.add(baseName);
-			}
+//		for (IResource resource : winvmjLibrariesDir.members()) {
+//			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+//				String baseName = getBaseNameFromFile(resource.getName());
+//				baseNames.add(baseName);
+//			}
+//		}
+		try (DirectoryStream<Path> stream = Files.newDirectoryStream(winvmjLibrariesDir, "*.jar")) {
+	        for (Path jarPath : stream) {
+	            String baseName = getBaseNameFromFile(jarPath.getFileName().toString());
+	            baseNames.add(baseName);
+	        }
+	    } catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 
 		Set<String> filesToDelete = new HashSet<>(
