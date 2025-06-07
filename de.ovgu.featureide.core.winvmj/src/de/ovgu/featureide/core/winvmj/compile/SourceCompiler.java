@@ -101,7 +101,7 @@ public class SourceCompiler {
 			IFolder externalDir = project.getProject().getFolder("external");
 
 			importWinVMJLibrariesForModules(compiledModulesDir);
-			compileInternalModules(project, compiledModulesDir, modulesDir);
+			compileFolderModules(project, compiledModulesDir, modulesDir);
 			deleteLibraries(compiledModulesDir, srcResource);
 			deleteExternal(compiledModulesDir, externalDir);
 		} catch (CoreException | IOException e) {
@@ -408,7 +408,7 @@ public class SourceCompiler {
 		return multiLevelDeltaModule;
 	}
 
-	private static void compileInternalModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir)
+	private static void compileFolderModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir)
 			throws CoreException, IOException {
 		IResource[] moduleResources = modulesDir.members();
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
