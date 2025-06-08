@@ -266,7 +266,7 @@ locate_backend_service(){
     echo "SERVICE FOUND: ${service_name}"
 
     # Skip frontend dan apigateway
-    if [[ "$service_name" != "frontend" && "$service_name" != "ApiGateway" && "$service_name" != "postman" ]]; then
+    if [[ "$service_name" != "frontend" && "$service_name" != "ApiGateway" && "$service_name" != "postman" && "$service_name" != "logs" ]]; then
       BACKENDS+=("$service_name")
 
       # Rename "/backend" directory to product name when product is monolith

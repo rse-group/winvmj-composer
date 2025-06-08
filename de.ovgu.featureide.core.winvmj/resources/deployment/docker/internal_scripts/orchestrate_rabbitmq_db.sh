@@ -111,6 +111,7 @@ if [[ "$NUM_BACKENDS" -gt 1 ]]; then
   RABBITMQ_CONTAINER_NAME="${PRODUCT_NAME}-rabbitmq-container"
   RABBITMQ_SERVICE_NAME="${PRODUCT_NAME}_rabbitmq"
   RABBIT_COMPOSE_FILE="$PRODUCT_DIR/docker-compose.rabbitmq.yml"
+  RABBITMQ_ERLANG_COOKIE=$(echo -n "$RABBITMQ_SERVICE_NAME" | sha256sum | cut -c1-32)
 
 cat <<EOF > "$RABBIT_COMPOSE_FILE"
 services:
@@ -123,6 +124,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: $RABBITMQ_USER
       RABBITMQ_DEFAULT_PASS: $RABBITMQ_PASS
+      RABBITMQ_ERLANG_COOKIE: $RABBITMQ_ERLANG_COOKIE
     volumes:
       - "${RABBITMQ_SERVICE_NAME}_data:/var/lib/rabbitmq"
     networks:
