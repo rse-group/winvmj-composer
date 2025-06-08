@@ -78,9 +78,6 @@ public class ModulePreprocessor {
             List<String> modelInterfacesFqn = new ArrayList<String>(ModelLayerExtractor.extractModelInterfacesFqn(moduleDirs));
             addImportStatement(messageConsumerCu, modelInterfacesFqn);
             
-            Set<String> modelImplementationsFqnSet = ModelLayerExtractor.extractModelImplementationsFqn(moduleDirs);
-            ConcreteClassCaster.modifySetAttributesMethod(messageConsumerCu, modelImplementationsFqnSet);
-            
             QueueBindingTrigger.addQueueBindingCall(messageConsumerCu, routingKeyValues);
             
             ModelFactoryExtractor.initializeObjectFactory(moduleDirs, messageConsumerCu);

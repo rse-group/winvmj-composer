@@ -35,7 +35,7 @@ class MessageConsumerImpl implements MessageConsumer {
                 default -> System.out.println("Unsupported action: " + message.getAction());
             }
         } catch (Exception e) {
-            throw new MessageConsumeException("Failed to consume message", e);
+        	throw new MessageConsumeException(e.getMessage(), e);
         }
     }
 
@@ -68,12 +68,6 @@ class MessageConsumerImpl implements MessageConsumer {
                 int intId = ((Number) id).intValue();
                 modelObject = repositoryMap.get(modelInterface).getObject(intId);
             }
-            
-            // Jika diakses bukan dari tableName maka model berasal dari core module
-            int lastDotIndex = moduleName.lastIndexOf('.');
-            if (lastDotIndex != -1) {
-                moduleName = moduleName.substring(0, lastDotIndex) + ".core";
-            }
         } else {
             String columnName =  modelInterface.substring(0, 1).toLowerCase() + modelInterface.substring(1) + "Id";
             try {
@@ -91,9 +85,12 @@ class MessageConsumerImpl implements MessageConsumer {
             Object attributeValue = getTypedValue(property);
             attributes.put(attributeName,attributeValue);
         }
+        
+        String coreModuleName = moduleName.substring(0, moduleName.lastIndexOf('.')) + ".core";
+        String coreModelClassImpl = coreModuleName + "." + modelInterface + "Impl";
         String modelClassImpl = moduleName + "." + modelInterface + "Impl";
 
-        setAttributes(modelObject, modelClassImpl, attributes);
+        setAttributes(modelObject, coreModelClassImpl, modelClassImpl, attributes);
         repositoryMap.get(modelInterface).updateObject(modelObject);
     }
 
@@ -145,9 +142,23 @@ class MessageConsumerImpl implements MessageConsumer {
         return value;
     }
 
-    private void setAttributes(Object obj, String modelClassImpl, Map<String, Object> attributes) throws Exception	 {
-        Class<?> clazz = obj.getClass();
-
+    private void setAttributes(Object obj, String coreModelClassImpl, String modelClassImpl, Map<String, Object> attributes) throws Exception	 {
+    	Class<?> targetClass = Class.forName(modelClassImpl);
+    	if (targetClass.isInstance(obj)) {
+    		obj = targetClass.cast(obj);
+    	} else {
+    		Class<?> coreClass = Class.forName(coreModelClassImpl);
+            if (coreClass.isInstance(obj)) {
+                obj = coreClass.cast(obj);
+            } else {
+                String msg = "Object of type " + obj.getClass().getName()
+                        + " is not an instance of " + modelClassImpl
+                        + " or " + coreModelClassImpl;
+                throw new ClassCastException(msg);
+            }
+    	}
+    	
+    	Class<?> clazz = obj.getClass();
         for (Map.Entry<String, Object> entry : attributes.entrySet()) {
         	Field field = getFieldFromHierarchy(clazz, entry.getKey());
             field.setAccessible(true);
