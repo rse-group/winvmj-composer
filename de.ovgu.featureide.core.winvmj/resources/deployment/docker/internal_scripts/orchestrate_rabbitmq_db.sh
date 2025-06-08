@@ -123,6 +123,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: $RABBITMQ_USER
       RABBITMQ_DEFAULT_PASS: $RABBITMQ_PASS
+    volumes:
+      - "${RABBITMQ_SERVICE_NAME}_data:/var/lib/rabbitmq"
     networks:
       - app_network
     healthcheck:
@@ -131,6 +133,9 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+
+volumes:
+  ${RABBITMQ_SERVICE_NAME}_data:
 
 networks:
   app_network:
