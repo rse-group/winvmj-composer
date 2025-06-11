@@ -12,7 +12,9 @@ public class AmanahDeploymentPage extends WizardPage {
     private Text privateKeyText;
     private Text usernameText;
     private Text productNameText;
+    private Text productPrefixText;
     private Text productFileText;
+    private Text numBackendsText;
 
     public AmanahDeploymentPage(String pageName) {
         super(pageName);
@@ -63,6 +65,20 @@ public class AmanahDeploymentPage extends WizardPage {
         productNameText.setToolTipText("Name of the product that will be deployed");
         new Label(container, SWT.NONE); // Empty cell for alignment
         
+        // Product Prefix
+        new Label(container, SWT.NONE).setText("Product Prefix:");
+        productPrefixText = new Text(container, SWT.BORDER);
+        productPrefixText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        productPrefixText.setToolTipText("Prefix of the product (ex:aisco or webshop)");
+        new Label(container, SWT.NONE); // Empty cell for alignment
+        
+        // Num Backends
+        new Label(container, SWT.NONE).setText("Num Backends:");
+        numBackendsText = new Text(container, SWT.BORDER);
+        numBackendsText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        numBackendsText.setToolTipText("Num of Backend Service (ignore for systemd, for monolith fill 1)");
+        new Label(container, SWT.NONE); // Empty cell for alignment
+        
         // Product File
         new Label(container, SWT.NONE).setText("Product File (.zip):");
         productFileText = new Text(container, SWT.BORDER);
@@ -96,9 +112,9 @@ public class AmanahDeploymentPage extends WizardPage {
     public boolean isPageComplete() {
         return !tunnelPortText.getText().trim().isEmpty() &&
                !privateKeyText.getText().trim().isEmpty() &&
-               !privateKeyText.getText().trim().isEmpty() &&
                !productFileText.getText().trim().isEmpty() &&
                !productNameText.getText().trim().isEmpty() &&
+               !productPrefixText.getText().trim().isEmpty() &&
                !usernameText.getText().trim().isEmpty();
     }
 
@@ -118,8 +134,16 @@ public class AmanahDeploymentPage extends WizardPage {
         return productNameText.getText();
     }
     
+    public String getProductPrefix() {
+        return productPrefixText.getText();
+    }
+    
     public String getProductFile() {
         return productFileText.getText();
+    }
+    
+    public String getNumBackends() {
+    	return numBackendsText.getText();
     }
     
     
