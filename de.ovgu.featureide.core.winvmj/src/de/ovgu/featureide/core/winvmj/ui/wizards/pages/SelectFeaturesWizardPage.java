@@ -440,27 +440,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 		item.setExpanded(true);
 	}
-//
-//	private void addFilteredFeaturesToTree(IFeature root, HashSet<String> combinedFeatures) {
-//
-//		if (combinedFeatures.contains(root.getName())) {
-//			final TreeItem item = new TreeItem(featuresTree, SWT.NORMAL);
-//			item.setText(root.getName());
-//			item.setData(root);
-//			
-//			for (final IFeatureStructure feature : root.getStructure().getChildren()) {
-//				if (combinedFeatures.contains(feature.getFeature().getName())) {
-//					addFeaturesToTree(feature.getFeature(), item, combinedFeatures);
-//				}
-//			}
-//			item.setExpanded(true);
-//		} 
-//		else {
-//			for (final IFeatureStructure feature : root.getStructure().getChildren()) {
-//				addFilteredFeaturesToTree(feature.getFeature(), combinedFeatures);
-//			}
-//		}		
-//	}
+
 	
 	private void addRelevantFeaturesToTree(IFeature root, Map<String, Integer> selectedFeatures, TreeItem parent) {
 		String shortName = root.getName();
@@ -503,80 +483,6 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 		return mapping;
 	}
-	
-//	private HashSet<String> filteredFeaturesBasedOnConstraint(HashSet<String> targetFeatures) {
-//		HashSet<String> selectedFeatures = new HashSet<>();
-//		
-//		FeatureModelFormula formula = new FeatureModelFormula(project.getFeatureModel());
-//		CNF cnf = formula.getCNF();
-//		AdvancedSatSolver solver = new AdvancedSatSolver(cnf);
-//		Map<String, String> nameMap = getFeatureNameMapping(formula);
-//		for (String shortName : targetFeatures) {
-//			String fullName = nameMap.get(shortName);
-//			if (fullName != null) {
-//				int literal = solver.getSatInstance().getVariables().getVariable(fullName, true);
-//				solver.assignmentPush(literal);
-//			}
-//		}
-//		
-//		if (solver.hasSolution() == SatResult.TRUE) {
-//			solver.setSelectionStrategy(SelectionStrategy.ORG);
-//			int[] findsolutionORG = solver.findSolution();
-//			for (int lit : findsolutionORG) {
-//				String fullName = solver.getSatInstance().getVariables().getName(lit);
-//				if (lit > 0) {
-//					String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
-//					if (!targetFeatures.contains(shortName)) {
-//						selectedFeatures.add(shortName);
-//					}
-//				}
-//			}
-//		}
-//		
-//		String rootFullName = project.getFeatureModel().getStructure().getRoot().getFeature().getName();
-//		String rootShortName = rootFullName.contains(".") ? rootFullName.substring(rootFullName.indexOf('.') + 1) : rootFullName;
-//		selectedFeatures.remove(rootShortName);
-//		return selectedFeatures;
-//	}
-	
-	
-//	private Map<String, Integer> filteredFeaturesBasedOnConstraint(HashSet<String> targetFeatures) {
-//		Map<String, Integer> selectedFeatures = new HashMap<>();
-//		
-//		FeatureModelFormula formula = new FeatureModelFormula(project.getFeatureModel());
-//		CNF cnf = formula.getCNF();
-//		AdvancedSatSolver solver = new AdvancedSatSolver(cnf);
-//		Map<String, String> nameMap = getFeatureNameMapping(formula);
-//		for (String shortName : targetFeatures) {
-//			String fullName = nameMap.get(shortName);
-//			if (fullName != null) {
-//				int literal = solver.getSatInstance().getVariables().getVariable(fullName, true);
-//				solver.assignmentPush(literal);
-//			}
-//		}
-//
-//		if (solver.hasSolution() == SatResult.TRUE) {
-//			solver.setSelectionStrategy(SelectionStrategy.ORG);
-//			int[] findsolutionORG = solver.findSolution();
-//
-//			for (int lit : findsolutionORG) {
-//				String fullName = solver.getSatInstance().getVariables().getName(lit);
-//				String shortName = fullName.contains(".") ? fullName.substring(fullName.indexOf('.') + 1) : fullName;
-//				WinVMJConsole.println(shortName + lit);
-//				if (!targetFeatures.contains(shortName)) {
-//					selectedFeatures.put(shortName, lit);
-//				}
-//			}
-//		}
-//		
-//		WinVMJConsole.println("Selected Features " + selectedFeatures);
-//		String rootFullName = project.getFeatureModel().getStructure().getRoot().getFeature().getName();
-//		String rootShortName = rootFullName.contains(".") ? rootFullName.substring(rootFullName.indexOf('.') + 1) : rootFullName;
-//		selectedFeatures.remove(rootShortName);
-//
-//		return selectedFeatures;
-//	}
-
 	
 	private List<IFeature> getConcreteChildren(IFeature feature) {
 	    List<IFeature> result = new ArrayList<>();
