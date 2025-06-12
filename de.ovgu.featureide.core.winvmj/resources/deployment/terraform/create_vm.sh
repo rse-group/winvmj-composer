@@ -50,7 +50,7 @@ if [ "$PROVIDER" == "gcp" ]; then
   PROJECT_NAME=$(awk -F\" '/"project_id"/ {print $4}' "$CREDENTIALS")
 
   ERR_OUTPUT=$(terraform apply \
-  -var="ssh_user=$(whoami)" \
+  -var="ssh_user=$USERNAME" \
   -var="gcp_credentials=$CREDENTIALS" \
   -var="instance_type=$MACHINE_TYPE" \
   -var="instance_name=$INSTANCE_NAME" \
