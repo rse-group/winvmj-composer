@@ -3,6 +3,7 @@ package de.ovgu.featureide.core.winvmj.ui.wizards;
 import java.io.BufferedReader;
 
 
+
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -13,6 +14,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -24,6 +26,15 @@ import de.ovgu.featureide.core.winvmj.ui.wizards.pages.*;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.Platform;
 import org.osgi.framework.Bundle;
+import java.util.zip.ZipOutputStream;
+import java.util.zip.ZipEntry;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+
 
 public class DeploymentWizard extends Wizard {
     private SelectDeploymentPage deploymentPage;
@@ -102,261 +113,6 @@ public class DeploymentWizard extends Wizard {
     }
 
 
-//    @Override
-//    public boolean performFinish() {
-//    	String selectedTarget = deploymentTargetPage.getSelectedDeploymentTarget();
-//
-//        if ("amanah".equalsIgnoreCase(selectedTarget)) {
-//        	String deploymentMethod = deploymentPage.getSelectedDeploymentMethod();
-//            String tunnelPort = amanahPage.getTunnelPort();
-//            String privateKeyPath = amanahPage.getPrivateKeyPath();
-//            String usernameAmanah = amanahPage.getUsername();
-//            String productName = amanahPage.getProductName();
-//            String productFile = amanahPage.getProductFile();
-//            String productPrefix = amanahPage.getProductPrefix();
-//            String numBackend = amanahPage.getNumBackends();
-//
-//            String scriptDir = locateScriptDir();
-//
-//            String scriptPath = scriptDir + "\\amanah\\deploy_amanah.bat";
-//            
-//            if ("docker".equalsIgnoreCase(deploymentMethod)) {
-//            	scriptPath = scriptDir + "\\amanah\\deploy_amanah_docker.bat";
-//            } 
-//            
-//            String finalScriptPath = scriptPath;
-//            
-//            WinVMJConsole.println("Deployment Script: " + finalScriptPath);
-//            
-//            new Thread(() -> {
-//            	List<String> amanahCommand = new ArrayList<>();
-//            	amanahCommand.add("cmd.exe");
-//                amanahCommand.add("/c");
-//            	amanahCommand.add(finalScriptPath);
-//            	amanahCommand.add(privateKeyPath); 
-//            	amanahCommand.add(usernameAmanah);
-//            	amanahCommand.add(tunnelPort);
-//            	amanahCommand.add(productName);
-//            	amanahCommand.add(productFile);
-//            	amanahCommand.add(productPrefix);
-//            	amanahCommand.add(numBackend);
-//            	
-//            	try {
-//            		ProcessBuilder builder = new ProcessBuilder(amanahCommand);
-//            		builder.redirectErrorStream(true);
-//                    Process process = builder.start();
-//                    
-//                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-//                        String line;
-//                        while ((line = reader.readLine()) != null) {
-//                            WinVMJConsole.println("[SCRIPT OUTPUT] " + line);
-//                        }
-//                    }
-//                    int exitCode = process.waitFor();
-//                    WinVMJConsole.println("Deployment completed with exit code: " + exitCode);
-//                    
-//                } catch (Exception e) {
-//                    WinVMJConsole.println("[ERROR] Failed to deploy: " + e.getMessage());
-//                }
-//            	
-//            	
-//            }).start();
-//            
-//            
-//
-//            return true;
-//        }
-//        
-//        
-//        else if("provisioning".equalsIgnoreCase(selectedTarget)) {
-//        	String isProvisioning = "yes";
-//        	String deploymentMethod = deploymentPage.getSelectedDeploymentMethod().toLowerCase();
-//        	String provider = deploymentPage.getSelectedProvider();
-//        	String credentialPath = filePage.getCredentialFilePath();
-//            String productZipPath = filePage.getProductFilePath();
-//            String username = configPage.getUsername();
-//            String machineType = configPage.getMachineType();
-//            String region = configPage.getRegion();
-//            String certificateName = configPage.getCertificateName();
-//            String nginxCertName = configPage.getNginxCertificateName();
-//            String instanceName = configPage.getInstanceName();
-//            String productPrefix = configPage.getProductPrefix();
-//            String productName = configPage.getProductName();
-//            String pubKeyPath = filePage.getPubKeyFilePath();
-//            String privKeyPath = filePage.getPrivKeyFilePath();
-//            String numBackends = configPage.getNumBackends();
-//           
-//            
-//            // Temukan direktori script wrapper.sh berada
-//            String scriptDir = locateScriptDir();
-//
-//            String finalScriptPath = scriptDir + "/wrapper.sh";
-//            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-//            
-//            new Thread(() -> {
-//                List<String> command = new ArrayList<>();
-//                if (isWindows) {
-//                	WinVMJConsole.println("Detected Windows OS. Using WSL.");
-//                    String wslScriptPath = convertWindowsPathToWslPath(finalScriptPath); // ubah format path script wrapper.sh ke format sesuai linux (/mnt/.../wrapper.sh)
-//                    String wslCredentialPath = convertWindowsPathToWslPath(credentialPath);
-//                    String wslProductPath = convertWindowsPathToWslPath(productZipPath);
-//                    String wslPubKeyPath = convertWindowsPathToWslPath(pubKeyPath);
-//                    String wslPrivKeyPath = convertWindowsPathToWslPath(privKeyPath);
-//                    
-//                    // Ambil nama file dari path private key
-//                    String privKeyFileName = Paths.get(privKeyPath).getFileName().toString();
-//                    
-//                    String wslHomeKeyPath = "~/.ssh/" + privKeyFileName;                 
-//                    WinVMJConsole.println("[WIZARD] Converted WSL Path: " + wslScriptPath);
-//                	
-//                    // ubah permission pada wrapper.sh
-//                	try {
-//                        List<String> chmodCommand = List.of("wsl", "chmod", "+x", wslScriptPath);
-//                        new ProcessBuilder(chmodCommand).start().waitFor();
-//                        WinVMJConsole.println("[WIZARD] chmod +x executed on script");
-//                        
-//                        // memindahkan priv key ke wsl agar bisa ubah permission
-//                        new ProcessBuilder("wsl", "mkdir", "-p", "~/.ssh").start().waitFor();
-//                        new ProcessBuilder("wsl", "cp", wslPrivKeyPath, wslHomeKeyPath).start().waitFor();
-//                        new ProcessBuilder("wsl", "chmod", "600", wslHomeKeyPath).start().waitFor();
-//
-//                        WinVMJConsole.println("[WIZARD] Copied private key to ~/.ssh/ and set permission");
-//                    } catch (Exception e) {
-//                        WinVMJConsole.println("[ERROR] Failed during script and key preparation: " + e.getMessage());
-//                    }
-//                	
-//                	// NOTE: Pastikan encoding script LF (linux) tidak berubah menjadi CRLF (windows) agar bisa dieksekusi
-//                	command = generateCommandProvisionForWin(wslScriptPath, deploymentMethod, isProvisioning, username, machineType, region, wslCredentialPath, provider, instanceName, wslPubKeyPath, productName, certificateName, nginxCertName, productPrefix, wslProductPath, wslPrivKeyPath, numBackends);
-//                } else {
-//                    WinVMJConsole.println("Detected Unix-based OS. Running directly.");
-//                    command = generateCommandProvisionForLinux(finalScriptPath, deploymentMethod, isProvisioning, username, machineType, region, credentialPath, provider, instanceName, pubKeyPath, productName, certificateName, nginxCertName, productPrefix, productZipPath, privKeyPath, numBackends);
-//                }
-//
-//                try {
-//                    WinVMJConsole.println("[WIZARD] Running command: " + command);
-//                    ProcessBuilder builder = new ProcessBuilder(command);
-//                    builder.redirectErrorStream(true);
-//                    Process process = builder.start();
-//                    
-//                    boolean dnsDialogShown = false;
-//
-//                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-//                        String line;
-//                        while ((line = reader.readLine()) != null) {
-//                            WinVMJConsole.println("[SCRIPT OUTPUT] " + line);
-//                            
-//                            // Tampilkan pengingat untuk set up DNS record
-//                            if (!dnsDialogShown && line.contains("Please set up the DNS A record to point")) {
-//                                dnsDialogShown = true;
-//                                handleDnsDialog(line);
-//                            }
-//
-//                        }
-//                    }
-//
-//                    int exitCode = process.waitFor();
-//                    WinVMJConsole.println("Deployment completed with exit code: " + exitCode);
-//                } catch (Exception e) {
-//                    WinVMJConsole.println("Failed to run command: " + e.getMessage());
-//                    e.printStackTrace();
-//                }
-//            }).start();
-//        }
-//        
-//        else if("existing".equalsIgnoreCase(selectedTarget)) {
-//        	String isProvisioning = "no";
-//        	String deploymentMethod = deploymentPage.getSelectedDeploymentMethod().toLowerCase();
-//            String productZipPath = filePage.getProductFilePath();
-//            String username = configExistPage.getUsername();
-//            String ipAddress = configExistPage.getInstanceIP();
-//            String certificateName = configExistPage.getCertificateName();
-//            String nginxCertName = configExistPage.getNginxCertificateName();
-//            String productPrefix = configExistPage.getProductPrefix();
-//            String productName = configExistPage.getProductName();
-//            String privKeyPath = filePage.getPrivKeyFilePath();
-//            String numBackends = configExistPage.getNumBackends();
-//           
-//            // Temukan direktori script wrapper.sh berada
-//            String scriptDir = locateScriptDir();
-//
-//            String finalScriptPath = scriptDir + "/wrapper.sh";
-//            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
-//            
-//            new Thread(() -> {
-//                List<String> command = new ArrayList<>();
-//                if (isWindows) {
-//                	WinVMJConsole.println("Detected Windows OS. Using WSL.");
-//                    String wslScriptPath = convertWindowsPathToWslPath(finalScriptPath); // ubah format path script wrapper.sh ke format sesuai linux (/mnt/.../wrapper.sh)
-//                    String wslProductPath = convertWindowsPathToWslPath(productZipPath);
-//                    String wslPrivKeyPath = convertWindowsPathToWslPath(privKeyPath);
-//                    
-//                    // Ambil nama file dari path private key
-//                    String privKeyFileName = Paths.get(privKeyPath).getFileName().toString();
-//                    
-//                    String wslHomeKeyPath = "~/.ssh/" + privKeyFileName;                 
-//                    WinVMJConsole.println("[WIZARD] Converted WSL Path: " + wslScriptPath);
-//                	
-//                    // ubah permission pada wrapper.sh
-//                	try {
-//                        List<String> chmodCommand = List.of("wsl", "chmod", "+x", wslScriptPath);
-//                        new ProcessBuilder(chmodCommand).start().waitFor();
-//                        WinVMJConsole.println("[WIZARD] chmod +x executed on script");
-//                        
-//                        // memindahkan priv key ke wsl agar bisa ubah permission
-//                        new ProcessBuilder("wsl", "mkdir", "-p", "~/.ssh").start().waitFor();
-//                        new ProcessBuilder("wsl", "cp", wslPrivKeyPath, wslHomeKeyPath).start().waitFor();
-//                        new ProcessBuilder("wsl", "chmod", "600", wslHomeKeyPath).start().waitFor();
-//
-//                        WinVMJConsole.println("[WIZARD] Copied private key to ~/.ssh/ and set permission");
-//                    } catch (Exception e) {
-//                        WinVMJConsole.println("[ERROR] Failed during script and key preparation: " + e.getMessage());
-//                    }
-//                	
-//                	// NOTE: Pastikan encoding script LF (linux) tidak berubah menjadi CRLF (windows) agar bisa dieksekusi
-//                	command = generateCommandExistingForWin(wslScriptPath, deploymentMethod, isProvisioning, username, ipAddress, productName, certificateName, nginxCertName, productPrefix, wslProductPath, wslPrivKeyPath, numBackends);
-//                } else {
-//                    WinVMJConsole.println("Detected Unix-based OS. Running directly.");
-//                    command = generateCommandExistingForLinux(finalScriptPath, deploymentMethod, isProvisioning, username, ipAddress, productName, certificateName, nginxCertName, productPrefix, productZipPath, privKeyPath, numBackends);
-//                }
-//
-//                try {
-//                    WinVMJConsole.println("[WIZARD] Running command: " + command);
-//                    ProcessBuilder builder = new ProcessBuilder(command);
-//                    builder.redirectErrorStream(true);
-//                    Process process = builder.start();
-//                    
-//                    boolean dnsDialogShown = false;
-//
-//                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-//                        String line;
-//                        while ((line = reader.readLine()) != null) {
-//                            WinVMJConsole.println("[SCRIPT OUTPUT] " + line);
-//                            
-//                            // Tampilkan pengingat untuk set up DNS record
-//                            if (!dnsDialogShown && line.contains("Please set up the DNS A record to point")) {
-//                                dnsDialogShown = true;
-//                                handleDnsDialog(line);
-//                            }
-//
-//                        }
-//                    }
-//
-//                    int exitCode = process.waitFor();
-//                    WinVMJConsole.println("Deployment completed with exit code: " + exitCode);
-//                } catch (Exception e) {
-//                    WinVMJConsole.println("Failed to run command: " + e.getMessage());
-//                    e.printStackTrace();
-//                }
-//            }).start();
-//        	
-//        } else {
-//        	WinVMJConsole.println("[ERROR] : No Valid Deployment Target");
-//        }
-//        
-//
-//        return true;
-//    }
-
 	@Override
     public boolean canFinish() {
         String target = deploymentTargetPage.getSelectedDeploymentTarget();
@@ -416,6 +172,12 @@ public class DeploymentWizard extends Wizard {
         String pubKeyPath = filePage.getPubKeyFilePath();
         String privKeyPath = filePage.getPrivKeyFilePath();
         String numBackends = configPage.getNumBackends();
+        
+        // Periksa keberadaan zip library
+        if (deploymentMethod.equalsIgnoreCase("systemd")) {
+        	WinVMJConsole.println("Using Systemd Detected, Preparing winvmj libraries....");
+        	zipAndCopyLib();
+        }
        
         
         // Temukan direktori script wrapper.sh berada
@@ -480,6 +242,12 @@ public class DeploymentWizard extends Wizard {
         String productName = configExistPage.getProductName();
         String privKeyPath = filePage.getPrivKeyFilePath();
         String numBackends = configExistPage.getNumBackends();
+        
+     // Periksa keberadaan zip library
+        if (deploymentMethod.equalsIgnoreCase("systemd")) {
+        	WinVMJConsole.println("Using Systemd Detected, Preparing winvmj libraries....");
+        	zipAndCopyLib();
+        }
        
         // Temukan direktori script wrapper.sh berada
         String scriptDir = locateScriptDir();
@@ -716,6 +484,66 @@ public class DeploymentWizard extends Wizard {
     public SelectDeploymentPage getDeploymentPage() {
         return deploymentPage;
     }
+    
+    
+    public void zipAndCopyLib() {
+    	WinVMJConsole.println("Memindahkan dan copy library vmj untuk digunakan");
+
+    	try {
+    	    Bundle bundle = Platform.getBundle("de.ovgu.featureide.core.winvmj");
+
+    	    URL libURL = FileLocator.toFileURL(bundle.getEntry("resources/winvmj-libraries"));
+    	    File libDir = new File(libURL.toURI());
+
+    	    URL targetURL = FileLocator.toFileURL(bundle.getEntry("resources/deployment/systemd/products"));
+    	    File targetDir = new File(targetURL.toURI());
+
+    	    String zipFileName = "prices_product_libraries.zip";
+
+    	    Path sourceFolder = libDir.toPath();
+    	    Path targetFolder = targetDir.toPath();
+    	    Path zipTarget = targetFolder.resolve(zipFileName);
+
+    	    zipDirectory(sourceFolder, zipTarget);
+
+    	    moveFileWithJava(zipTarget, targetFolder);
+
+    	} catch (Exception e) {
+    	    WinVMJConsole.println("[ERROR] Gagal meng-zip dan memindahkan: " + e.getMessage());
+    	    e.printStackTrace();
+    	}
+    }
+    public static void zipDirectory(Path sourceDir, Path zipFilePath) throws IOException{
+        try (ZipOutputStream zipOut = new ZipOutputStream(Files.newOutputStream(zipFilePath))) {
+            Files.walk(sourceDir)
+                .filter(path -> !Files.isDirectory(path))
+                .forEach(path -> {
+                    ZipEntry zipEntry = new ZipEntry(sourceDir.relativize(path).toString().replace("\\", "/"));
+                    try {
+                        zipOut.putNextEntry(zipEntry);
+                        Files.copy(path, zipOut);
+                        zipOut.closeEntry();
+                    } catch (IOException e) {
+                        System.err.println("[ZIP ERROR] Gagal menambahkan file: " + path + " → " + e.getMessage());
+                    }
+                });
+            WinVMJConsole.println("[ZIP] ZIP berhasil dibuat di: " + zipFilePath);
+        } catch (IOException e) {
+        	throw new IOException("Gagal membuat ZIP: " + e.getMessage(), e);
+        }
+    }
+
+    public static void moveFileWithJava(Path source, Path targetDir) throws IOException {
+        try {
+            Files.createDirectories(targetDir);
+            Path targetPath = targetDir.resolve(source.getFileName());
+            Files.move(source, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            WinVMJConsole.println("[MOVE] File dipindahkan ke: " + targetPath);
+        } catch (IOException e) {
+            throw new IOException("Gagal memindahkan file dari " + source + " ke " + targetDir, e);
+        }
+    }
+
 
 
 }

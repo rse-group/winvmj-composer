@@ -50,6 +50,7 @@ sudo apt install unzip
 sudo mkdir /var/www/products
 sudo mkdir /home/prices-deployment
 sudo mkdir /home/prices-deployment/nix-environment
+sudo mkdir /home/prices-deployment/nix-environment/prices_product_libraries
 sudo mkdir /home/prices-deployment/port_reserver
 sudo mkdir /etc/default/products/
 sudo mkdir /home/prices-deployment/nix-environment
