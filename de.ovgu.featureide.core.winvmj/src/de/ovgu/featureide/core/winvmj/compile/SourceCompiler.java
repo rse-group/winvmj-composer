@@ -1,11 +1,15 @@
 package de.ovgu.featureide.core.winvmj.compile;
 
 import java.io.BufferedReader;
-
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URISyntaxException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -205,34 +209,42 @@ public class SourceCompiler {
 				compiledModulesDir.create(false, true, null);
 			IFolder modulesDir = project.getProject().getFolder(MODULES_FOLDER);
 
-			IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+			final File file = new File(SourceCompiler.class
+					.getProtectionDomain().getCodeSource()
+					.getLocation().getPath());
+			
+			Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
 			IFolder externalDir = project.getProject().getFolder("external");
 
 			importWinVMJLibrariesForModules(compiledModulesDir);
-			compileInternalModules(project, compiledModulesDir, modulesDir);
-			deleteLibraries(compiledModulesDir, librariesDir);
+			compileFolderModules(project, compiledModulesDir, modulesDir);
+			deleteLibraries(compiledModulesDir, srcResource);
 			deleteExternal(compiledModulesDir, externalDir);
 		} catch (CoreException | IOException e) {
 			e.printStackTrace();
 		}
 	}
 
-	public static void compileModuleSource(IFolder moduleFromSrcFolder, IFeatureProject project)
+	public static void compileModuleSource(IFolder module, IFeatureProject project)
 	        throws URISyntaxException {
-        IFolder librariesDir = project.getProject().getFolder("winvmj-libraries");
+		final File file = new File(SourceCompiler.class
+				.getProtectionDomain().getCodeSource()
+				.getLocation().getPath());
+		
+		Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
         IFolder externalDir = project.getProject().getFolder("external");
 	    try {
 	        IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
 	        if (!compiledModulesDir.exists())
 	            compiledModulesDir.create(false, true, null);
 
-	        IFile compiledJar = compiledModulesDir.getFile(moduleFromSrcFolder.getName() + ".jar");
+	        IFile compiledJar = compiledModulesDir.getFile(module.getName() + ".jar");
 
-	        long moduleLastModified = getLastModifiedTime(moduleFromSrcFolder);
+	        long moduleLastModified = getLastModifiedTime(module);
 	        long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
 
 	        
-	        Set<String> requirements = extractRequirements(project, moduleFromSrcFolder);
+	        Set<String> requirements = extractRequirements(project, module);
 	        boolean requiresUpdate = false;
 
 	        for (String require : requirements) {
@@ -253,17 +265,17 @@ public class SourceCompiler {
 	            }
 	        }
 	        if (requiresUpdate || moduleLastModified > jarLastModified) {
-	            WinVMJConsole.println("Compiling module " + moduleFromSrcFolder.getName() + "...");
+	            WinVMJConsole.println("Compiling module " + module.getName() + "...");
 	            List<IResource> externalLibraries = listAllExternalLibraries(project);
 	            importWinVMJLibrariesForModules(compiledModulesDir);
-	            importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, moduleFromSrcFolder);
-	            compileModuleForProduct(project, compiledModulesDir, moduleFromSrcFolder, "compileModule");
+	            importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, module);
+	            compileModuleForProduct(project, compiledModulesDir, module, "compileModule");
 	            cleanBinaries(project);
 	        } else {
-	            WinVMJConsole.println("Module " + moduleFromSrcFolder.getName() + " is up-to-date. Skipping compilation.");
+	            WinVMJConsole.println("Module " + module.getName() + " is up-to-date. Skipping compilation.");
 	        }
 	        
-            deleteLibraries(compiledModulesDir, librariesDir);
+            deleteLibraries(compiledModulesDir, srcResource);
             deleteExternal(compiledModulesDir, externalDir);
 	    } catch (CoreException | IOException e) {
 	        e.printStackTrace();
@@ -376,28 +388,35 @@ public class SourceCompiler {
 		cleanBinaries(project);
 	}
 
-	public static void deleteLibraries(IFolder compiledModulesDir, IFolder winvmjLibrariesDir) throws CoreException {
+	public static void deleteLibraries(IFolder compiledModulesDir, Path winvmjLibrariesDir) throws CoreException {
 		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
 
-		Set<String> baseNames = new HashSet<>();
-		for (IResource resource : winvmjLibrariesDir.members()) {
-			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
-				String baseName = getBaseNameFromFile(resource.getName());
-				baseNames.add(baseName);
-			}
-		}
+		Set<String> jarNamesFromLibraries = new HashSet<>();
+	    try (DirectoryStream<Path> stream = Files.newDirectoryStream(winvmjLibrariesDir, "*.jar")) {
+	        for (Path jarPath : stream) {
+	            jarNamesFromLibraries.add(jarPath.getFileName().toString());
+	        }
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
 
-		Set<String> filesToDelete = new HashSet<>(
-				Arrays.asList("cas.client.jar", "commons-logging-1.2.jar", "sqlite.jdbc.jar"));
+	    // Add specific files to delete manually
+	    Set<String> filesToDelete = new HashSet<>(Arrays.asList(
+	        "cas.client.jar",
+	        "commons-logging-1.2.jar",
+	        "sqlite.jdbc.jar"
+	    ));
 
-		for (IResource resource : compiledModulesDir.members()) {
-			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
-				String baseName = getBaseNameFromFile(resource.getName());
-				if (baseNames.contains(baseName) || filesToDelete.contains(resource.getName())) {
-					resource.delete(true, null);
-				}
-			}
-		}
+	    jarNamesFromLibraries.addAll(filesToDelete);
+
+	    // Delete matching files from compiledModulesDir
+	    for (IResource resource : compiledModulesDir.members()) {
+	        if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+	            if (jarNamesFromLibraries.contains(resource.getName())) {
+	                resource.delete(true, null);
+	            }
+	        }
+	    }
 	}
 
 	private static void deleteExternal(IFolder compiledModulesDir, IFolder externalDir)
@@ -515,7 +534,7 @@ public class SourceCompiler {
 		return multiLevelDeltaModule;
 	}
 
-	private static void compileInternalModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir)
+	private static void compileFolderModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir)
 			throws CoreException, IOException {
 		IResource[] moduleResources = modulesDir.members();
 		List<IResource> externalLibraries = listAllExternalLibraries(project);

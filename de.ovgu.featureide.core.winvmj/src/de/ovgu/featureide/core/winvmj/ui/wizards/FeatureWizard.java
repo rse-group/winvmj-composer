@@ -325,76 +325,8 @@ public class FeatureWizard extends Wizard {
 			}
 		});
 		monitor.worked(1);
-
-		
-//		ArrayList<IFeature> featureList =  multiLevelConfiguration.convertSelectedFeaturesToList(selectedFeaturesMap, project);
-//
-//		WinVMJConsole.println("featureList " + featureList);
-//		product = new ProductToCompose(project, fileName, featureList);
-//		
-//		multiLevelConfiguration.composeProduct(product, featureList, project);
-//	    final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
-//	          @Override
-//	          public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-//	        	 
-//	              return true;
-//	          }
-//	      };
-//	     LongRunningWrapper.getRunner(job, "Compose Product").schedule();
 	     
 	}
-
-
-//    @Override
-//    public boolean performFinish() {
-//    	IWizardPage currentPage = getContainer().getCurrentPage();
-//        if (currentPage instanceof SelectFeaturesWizardPage) {
-//            SelectFeaturesWizardPage lastSelectPage = (SelectFeaturesWizardPage) currentPage;
-//            selectedFeaturesMap.put(lastSelectPage.getSelectedFile(), new HashSet<>(lastSelectPage.getFeatureName()));
-//        }
-//        
-//        String productName = projectNamePage.getProjectName();
-//        
-//        ArrayList<IFeature> featureList =  multiLevelConfiguration.convertSelectedFeaturesToList(selectedFeaturesMap, project);
-//
-//		final IRunnableWithProgress op = new IRunnableWithProgress() {
-//
-//			@Override
-//			public void run(IProgressMonitor monitor) throws InvocationTargetException {
-//				try {
-//					doFinish(productName, featureList);
-//				} catch (final CoreException e) {
-//					throw new InvocationTargetException(e);
-//				} finally {
-//					monitor.done();
-//				}
-//			}
-//		};
-//		try {
-//			getContainer().run(true, false, op);
-//		} catch (final InterruptedException e) {
-//			return false;
-//		} catch (final InvocationTargetException e) {
-//			final Throwable realException = e.getTargetException();
-//			MessageDialog.openError(getShell(), "Error", realException.getMessage());
-//			return false;
-//		}
-//        
-//        return true;
-//    }
-//
-//    private void doFinish(String productName, ArrayList<IFeature> selectedFeature)
-//			throws CoreException {
-//        product = new ProductToCompose(project, productName, selectedFeature);
-//        final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
-//            @Override
-//            public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-//            	multiLevelConfiguration.composeProduct(product, selectedFeature, project);
-//                return true;
-//            }
-//        };
-//        LongRunningWrapper.getRunner(job, "Compose Product").schedule();
-//	}
     
 
     private void throwCoreException(String message) throws CoreException {
@@ -405,11 +337,7 @@ public class FeatureWizard extends Wizard {
     @Override
     public boolean canFinish() {
     	IWizardPage currentPage = getContainer().getCurrentPage();
-    	
-        if (currentPage instanceof SelectFeaturesWizardPage) {
-            return getPageIndex(currentPage) == getPageCount() - 1;
-        }
-
-        return false;
+        boolean onLastPage = getPageIndex(currentPage) == getPageCount() - 1;
+        return onLastPage && currentPage.isPageComplete();
     }
 }

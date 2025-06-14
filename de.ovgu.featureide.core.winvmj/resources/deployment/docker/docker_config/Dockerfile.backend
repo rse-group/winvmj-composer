@@ -1,0 +1,54 @@
+# Stage 1: Build custom JRE with JDK17
+FROM alpine:3.18 AS compresser
+
+RUN apk --no-cache add openjdk17 binutils
+
+RUN jlink \
+    --verbose \
+    --add-modules java.base,java.management,java.net.http,java.logging,java.naming,java.compiler,java.desktop,jdk.unsupported,jdk.httpserver,java.sql,jdk.crypto.ec \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /customjre
+
+# Stage 2: Final image (runtime)
+FROM alpine:3.18
+
+# === Build-time ARG ===
+ARG PRODUCTLINE
+ARG MAIN_CLASS
+
+# === Runtime ENV ===
+ENV JAVA_HOME=/usr
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+ENV AMANAH_PORT_BE=${AMANAH_PORT_BE}
+ENV AMANAH_DB_URL=${AMANAH_DB_URL}
+ENV AMANAH_DB_USERNAME=${AMANAH_DB_USERNAME}
+ENV AMANAH_DB_PASSWORD=${AMANAH_DB_PASSWORD}
+ENV AMANAH_HOST_BE=0.0.0.0
+
+ENV APP_ID=${APP_ID}
+ENV RABBITMQ_HOST=${RABBITMQ_HOST}
+ENV RABBITMQ_USER=${RABBITMQ_USER}
+ENV RABBITMQ_PASS=${RABBITMQ_PASS}
+
+ENV PRODUCTLINE=${PRODUCTLINE}
+ENV MAIN_CLASS=${MAIN_CLASS}
+
+# Copy JRE
+COPY --from=compresser /customjre $JAVA_HOME
+
+# Copy aplikasi backend
+COPY ./${MAIN_CLASS}/ /app/products/${MAIN_CLASS}/backend
+
+# Set working directory
+WORKDIR /app/products/${MAIN_CLASS}/backend
+
+# Jalankan aplikasi
+CMD ["sh", "-c", "\
+  productline_lower=$(echo $PRODUCTLINE | tr 'A-Z' 'a-z') && \
+  mainclass_lower=$(echo $MAIN_CLASS | tr 'A-Z' 'a-z') && \
+  java -cp $productline_lower.product.$mainclass_lower --module-path $productline_lower.product.$mainclass_lower -m $productline_lower.product.$mainclass_lower \
+"]
