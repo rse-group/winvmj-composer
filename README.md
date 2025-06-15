@@ -36,6 +36,9 @@ WinVMJ Composer can be installed via Releases or Update Site
 2. Type PriceISE update site (https://amanah.cs.ui.ac.id/priceside/updatesite/) on `Work with` textbox.
 3. Follow step 5 onwards from previous method. Because you work with PricesIDE update site, you might see other plugins such as `UML to VMJ`. You could install those plugins but please follow their respective installation guidelines.
 
+### WinVMJ Composer Plugin Usage Examples and Tutorials
+We strongly recommend to visit [WinVMJ Composer GitHub wiki page](https://github.com/rse-group/winvmj-composer/wiki) to learn more about how to use the plugin and the relevant examples that you can try.
+
 ### WinVMJ on FeatureIDE 101
 We strongly recommend to visit [FeatureIDE Github Page](https://featureide.github.io/) and [WinVMJ-AISCO Gitlab Repository](https://gitlab.com/RSE-Lab-Fasilkom-UI/PricesIDE/vmj-aisco/-/tree/Hibernate-Integration) to learn more about respective framework's usage.
 
