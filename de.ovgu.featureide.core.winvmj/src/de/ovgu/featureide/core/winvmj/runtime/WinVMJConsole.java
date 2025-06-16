@@ -12,6 +12,10 @@ import org.eclipse.ui.console.IConsoleView;
 import org.eclipse.ui.console.MessageConsole;
 import org.eclipse.ui.console.MessageConsoleStream;
 
+import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.window.Window;
+import org.eclipse.swt.widgets.Display;
+
 public class WinVMJConsole {
 	final static String CONSOLE_NAME = "WinVMJ Console";
 
@@ -51,5 +55,26 @@ public class WinVMJConsole {
 	
 	public static void print(String message) {
 		consoleStream.print(message);
+	}
+	
+	public static String prompt(String promptMessage) {
+		Display display = Display.getDefault();
+		final String[] result = new String[1];
+		display.syncExec(() -> {
+			InputDialog dialog = new InputDialog(
+				display.getActiveShell(),
+				"Input Required",
+				promptMessage,
+				"",
+				null
+			);
+			if (dialog.open() == Window.OK) {
+				result[0] = dialog.getValue();
+			} else {
+				result[0] = null;
+			}
+		});
+		consoleStream.println(promptMessage + (result[0] != null ? result[0] : "[Cancelled]"));
+		return result[0];
 	}
 }
