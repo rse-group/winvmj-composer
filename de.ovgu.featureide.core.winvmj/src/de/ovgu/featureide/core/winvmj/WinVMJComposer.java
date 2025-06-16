@@ -9,6 +9,7 @@ import java.io.Reader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,9 +20,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.checkerframework.checker.units.qual.kmPERh;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.logicng.datastructures.Assignment;
 import org.logicng.formulas.FormulaFactory;
@@ -36,10 +37,14 @@ import de.ovgu.featureide.core.CorePlugin;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.builder.ComposerExtensionClass;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.core.impl.MicroserviceProductToCompose;
 import de.ovgu.featureide.core.winvmj.core.impl.MultiLevelDeltaComposer;
 import de.ovgu.featureide.core.winvmj.core.impl.ProductToCompose;
+import de.ovgu.featureide.core.winvmj.internal.InternalResourceManager;
+import de.ovgu.featureide.core.winvmj.microservicepreprocessor.ModulePreprocessor;
 import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+import de.ovgu.featureide.core.winvmj.templates.impl.MicroserviceProductClassRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ModuleInfoRenderer;
 import de.ovgu.featureide.core.winvmj.templates.impl.ProductClassRenderer;
 import de.ovgu.featureide.fm.core.base.IFeature;
@@ -98,21 +103,185 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
 			@Override
 			public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-				composeProduct(product, config);
+				composeProduct(product, featureProject.loadConfiguration(config).getSelectedFeatures());
 				return true;
 			}
 		};
 		LongRunningWrapper.getRunner(job, "Compose Product").schedule();
 	}
 	
-	private void composeProduct(WinVMJProduct product, Path config) {
+	// Micro-services
+	public void performFullBuildMicroservices() {
+		multiLevelDeltaMappings = null;
+		
+		Map<String, List<IFeature>> serviceDefinition = Utils.getMicroservicesDefinition(featureProject);
+		Map<String,List<IFeature>> serviceNonExposedFeaturesMap = Utils.getMicroserviceNonExposedFeatures(featureProject);
+	  
+		Map<String, IFolder> allModulesMapping = null;
+		try {
+			allModulesMapping = Utils.getAllModulesMapping(featureProject);
+		} catch (CoreException e) {
+			e.printStackTrace();
+			return;
+		}
+		final Map<String, IFolder> finalModulesMapping = allModulesMapping;
+		
+		final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
+		    @Override
+		    public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
+		    	// Clean src directory
+		    	IFolder buildDir = featureProject.getBuildFolder();
+		    	if (buildDir.exists()) {
+		    	    for (IResource resource : buildDir.members()) {
+		    	        resource.delete(true, null); 
+		    	    }
+		    	}
+		    	
+		    	// Add messaging module to build directory
+		    	String messagingModuleName = "vmj.messaging";
+				IFolder messagingModule = buildDir.getFolder(messagingModuleName);
+				if (!messagingModule.exists()) messagingModule.create(false, true, null);
+		        InternalResourceManager.loadResourceDirectory("microservice-preprocessor/" + messagingModuleName, 
+		        		messagingModule.getLocation().toOSString());
+		        
+		        // Add ApiGateway to build directory
+		    	IFolder apiGatewayDir = buildDir.getFolder("ApiGateway");
+				if (!apiGatewayDir.exists()) apiGatewayDir.create(false, true, null);
+				InternalResourceManager.loadResourceDirectory("microservice-preprocessor/api-gateway", 
+						apiGatewayDir.getLocation().toOSString());
+		    	
+				// Instantiate WinVMJProduct for each service and identify duplicate module
+		    	Map<String,Integer> modulesCount = new HashMap<String, Integer>();
+		    	Set<WinVMJProduct> serviceProducts = new HashSet<WinVMJProduct>();
+		    	for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
+					String productName = entry.getKey();
+					List<IFeature> selectedFeatures = entry.getValue();
+					
+					WinVMJProduct product = new MicroserviceProductToCompose(featureProject, productName, 
+							selectedFeatures, finalModulesMapping, messagingModule);
+					serviceProducts.add(product);
+					
+					
+					for (IFolder module : product.getModules()) {
+						String moduleName = module.getName();
+						if (moduleName.equals(messagingModuleName)) {
+							continue;
+						}
+						modulesCount.put(moduleName, modulesCount.getOrDefault(moduleName, 0) + 1);
+					}
+		        }
+		    	
+		    	Set<String> duplicateModuleNames = new HashSet<>();
+		    	Set<IFolder> duplicateModules = new HashSet<>();
+		    	for (Map.Entry<String, Integer> entry : modulesCount.entrySet()) {
+		    		String moduleName = entry.getKey();
+					Integer moduleCount = entry.getValue();
+					
+					if (moduleCount >= 2) {
+						duplicateModuleNames.add(moduleName);
+						IFolder module = featureProject.getBuildFolder().getFolder(moduleName);
+			    		duplicateModules.add(module);
+					}
+		    	}
+		    	
+		    	// Compose product module and move module to build folder
+		    	for (WinVMJProduct product : serviceProducts) {
+		    		String productName = product.getProductName();
+		    		List<IFeature> featureList = serviceDefinition.get(productName);
+		    		List<IFeature> nonExposedFeatures = serviceNonExposedFeaturesMap.get(productName);
+		    	    
+		    	    List<IFeature> exposedFeatures = new ArrayList<>(featureList);
+		    	    exposedFeatures.removeAll(nonExposedFeatures);
+		    		
+		    		composeMicroserviceProduct(product, exposedFeatures);
+		    	}
+		    	// refresh src directory
+		    	featureProject.getBuildFolder().refreshLocal(IResource.DEPTH_INFINITE, null);
+		    	
+		    	// Pre-process duplicate feature module and product module
+		        Map<String, Set<String>> moduleRoutingKeyMap = ModulePreprocessor.modifyServiceImplClass(duplicateModules);
+		        
+		        for (WinVMJProduct product : serviceProducts) {
+		        	IFolder productModule = featureProject.getBuildFolder()
+							.getFolder(product.getProductQualifiedName());
+		        	Set<String> routingKeyValues = new HashSet<String>();
+		        	Set<IFolder> duplicateModulesOnProduct = new HashSet<>();
+		        	for (IFolder module : product.getModules()) {
+		        		if (duplicateModuleNames.contains(module.getName())) {
+		        			duplicateModulesOnProduct.add(module);
+		        			routingKeyValues.addAll(moduleRoutingKeyMap.get(module.getName()));
+		        		}
+		        	}
+		        	
+			        ModulePreprocessor.modifyProductModule(duplicateModulesOnProduct, routingKeyValues, productModule, product.getProductName());
+		    	}
+		        
+		        // Pre-process ApiGateway
+		        Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(featureProject.getProject());
+		        Map<String, Set<IFolder>> serviceFeatureModuleMap = new LinkedHashMap<String, Set<IFolder>>();
+		        for (Map.Entry<String, List<IFeature>> entry : serviceDefinition.entrySet()) {
+					String productName = entry.getKey();
+					List<IFeature> selectedFeatures = entry.getValue();
+		    		List<IFeature> nonExposedFeatures = serviceNonExposedFeaturesMap.get(productName);
+		    	  
+		    	    List<IFeature> exposedFeatures = new ArrayList<>(selectedFeatures);
+		    	    exposedFeatures.removeAll(nonExposedFeatures);
+					
+					Set<String> selectedFeatureModulesName = Utils.getSelectedFeatureModulesName(exposedFeatures, featureToModuleNameMap);
+					Set<IFolder> selectedModules = new HashSet<IFolder>();
+					for (String moduleName : selectedFeatureModulesName) {
+						selectedModules.add(buildDir.getFolder(moduleName));
+					}
+					serviceFeatureModuleMap.put(productName,selectedModules);
+		        }
+		    	String apiGatewayFilename = "ApiGateway.java";
+		    	apiGatewayDir.refreshLocal(IResource.DEPTH_INFINITE, null);
+		        ModulePreprocessor.registerRoutingToApiGateway(serviceFeatureModuleMap, apiGatewayDir.getFile(apiGatewayFilename));
+		        
+		        // refresh src directory
+		        featureProject.getBuildFolder().refreshLocal(IResource.DEPTH_INFINITE, null);
+		        WinVMJConsole.println("Completed compose microservices product");
+		    	
+		        return true;
+		    }
+		};
+
+		LongRunningWrapper.getRunner(job, "Compose Products in Microservices").schedule();
+	}
+	
+	
+	private void composeMicroserviceProduct(WinVMJProduct product, List<IFeature> selectedFeatures) 
+	{
+		try {
+			selectModulesFromProject(featureProject, product);
+			IFolder productModule = featureProject.getBuildFolder()
+					.getFolder(product.getProductQualifiedName());
+			if (!productModule.exists()) productModule.create(false, true, null);
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+		List<String> selectedFeaturesForRouting = new ArrayList<String>();
+		for (IFeature feature : selectedFeatures) {
+			selectedFeaturesForRouting.add(feature.getName());
+		}
+		
+		TemplateRenderer productClassRenderer = new MicroserviceProductClassRenderer(featureProject, selectedFeaturesForRouting);
+		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(
+				featureProject, multiLevelDeltaMappings);
+		
+		productClassRenderer.render(product);
+		moduleInfoRenderer.render(product);
+		
+	}
+	
+	private void composeProduct(WinVMJProduct product, List<IFeature> features) {
 		try {
 			selectModulesFromProject(featureProject, product);
 //			WinVMJConsole.println("config " + featureProject.loadConfiguration(config).getSelectedFeatures());
 			checkMultiLevelDelta(
 				featureProject,
 				product,
-				featureProject.loadConfiguration(config).getSelectedFeatures()
+				features
 			);
 			IFolder productModule = featureProject.getBuildFolder()
 					.getFolder(product.getProductQualifiedName());
