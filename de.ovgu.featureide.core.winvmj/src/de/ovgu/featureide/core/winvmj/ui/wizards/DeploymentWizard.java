@@ -43,6 +43,7 @@ public class DeploymentWizard extends Wizard {
     private DeploymentConfigExistingPage configExistPage;
     private AmanahDeploymentPage amanahPage;
     private DeploymentTargetPage deploymentTargetPage;
+    private NFRDefinitionPage nfrPage;
 
     public DeploymentWizard() {
         setWindowTitle("Deployment Wizard");
@@ -56,6 +57,7 @@ public class DeploymentWizard extends Wizard {
         configPage = new DeploymentConfigProvisioningPage("Configuration");
         configExistPage = new DeploymentConfigExistingPage("Configuration");
         amanahPage = new AmanahDeploymentPage("Amanah Configuration");
+        nfrPage = new NFRDefinitionPage("Non-Functional Requirement Definition");
         
         addPage(deploymentTargetPage);
         addPage(deploymentPage);
@@ -63,6 +65,7 @@ public class DeploymentWizard extends Wizard {
         addPage(configPage);
         addPage(configExistPage);
         addPage(amanahPage);
+        addPage(nfrPage);
     }
     
     @Override
@@ -70,6 +73,9 @@ public class DeploymentWizard extends Wizard {
     	if (page == deploymentTargetPage) {
     		return deploymentPage;
     	}
+
+        else if (page == nfrPage) return configPage;
+        
     	else if (page == deploymentPage) {
             String target = deploymentTargetPage.getSelectedDeploymentTarget();
             if ("amanah".equalsIgnoreCase(target)) {
@@ -81,7 +87,8 @@ public class DeploymentWizard extends Wizard {
     	else if (page == filePage) {
     		String target = deploymentTargetPage.getSelectedDeploymentTarget();
     		if("provisioning".equalsIgnoreCase(target)) {
-    			return configPage;
+                // TODO: Jangan lupa main mainin di provisioning
+    			return nfrPage;
     		} else {
     			return configExistPage;
     		}
@@ -155,7 +162,7 @@ public class DeploymentWizard extends Wizard {
 	    }).start();
 	}
 	
-	private void handleProvisioningDeployment() {
+	private void  handleProvisioningDeployment() {
 		String isProvisioning = "yes";
     	String deploymentMethod = deploymentPage.getSelectedDeploymentMethod().toLowerCase();
     	String provider = deploymentPage.getSelectedProvider().toLowerCase();
