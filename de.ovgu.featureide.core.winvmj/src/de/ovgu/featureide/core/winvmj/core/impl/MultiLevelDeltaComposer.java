@@ -17,7 +17,7 @@ import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelDeltaServiceRende
 public class MultiLevelDeltaComposer {
 	private IFeatureProject project;
 	private WinVMJProduct product;
-	private String featureName;
+	private List<String> featureName = new ArrayList<>();
     private String featureVariationName;
 	private String splName;
 	private String coreModule;
@@ -47,7 +47,7 @@ public class MultiLevelDeltaComposer {
 				String capitalizedSubDirectory = subDirectory.substring(
 					0, 1).toUpperCase() + subDirectory.substring(1);
 				if (className.endsWith(capitalizedSubDirectory + "Component")) {
-					this.featureName = className.split(capitalizedSubDirectory + "Component")[0];
+					this.featureName.add(className.split(capitalizedSubDirectory + "Component")[0]);
 					break;
 				}
 			}
@@ -60,39 +60,41 @@ public class MultiLevelDeltaComposer {
     }
 	
 	public void compose() {
-		String featureFullyQualifiedName = getFeatureFullyQualifiedName();
+		for (String feature: featureName) {
+			String featureFullyQualifiedName = getFeatureFullyQualifiedName(feature);
 
-		// Compose module-info.java
-		List<String> requiredModules = new ArrayList<>(deltaModules);
-		requiredModules.add(0, coreModule);
-		MultiLevelDeltaModuleInfoRenderer moduleInfoRenderer = new MultiLevelDeltaModuleInfoRenderer(
-			project, 
-			featureFullyQualifiedName, 
-			requiredModules
-		);
-		moduleInfoRenderer.render(product);
+			// Compose module-info.java
+			List<String> requiredModules = new ArrayList<>(deltaModules);
+			requiredModules.add(0, coreModule);
+			MultiLevelDeltaModuleInfoRenderer moduleInfoRenderer = new MultiLevelDeltaModuleInfoRenderer(
+				project, 
+				featureFullyQualifiedName, 
+				requiredModules
+			);
+			moduleInfoRenderer.render(product);
 
-		// Compose service layer
-		MultiLevelDeltaServiceRenderer serviceRenderer = new MultiLevelDeltaServiceRenderer(
-			project,
-			splName,
-			featureName,
-			featureFullyQualifiedName,
-			coreModule,
-			deltaModules
-		);
-		serviceRenderer.render(product);
+			// Compose service layer
+			MultiLevelDeltaServiceRenderer serviceRenderer = new MultiLevelDeltaServiceRenderer(
+				project,
+				splName,
+				feature,
+				featureFullyQualifiedName,
+				coreModule,
+				deltaModules
+			);
+			serviceRenderer.render(product);
 
-		// Compose resource layer
-		MultiLevelDeltaResourceRenderer resourceRenderer = new MultiLevelDeltaResourceRenderer(
-			project,
-			splName,
-			featureName,
-			featureFullyQualifiedName,
-			featureVariationName,
-			coreModule
-		);
-		resourceRenderer.render(product);
+			// Compose resource layer
+			MultiLevelDeltaResourceRenderer resourceRenderer = new MultiLevelDeltaResourceRenderer(
+				project,
+				splName,
+				feature,
+				featureFullyQualifiedName,
+				featureVariationName,
+				coreModule
+			);
+			resourceRenderer.render(product);
+		}
 	}
 
     private String getFeatureName(String featurePackage) {
@@ -100,7 +102,7 @@ public class MultiLevelDeltaComposer {
     	return splittedFeaturePackage[splittedFeaturePackage.length - 1];
     }
 
-	public String getFeatureFullyQualifiedName() {
+	public String getFeatureFullyQualifiedName(String featureName) {
 		String featureFullyQualifiedName = splName.toLowerCase() + "." + featureName.toLowerCase() + "." + featureVariationName.toLowerCase();
 		IFolder featureModuleFolder = project.getBuildFolder()
 			.getFolder(featureFullyQualifiedName);

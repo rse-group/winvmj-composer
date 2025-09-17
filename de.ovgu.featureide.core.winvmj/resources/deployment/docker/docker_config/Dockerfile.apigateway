@@ -1,0 +1,42 @@
+# Stage 1: Build custom JRE with jlink
+FROM alpine:3.18 AS jre-builder
+
+# Install OpenJDK17 only for jlink + clean
+RUN apk --no-cache add openjdk17 binutils
+
+# Build minimal JRE (cukup modul yang diperlukan HttpServer + Networking)
+RUN jlink \
+    --verbose \
+    --add-modules java.base,java.logging,jdk.unsupported,jdk.httpserver \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /customjre
+
+# Stage 2: Final runtime image
+FROM alpine:3.18
+
+ARG MAIN_CLASS
+
+ENV JAVA_HOME=/usr
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+COPY --from=jre-builder /customjre $JAVA_HOME
+
+# ENV AMANAH_PORT_BE=${AMANAH_PORT_BE}
+# ENV AMANAH_HOST_BE=0.0.0.0
+# ENV MAIN_CLASS=${MAIN_CLASS}
+
+# Example service URLs 
+# ENV HipsterShopCatalog_URL=${HipsterShopCatalog_URL}
+# ENV HipsterShopOrder_URL=${HipsterShopOrder_URL}
+# ENV HipsterShopPaymentOrderCreditCard_URL=${HipsterShopPaymentOrderCreditCard_URL}
+# ENV HipsterShopPaymentOrderEWallet_URL=${HipsterShopPaymentOrderEWallet_URL}
+
+# Copy backend jar
+COPY ./ApiGateway/ /app/products/{MAIN_CLASS}/apigateway
+WORKDIR /app/products/{MAIN_CLASS}/apigateway
+
+# Jalankan aplikasi langsung
+CMD ["java", "-jar", "ApiGateway.jar"]

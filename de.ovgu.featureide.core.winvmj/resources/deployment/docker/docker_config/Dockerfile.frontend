@@ -1,0 +1,10 @@
+FROM node:16-alpine
+RUN npm install -g json-server
+
+ARG MAIN_CLASS
+ENV MAIN_CLASS=${MAIN_CLASS}
+ENV FRONTEND_PORT=${FRONTEND_PORT}
+
+COPY ./frontend/ /var/www/products/${MAIN_CLASS}/frontend
+WORKDIR /var/www/products/${MAIN_CLASS}/frontend
+CMD sh -c "json-server --watch static-page-db.json --host 0.0.0.0 --port ${FRONTEND_PORT}"

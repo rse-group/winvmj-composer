@@ -1,0 +1,40 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        MAIN_CLASS: ${FRONTEND_MAIN_CLASS}
+    container_name: ${FRONTEND_CONTAINER_NAME}
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    environment:
+      MAIN_CLASS: ${FRONTEND_MAIN_CLASS}
+      FRONTEND_PORT: ${FRONTEND_PORT}
+    networks:
+      - app_network
+    restart: always
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.apigateway
+      args:
+        MAIN_CLASS: ${MAIN_CLASS}
+    container_name: ${API_GATEWAY_CONTAINER_NAME}
+    ports:
+      - "${AMANAH_PORT_BE}:${AMANAH_PORT_BE}"
+    # environment:
+    #   AMANAH_PORT_BE: ${API_GATEWAY_PORT}
+    #   AMANAH_HOST_BE: ${API_GATEWAY_HOST}
+    #   MAIN_CLASS: ${API_GATEWAY_MAIN_CLASS}
+    env_file:
+     - ${ENV_FILE_PATH}
+    networks:
+      - app_network
+    restart: always
+
+networks:
+  app_network:
+    external: true
+    name: ${NET}

@@ -1,7 +1,5 @@
 module ${productPackage} {
-    <#if defaultAuthModel>
     requires vmj.auth.model;
-    </#if>
     requires vmj.routing.route;
     requires vmj.hibernate.integrator;
     
