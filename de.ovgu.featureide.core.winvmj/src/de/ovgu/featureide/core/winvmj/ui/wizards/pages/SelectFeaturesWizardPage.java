@@ -308,7 +308,9 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 					else {
 						disabledFeatureNames.clear();
 						Map<String, Integer> filteredFeatures = handleFeaturesBasedOnConstraint(allowedParentFeatures);
-						addRelevantFeaturesToTree(multiLevelConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature(), filteredFeatures, null);
+						IFeature root = multiLevelConfiguration.loadFeatureModel(selectedFile).getStructure().getRoot().getFeature();
+						boolean isNFR = root.getName().equalsIgnoreCase("NFR"); //  Mengecek apakah suatu root node dari featureModel khusus NFR
+						addRelevantFeaturesToTree(root, filteredFeatures, null, isNFR);
 					}
 					
 					validationLabel.setText("Configuration status: Unknown");
@@ -442,7 +444,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	}
 
 	
-	private void addRelevantFeaturesToTree(IFeature root, Map<String, Integer> selectedFeatures, TreeItem parent) {
+	private void addRelevantFeaturesToTree(IFeature root, Map<String, Integer> selectedFeatures, TreeItem parent, boolean isNFR) {
 		String shortName = root.getName();
 
 	    final TreeItem item;
@@ -458,7 +460,8 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 
 	    if (selectedFeatures != null && selectedFeatures.containsKey(shortName)) {
 	        int literal = selectedFeatures.get(shortName);
-	        if (literal < 0) {
+
+	        if (literal < 0 && !isNFR) {
 	            item.setGrayed(true);
 	            item.setChecked(false);
 	            item.setForeground(container.getDisplay().getSystemColor(SWT.COLOR_DARK_GRAY));
@@ -468,7 +471,7 @@ public class SelectFeaturesWizardPage extends AbstractWizardPage {
 	    }
 
 	    for (final IFeatureStructure child : root.getStructure().getChildren()) {
-	    	addRelevantFeaturesToTree(child.getFeature(), selectedFeatures, item);
+	    	addRelevantFeaturesToTree(child.getFeature(), selectedFeatures, item, isNFR);
 	    }
 	}
 	
