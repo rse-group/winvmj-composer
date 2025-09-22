@@ -6,10 +6,14 @@ import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelConfiguration;
 import de.ovgu.featureide.core.winvmj.ui.wizards.pages.*;
 
+import java.nio.file.Files;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,13 +39,11 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import de.ovgu.featureide.fm.ui.wizards.WizardConstants;
 import de.ovgu.featureide.fm.ui.wizards.AbstractWizard;
-import de.ovgu.featureide.core.winvmj.templates.impl.MultiLevelConfiguration;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import java.lang.reflect.InvocationTargetException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import java.nio.file.Path;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
@@ -79,8 +81,6 @@ import de.ovgu.featureide.fm.core.job.monitor.IMonitor;
 import de.ovgu.featureide.fm.ui.handlers.base.SelectionWrapper;
 import de.ovgu.featureide.ui.UIPlugin;
 import de.ovgu.featureide.fm.core.configuration.Selection;
-import java.io.IOException;
-import java.nio.file.Paths;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.dialogs.MessageDialog;
 
@@ -289,6 +289,7 @@ public class FeatureWizard extends Wizard {
 			throws CoreException, ParserException {
 
     	monitor.beginTask(CREATING + fileName, 2);
+		
 		final IFolder configFolder = this.project.getConfigFolder();
 		final IContainer container = configFolder == null ? this.project.getProject() : configFolder;
 		if (!container.exists()) {
@@ -304,11 +305,17 @@ public class FeatureWizard extends Wizard {
 		
 		Configuration config = new Configuration(featureModelFormula);
 		config.setManual(featureModelFormula.getFeatureModel().getStructure().getRoot().getFeature().getName(), Selection.SELECTED);
+
+		String nfrName = "";
+
 		for (String feature : selectedFeature) {
 			config.setManual(feature, Selection.SELECTED);
+			if (feature.contains("NFR")) nfrName = feature;
 		}
 		
 		SimpleFileHandler.save(configPath.resolve(fileName), config, format);
+
+		if (!nfrName.isBlank()) generateNFRJson(featureModelFormula, selectedFeature, nfrName);
 		
 		this.project.setCurrentConfiguration(file);
 
@@ -326,6 +333,47 @@ public class FeatureWizard extends Wizard {
 		});
 		monitor.worked(1);
 	     
+	}
+
+	/**
+	 * This method will generate JSON file based on the NFR Definition
+	 * Keep in mind that this method assume that the node only has one child
+	 * It will filter all leaves and check the parent in one level above only (excluding root)
+	 */
+	private void generateNFRJson(FeatureModelFormula featureModelFormula, HashSet<String> selectedFeatures, String nfrName) {
+		WinVMJConsole.println("NFR Configuration detected! Generating JSON file...");
+		
+		Map<String, String> nfrMap = new HashMap<>();
+		String prefix = nfrName.split("\\.")[0];
+		
+		selectedFeatures.stream()
+			.filter(feature -> feature.contains(prefix) && !feature.equals(nfrName) && !featureModelFormula.getFeatureModel().getFeature(feature).getStructure().getParent().getFeature().getName().equals(nfrName))
+			.forEach(nfrFeature -> {
+				IFeature featureObject = featureModelFormula.getFeatureModel().getFeature(nfrFeature);
+				if (featureObject != null) {
+					String featureValue = nfrFeature;
+					String featureKey = featureObject.getStructure().getParent().getFeature().getName();
+					nfrMap.put(removePrefix(prefix, featureKey), removePrefix(prefix, featureValue));
+				}
+			});
+		
+		try {
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			String jsonString = gson.toJson(nfrMap);
+
+			Path jsonPath = project.getProject().getLocation().toFile().toPath();
+
+			Files.write(jsonPath.resolve("nfr_config.json"), jsonString.getBytes(StandardCharsets.UTF_8));
+			WinVMJConsole.println("JSON file for NFR Definition is created successfully!");
+		}
+
+		catch (Exception e) {
+			WinVMJConsole.println("An error occurred: " + e.getMessage());
+		}
+	}
+
+	private String removePrefix(String prefix, String feature) {
+		return feature.startsWith(prefix) ? feature.substring(prefix.length() + 1) : feature;
 	}
     
 
