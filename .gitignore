@@ -91,3 +91,32 @@ local.properties
 ### Eclipse Patch ###
 # Spring Boot Tooling
 .sts4-cache/
+
+# Terraform generated files and directories
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+.terraform.lock.hcl
+
+# Variable files (potentially containing sensitive data)
+*.tfvars
+*.tfvars.json
+
+# Plan files (if saved with -out flag)
+*.tfplan
+
+# Crash log files
+crash.log
+
+# Override files (local configuration overrides)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local CLI configuration (if not intended for sharing)
+.terraformrc
+terraform.rc
+
+instance_ip.txt

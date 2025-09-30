@@ -77,10 +77,52 @@ if [[ "$PROVISION" == "yes" ]]; then
     echo "[INFO] Instance IP: $INSTANCE_IP"
     shift 7
 
-    # Put Username and instance ip in the argument
-    set -- "$USERNAME" "$INSTANCE_IP" "$@"
+    # Auto-detect deployment mode based on certificate name
+    # After shift 7, parameters are: product_name, cert_name, nginx_cert_name, product_prefix, zip_path, private_key, threads
+    PRODUCT_NAME="$1"
+    CERT_NAME="$2"
+    NGINX_CERT_NAME="$3"
+    
+    # If certificate names are placeholders for HTTP mode, replace with IP
+    if [[ "$CERT_NAME" == "HTTP_PLACEHOLDER" ]] || [[ "$NGINX_CERT_NAME" == "HTTP_PLACEHOLDER" ]]; then
+        echo "[INFO] HTTP-only deployment detected. Using IP address for certificates."
+        # Skip product_name, and replace the two placeholder parameters, keep the rest
+        shift 1  # Remove product_name
+        shift 2  # Remove the two HTTP_PLACEHOLDER parameters 
+        set -- "$USERNAME" "$INSTANCE_IP" "$PRODUCT_NAME" "$INSTANCE_IP" "$INSTANCE_IP" "$@"
+    else
+        # HTTPS deployment with domain names
+        echo "[INFO] HTTPS deployment detected. Using provided domain names."
+        set -- "$USERNAME" "$INSTANCE_IP" "$@"
+    fi
 else
-    echo "[INFO] Skipping provisioning. Assuming instance is ready and IP is known."
+    echo "[INFO] Skipping provisioning. Reading existing IP from instance_ip.txt..."
+    
+    if [[ -f "instance_ip.txt" ]]; then
+        INSTANCE_IP=$(cat instance_ip.txt | tr -d '[:space:]')
+        echo "[INFO] Found existing IP: $INSTANCE_IP"
+        
+        # For HTTP-only deployment with existing IP, use this format:
+        # username, ip, certificate_name(ip), nginx_certificate_name(ip), product, zip, private_key, threads
+        USERNAME="ubuntu"  # Default for AWS
+        
+        # Auto-detect if first parameter is not username format (starts with /)
+        if [[ "$1" =~ ^/.* ]] || [[ "$1" =~ .*\.zip$ ]] || [[ "$1" == "bankaccount" ]]; then
+            # Parameters are: product, zip, private_key, threads
+            echo "[INFO] Auto-detected parameter format: product zip private_key threads"
+            set -- "$USERNAME" "$INSTANCE_IP" "$INSTANCE_IP" "$INSTANCE_IP" "$@"
+        else
+            # Parameters include username: username, product, zip, private_key, threads  
+            echo "[INFO] Using provided parameters with detected IP"
+            USERNAME="$1"
+            shift 1
+            set -- "$USERNAME" "$INSTANCE_IP" "$INSTANCE_IP" "$INSTANCE_IP" "$@"
+        fi
+    else
+        echo "[ERROR] instance_ip.txt not found! Please provision infrastructure first."
+        echo "[INFO] Use: bash wrapper.sh docker yes ubuntu SMALL SINGAPORE /path/to/credentials.json aws instance-name ~/.ssh/id_ed25519.pub"
+        exit 1
+    fi
 fi
 
 

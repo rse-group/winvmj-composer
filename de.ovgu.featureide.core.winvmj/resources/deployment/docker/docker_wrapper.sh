@@ -55,20 +55,24 @@ echo "Running initial_setup.sh to install dependencies and copy products..."
 echo "Running copy_port_reserver.sh to install dependencies and copy products..."
 ./external_scripts/copy_port_reserver.sh $USERNAME $IP_ADDRESS $PRIVATE_KEY_PATH
 
-# Check if CERTIFICATE_NAME is an IP address
-if [[ $CERTIFICATE_NAME =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+# Auto-detect HTTP deployment: if CERTIFICATE_NAME is an IP or matches IP_ADDRESS, use HTTP mode
+if [[ $CERTIFICATE_NAME =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$CERTIFICATE_NAME" == "$IP_ADDRESS" ]] || [[ -z "$CERTIFICATE_NAME" ]]; then
+    # Automatically use the deployed IP address for HTTP deployment
+    CERTIFICATE_NAME="$IP_ADDRESS"
+    NGINX_CERTIFICATE_NAME="$IP_ADDRESS"
     echo "=========================================================================="
     echo "======================HTTP-ONLY DEPLOYMENT============================"
-    echo "Deploying with HTTP-only configuration using IP: $CERTIFICATE_NAME"
-    echo "No DNS setup required. Your application will be available at: http://$CERTIFICATE_NAME"
+    echo "Auto-detected HTTP deployment mode."
+    echo "Using deployed IP address: $IP_ADDRESS"
+    echo "Your application will be available at: http://$IP_ADDRESS"
     echo "========================================================================"
 else
-    # Wait for user to confirm DNS setup
+    # Domain-based HTTPS deployment
     echo "=========================================================================="
     echo "==========================IMPORTANT!!!!!=================================="
     echo "Please set up the DNS A record to point $CERTIFICATE_NAME to $IP_ADDRESS."
     echo "You can verify it by running: nslookup $CERTIFICATE_NAME"
-    echo "The process will continue in a few second"
+    echo "The process will continue in a few seconds"
     sleep 30
 fi
 
