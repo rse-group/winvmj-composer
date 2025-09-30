@@ -90,12 +90,26 @@ load_ports_from_file() {
 
 generate_nginx_config() {
   echo "Generating nginx config for product: $product_name"
+  echo "Using backend port: $product_gateway_port"
+  echo "Certificate name: $CERTIFICATE_NAME"
+  echo "Nginx certificate name: $NGINX_CERTIFICATE_NAME_OUT"
+  
   PRODUCT_DIR=$product_dir
   STATIC_PORT=$product_static_port
   BE_PORT=$product_gateway_port
   OUT=$NGINX_CERTIFICATE_NAME_OUT
+  
+  # Ensure we have an absolute path for the output file
+  if [[ "$OUT" != /* ]]; then
+    OUT="/tmp/$OUT"
+  fi
+  
+  echo "Creating nginx config file: $OUT"
 
-  cat <<EOF | sudo tee $OUT >/dev/null
+  # Check if SSL certificates exist to determine HTTP vs HTTPS configuration
+  if [ -f "/etc/letsencrypt/live/${CERTIFICATE_NAME}/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/${CERTIFICATE_NAME}/privkey.pem" ]; then
+    echo "SSL certificates found. Generating HTTPS configuration..."
+    cat <<EOF | sudo tee $OUT >/dev/null
 server {
   listen 443 ssl;
   server_name ${CERTIFICATE_NAME};
@@ -151,7 +165,6 @@ server {
     proxy_set_header Authorization \$http_authorization;
   }
 
-
   location /static-data{
     try_files \$uri @admin_endpoint;
   }
@@ -168,22 +181,141 @@ server {
   # Redirect HTTP to HTTPS
   return 301 https://\$host\$request_uri;
 }
-
 EOF
+  else
+    echo "No SSL certificates found. Generating HTTP-only configuration..."
+    cat <<EOF | sudo tee $OUT >/dev/null
+server {
+  listen 80;
+  server_name ${CERTIFICATE_NAME};
+  client_max_body_size 20M;
+
+  location / {
+    root ${PRODUCT_DIR}/frontend/build;
+    index index.html;
+    try_files \$uri \$uri/ /index.html /index.htm =404;
+  }
+
+  location @admin_endpoint {
+    proxy_pass             http://localhost:${STATIC_PORT};
+    proxy_redirect         off;
+    proxy_http_version     1.1;
+    proxy_set_header       Upgrade \$http_upgrade;
+    proxy_set_header       Connection "upgrade";
+    proxy_set_header       Last-Modified \$date_gmt;
+    proxy_set_header       Cache-Control 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
+    proxy_no_cache         1;
+    proxy_cache_bypass     1;
+    add_header             Last-Modified \$date_gmt;
+    add_header             Cache-Control 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
+    if_modified_since      off;
+    expires                off;
+    etag                   off;
+  }
+
+  location /apiadmin {
+    try_files \$uri @admin_endpoint;
+  }
+
+  location /apiimage {
+    try_files \$uri @admin_endpoint;
+  }
+
+  location /call {
+    proxy_pass http://localhost:${BE_PORT};
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header Authorization \$http_authorization;
+  }
+
+  location /auth {
+    proxy_pass http://localhost:${BE_PORT};
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header Authorization \$http_authorization;
+  }
+
+  location /static-data{
+    try_files \$uri @admin_endpoint;
+  }
+
+  location /appearance{
+    try_files \$uri @admin_endpoint;
+  }
+}
+EOF
+  fi
+  
+  # Verify the nginx config file was created
+  if [ -f "$OUT" ]; then
+    echo "Nginx config file created successfully: $OUT"
+    echo "File size: $(stat -c%s "$OUT") bytes"
+  else
+    echo "ERROR: Failed to create nginx config file: $OUT"
+    echo "Current working directory: $(pwd)"
+    echo "Directory contents:"
+    ls -la
+    return 1
+  fi
 }
 
 nginx_setup() {
   trap 'error_deployment' ERR
   echo "Setting up nginx web server..."
-  sudo mv $NGINX_CERTIFICATE_NAME_OUT /etc/nginx/sites-enabled
+  
+  # Determine the correct path for the nginx config file
+  NGINX_CONFIG_PATH=$NGINX_CERTIFICATE_NAME_OUT
+  if [[ "$NGINX_CONFIG_PATH" != /* ]]; then
+    NGINX_CONFIG_PATH="/tmp/$NGINX_CONFIG_PATH"
+  fi
+  
+  echo "Nginx config file: $NGINX_CONFIG_PATH"
+  
+  # Check if the nginx config file exists
+  if [ -f "$NGINX_CONFIG_PATH" ]; then
+    echo "Found nginx config file at: $NGINX_CONFIG_PATH"
+    # Move the nginx configuration to sites-available and enable it
+    SITE_NAME=$(basename "$NGINX_CERTIFICATE_NAME_OUT")
+    echo "Using site name: $SITE_NAME"
+    
+    # Copy to sites-available
+    sudo cp "$NGINX_CONFIG_PATH" "/etc/nginx/sites-available/$SITE_NAME"
+    echo "Copied nginx config to /etc/nginx/sites-available/$SITE_NAME"
+    
+    # Create symlink to sites-enabled (remove existing if present)
+    sudo rm -f "/etc/nginx/sites-enabled/$SITE_NAME"
+    sudo ln -sf "/etc/nginx/sites-available/$SITE_NAME" "/etc/nginx/sites-enabled/$SITE_NAME"
+    echo "Enabled nginx config at /etc/nginx/sites-enabled/$SITE_NAME"
+    
+    # Clean up temporary file
+    sudo rm -f "$NGINX_CONFIG_PATH"
+    echo "Cleaned up temporary file: $NGINX_CONFIG_PATH"
+  else
+    echo "ERROR: Nginx config file not found at: $NGINX_CONFIG_PATH"
+    echo "Checking /tmp directory contents:"
+    ls -la /tmp/ | grep -E "(${CERTIFICATE_NAME//\./_}|$product_name)" || echo "No matching files found"
+    echo "Checking current directory contents:"
+    ls -la . | grep -E "(${CERTIFICATE_NAME//\./_}|$product_name)" || echo "No matching files found"
+    return 1
+  fi
+  
+  echo "Testing nginx configuration..."
   sudo nginx -t
+  echo "Restarting nginx..."
   sudo systemctl restart nginx
+  echo "Nginx setup completed successfully"
 }
 
 wait_for_db() {
   trap 'error_deployment' ERR
   echo "Waiting for DB to be ready..."
   db_name=$1
+  
+  # Sanitize database name - replace dots and other invalid characters with underscores
+  db_name=$(echo "$db_name" | sed 's/[^a-zA-Z0-9_]/_/g')
+  
   export PGPASSWORD="$DB_PASSWORD"
 
   MAX_WAIT_TIME=300
@@ -207,6 +339,10 @@ wait_for_db() {
 database_setup() {
   echo "Creating database if not exists..."
   db_name=$1
+  
+  # Sanitize database name - replace dots and other invalid characters with underscores
+  db_name=$(echo "$db_name" | sed 's/[^a-zA-Z0-9_]/_/g')
+  
   export PGPASSWORD="$DB_PASSWORD"
   echo "Create Database with name: ${db_name}"
   echo "SELECT 'CREATE DATABASE $db_name' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$db_name') \gexec" | psql -U $DB_USERNAME -h ${DB_URL%%:*} -p ${DB_URL##*:}
@@ -218,6 +354,10 @@ database_seeding() {
   echo "Seeding database for $product_name..."
   db_name=$1
   service_name=$2
+  
+  # Sanitize database name - replace dots and other invalid characters with underscores
+  db_name=$(echo "$db_name" | sed 's/[^a-zA-Z0-9_]/_/g')
+  
   for sql_file in $product_dir/$service_name/sql/*.sql; do
     echo "Seeding: $sql_file"
     PGPASSWORD="$DB_PASSWORD" psql -U $DB_USERNAME -h ${DB_URL%%:*} -p ${DB_URL##*:} -d "$db_name" -f "$sql_file"
@@ -226,13 +366,24 @@ database_seeding() {
 
 docker_network_setup() {
   trap 'error_deployment' ERR
-  echo "Checking docker network '$NETWORK_NAME'..."
-  if ! docker network ls --format '{{.Name}}' | grep -qw "$NETWORK_NAME"; then
-    echo "Creating network '$NETWORK_NAME'..."
-    docker network create "$NETWORK_NAME"
-  else
-    echo "Network '$NETWORK_NAME' already exists."
+  echo "Setting up docker network '$NETWORK_NAME'..."
+  
+  # For redeployments, clean up the existing network to avoid endpoint conflicts
+  if docker network ls --format '{{.Name}}' | grep -qw "$NETWORK_NAME"; then
+    echo "Network '$NETWORK_NAME' exists. Cleaning up for redeployment..."
+    
+    # Disconnect all containers from the network
+    docker network inspect "$NETWORK_NAME" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | xargs -n1 -r docker network disconnect "$NETWORK_NAME" 2>/dev/null || true
+    
+    # Remove the network
+    docker network rm "$NETWORK_NAME" 2>/dev/null || true
+    echo "Existing network cleaned up"
   fi
+  
+  # Create the network
+  echo "Creating network '$NETWORK_NAME'..."
+  docker network create "$NETWORK_NAME"
+  echo "Network '$NETWORK_NAME' created successfully"
 }
 
 check_postgres_connection() {
@@ -338,6 +489,8 @@ docker_backend(){
     SERVICE_FULL_NAME="${product_name}-${SERVICE_NAME}"
     DB_NAME="${PRODUCT_PREFIX}_product_$SERVICE_NAME"
     DB_NAME="${DB_NAME,,}"
+    # Sanitize database name - replace dots and other invalid characters with underscores
+    DB_NAME=$(echo "$DB_NAME" | sed 's/[^a-zA-Z0-9_]/_/g')
     PRODUCT_FULL_NAME="${PRODUCT_PREFIX}.product.$SERVICE_NAME"
     PRODUCT_FULL_NAME="${PRODUCT_FULL_NAME,,}"
 
@@ -350,11 +503,22 @@ docker_backend(){
     fi
 
     echo "Checking service port for redeployment"
-    BE_PORT=$(grep "^${SERVICE_FULL_NAME}-backend-service" "$deployed_ports_file" | cut -d',' -f2 | xargs | tr -d '\r')
+    # Get the backend port - ensure consistency with how ports are reserved
+    # For monolith: use product_name-backend-service (same as in init_port)
+    # For microservice: use SERVICE_FULL_NAME-backend-service
+    if [ "$NUM_BACKENDS" -eq 1 ]; then
+      BE_PORT=$(grep "^${product_name}-backend-service" "$deployed_ports_file" | cut -d',' -f2 | xargs | tr -d '\r')
+    else
+      BE_PORT=$(grep "^${SERVICE_FULL_NAME}-backend-service" "$deployed_ports_file" | cut -d',' -f2 | xargs | tr -d '\r')
+    fi
 
     if [ -z "$BE_PORT" ]; then
       echo "Port not found, reserving new port..."
-      BE_PORT=$(port_reserver "$SERVICE_FULL_NAME-backend-service" "$deployed_ports_file")      
+      if [ "$NUM_BACKENDS" -eq 1 ]; then
+        BE_PORT=$(port_reserver "$product_name-backend-service" "$deployed_ports_file")
+      else
+        BE_PORT=$(port_reserver "$SERVICE_FULL_NAME-backend-service" "$deployed_ports_file")
+      fi      
     fi
     
     echo "PORT USED FOR BE: ${BE_PORT}"
@@ -365,8 +529,30 @@ docker_backend(){
     wait_for_db $DB_NAME
 
     # Making sure hibernate.properties is correct
-    HIBERNATE_PROPERTIES_FILE="${product_dir}/${SERVICE_NAME}/${PRODUCT_FULL_NAME}/hibernate.properties"
-    sed -i "s/localhost:5432/${BACKEND_DB_URL}/g" "$HIBERNATE_PROPERTIES_FILE"
+    if [[ "$NUM_BACKENDS" -eq 1 ]]; then
+      # For monolithic applications, use simpler path
+      HIBERNATE_PROPERTIES_FILE="${product_dir}/${SERVICE_NAME}/hibernate.properties"
+    else
+      # For microservices, use full path
+      HIBERNATE_PROPERTIES_FILE="${product_dir}/${SERVICE_NAME}/${PRODUCT_FULL_NAME}/hibernate.properties"
+    fi
+    
+    echo "Looking for hibernate.properties at: $HIBERNATE_PROPERTIES_FILE"
+    
+    if [ -f "$HIBERNATE_PROPERTIES_FILE" ]; then
+      sed -i "s/localhost:5432/${BACKEND_DB_URL}/g" "$HIBERNATE_PROPERTIES_FILE"
+      echo "Updated hibernate.properties successfully"
+    else
+      echo "Warning: hibernate.properties not found at $HIBERNATE_PROPERTIES_FILE"
+      # Try alternative paths
+      ALT_HIBERNATE_PROPERTIES_FILE="${product_dir}/${SERVICE_NAME}/src/main/resources/hibernate.properties"
+      if [ -f "$ALT_HIBERNATE_PROPERTIES_FILE" ]; then
+        sed -i "s/localhost:5432/${BACKEND_DB_URL}/g" "$ALT_HIBERNATE_PROPERTIES_FILE"
+        echo "Updated hibernate.properties at alternative location: $ALT_HIBERNATE_PROPERTIES_FILE"
+      else
+        echo "Warning: hibernate.properties not found in expected locations"
+      fi
+    fi
 
     echo "Starting Service full name: $SERVICE_FULL_NAME or service name: $SERVICE_NAME on port $BE_PORT"
 
@@ -478,51 +664,83 @@ error_deployment() {
   exit $deploy_error_code;
 }
 
+cleanup_existing_deployment() {
+  echo "Performing comprehensive cleanup of existing deployment..."
+  
+  # Stop and remove all containers related to this product
+  echo "Stopping all containers for product: $product_name"
+  docker ps -a --filter "name=${product_name}" --format "{{.Names}}" | xargs -r docker stop 2>/dev/null || true
+  docker ps -a --filter "name=${product_name}" --format "{{.Names}}" | xargs -r docker rm -f 2>/dev/null || true
+  
+  # Clean up networks
+  if docker network ls --format '{{.Name}}' | grep -qw "$NETWORK_NAME"; then
+    echo "Cleaning up network: $NETWORK_NAME"
+    docker network disconnect "$NETWORK_NAME" $(docker network inspect "$NETWORK_NAME" --format '{{range .Containers}}{{.Name}} {{end}}') 2>/dev/null || true
+    docker network rm "$NETWORK_NAME" 2>/dev/null || true
+  fi
+  
+  # Clean up volumes
+  docker volume ls --filter "name=${product_name}" --format "{{.Name}}" | xargs -r docker volume rm 2>/dev/null || true
+  
+  # Clean up any orphaned containers
+  docker container prune -f 2>/dev/null || true
+  
+  echo "Cleanup completed"
+}
+
 new_deployment_microservice() {
+  cleanup_existing_deployment
   init_port_microservice
   generate_nginx_config
+  # Set up nginx early to ensure it's configured even if Docker setup fails later
+  nginx_setup || echo "Warning: Nginx setup failed, but continuing deployment"
   docker_network_setup
   docker_rabbit_mq_and_db
   locate_backend_service
   docker_backend 
   docker_container_fe_gateway
-  nginx_setup
   echo "Deployment for $product_name complete"
 }
 
 redeployment_microservice() {
+  cleanup_existing_deployment
   load_ports_from_file_microservice
   generate_nginx_config
+  # Set up nginx early to ensure it's configured even if Docker setup fails later
+  nginx_setup || echo "Warning: Nginx setup failed, but continuing deployment"
   docker_network_setup
   docker_rabbit_mq_and_db
   locate_backend_service
   docker_backend 
   docker_container_fe_gateway
-  nginx_setup
   echo "Redeployment for $product_name complete"
 }
 
 new_deployment() {
+  cleanup_existing_deployment
   init_port
   generate_nginx_config
+  # Set up nginx early to ensure it's configured even if Docker setup fails later
+  nginx_setup || echo "Warning: Nginx setup failed, but continuing deployment"
   docker_network_setup
   docker_rabbit_mq_and_db
   locate_backend_service
   docker_backend 
   docker_container_fe
-  nginx_setup
   echo "Deployment for $product_name complete"
 }
 
 redeployment() {
+  cleanup_existing_deployment
   load_ports_from_file
   generate_nginx_config
+  # Set up nginx early to ensure it's configured even if Docker setup fails later
+  nginx_setup || echo "Warning: Nginx setup failed, but continuing deployment"
   docker_network_setup
   docker_rabbit_mq_and_db
   locate_backend_service
   docker_backend 
   docker_container_fe
-  nginx_setup
   echo "Redeployment for $product_name complete"
 }
 

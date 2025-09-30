@@ -1,8 +1,12 @@
 #!/bin/bash
 
 # Variables
-CERTIFICATE_NAME=$1
-NGINX_CERTIFICATE_NAME=$2
+USERNAME=$1
+CERTIFICATE_NAME=$2
+NGINX_CERTIFICATE_NAME=$3
+
+# Set VM_ROOT_FILES based on the username
+VM_ROOT_FILES=/home/$USERNAME
 LOG_FILE_LOCATION=$VM_ROOT_FILES/propagated_log.log
 
 error_deployment() {

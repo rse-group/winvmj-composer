@@ -37,7 +37,7 @@ if [[ "$PROVISION" == "yes" ]]; then
         [JAKARTA]=asia-southeast2-a
     )
     declare -A AWS_MACHINE_TYPE_MAP=(
-        [SMALL]=t2.small
+        [SMALL]=t3.small
         [MEDIUM]=t2.medium
         [LARGE]=t2.large
     )

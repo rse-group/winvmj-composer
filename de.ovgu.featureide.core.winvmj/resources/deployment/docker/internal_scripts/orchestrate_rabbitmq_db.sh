@@ -85,6 +85,21 @@ if [[ "$WITH_DB" == true ]]; then
   DB_COMPOSE="docker-compose.db.yml"
   DB_CONTAINER_NAME="${PRODUCT_NAME}-db-container"
 
+  # Clean up existing containers if they exist
+  echo "Cleaning up existing database containers..."
+  docker stop "$DB_CONTAINER_NAME" 2>/dev/null || true
+  docker rm "$DB_CONTAINER_NAME" 2>/dev/null || true
+  
+  # Also remove any orphaned containers with similar names
+  docker ps -a --filter "name=${PRODUCT_NAME}.*db" --format "{{.Names}}" | xargs -r docker rm -f 2>/dev/null || true
+  
+  # Clean up any existing volumes
+  docker volume rm "${PRODUCT_NAME}-db-data" 2>/dev/null || true
+  
+  # Force remove from network if still attached (this helps with endpoint conflicts)
+  docker network disconnect "$NETWORK_NAME" "$DB_CONTAINER_NAME" 2>/dev/null || true
+  
+  echo "Container cleanup completed"
 
   TEMP_ENV_FILE=$(mktemp)
 cat <<EOF > "$TEMP_ENV_FILE"
@@ -112,6 +127,22 @@ if [[ "$NUM_BACKENDS" -gt 1 ]]; then
   RABBITMQ_SERVICE_NAME="${PRODUCT_NAME}_rabbitmq"
   RABBIT_COMPOSE_FILE="$PRODUCT_DIR/docker-compose.rabbitmq.yml"
   RABBITMQ_ERLANG_COOKIE=$(echo -n "$RABBITMQ_SERVICE_NAME" | sha256sum | cut -c1-32)
+
+  # Clean up existing RabbitMQ containers if they exist
+  echo "Cleaning up existing RabbitMQ containers..."
+  docker stop "$RABBITMQ_CONTAINER_NAME" 2>/dev/null || true
+  docker rm "$RABBITMQ_CONTAINER_NAME" 2>/dev/null || true
+  
+  # Also remove any orphaned containers with similar names
+  docker ps -a --filter "name=${PRODUCT_NAME}.*rabbitmq" --format "{{.Names}}" | xargs -r docker rm -f 2>/dev/null || true
+  
+  # Clean up any existing volumes
+  docker volume rm "${RABBITMQ_SERVICE_NAME}_data" 2>/dev/null || true
+  
+  # Force remove from network if still attached
+  docker network disconnect "$NETWORK_NAME" "$RABBITMQ_CONTAINER_NAME" 2>/dev/null || true
+  
+  echo "RabbitMQ cleanup completed"
 
 cat <<EOF > "$RABBIT_COMPOSE_FILE"
 services:

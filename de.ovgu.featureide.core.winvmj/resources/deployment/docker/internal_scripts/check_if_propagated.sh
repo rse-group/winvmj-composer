@@ -17,8 +17,16 @@ touch "$LOG_FILE_LOCATION" "$ERROR_LOG"
 # Perform the curl request and store the status code
 sudo systemctl restart systemd-resolved
 
-# curl with location flag (-L) to make sure redeployment is also handled
-status_code=$(curl -L -s -o /dev/null -w "%{http_code}" -m 30 http://$CERTIFICATE_NAME)
+# Check if CERTIFICATE_NAME is an IP address or domain name
+if [[ $CERTIFICATE_NAME =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Using IP address for health check: $CERTIFICATE_NAME" >> "$LOG_FILE_LOCATION"
+    # curl with location flag (-L) to make sure redeployment is also handled
+    status_code=$(curl -L -s -o /dev/null -w "%{http_code}" -m 30 http://$CERTIFICATE_NAME)
+else
+    echo "Using domain name for health check: $CERTIFICATE_NAME" >> "$LOG_FILE_LOCATION"
+    # curl with location flag (-L) to make sure redeployment is also handled
+    status_code=$(curl -L -s -o /dev/null -w "%{http_code}" -m 30 http://$CERTIFICATE_NAME)
+fi
 
 # Function to handle errors
 error_deployment() {
@@ -40,8 +48,9 @@ if [ "$status_code" == "200" ]; then
     echo "Starting the jobs... after 60s" >> "$LOG_FILE_LOCATION"
     sleep 60
     # Script after propagated
-    sudo bash "$VM_ROOT_FILES/setup_after_propagate.sh" "$CERTIFICATE_NAME" "$NGINX_CERTIFICATE_NAME" 2>>"$ERROR_LOG"
+    sudo bash "$VM_ROOT_FILES/setup_after_propagate.sh" "$USERNAME" "$CERTIFICATE_NAME" "$NGINX_CERTIFICATE_NAME" 2>>"$ERROR_LOG"
     # Deploy
+    # sudo bash ~/deploy_micro.sh herobank /var/www/products/herobank 54.255.241.56 54.255.241.56 2 bankaccount
     sudo bash "$VM_ROOT_FILES/deploy_micro.sh" "$PRODUCT_NAME" "$PRODUCT_DIR" "$CERTIFICATE_NAME" "$NGINX_CERTIFICATE_NAME" "$NUM_BACKENDS" "$PRODUCT_PREFIX" 2>>"$ERROR_LOG"
     
     echo "Finished doing all jobs..." >> "$LOG_FILE_LOCATION"

@@ -55,13 +55,22 @@ echo "Running initial_setup.sh to install dependencies and copy products..."
 echo "Running copy_port_reserver.sh to install dependencies and copy products..."
 ./external_scripts/copy_port_reserver.sh $USERNAME $IP_ADDRESS $PRIVATE_KEY_PATH
 
-# Wait for user to confirm DNS setup
-echo "=========================================================================="
-echo "==========================IMPORTANT!!!!!=================================="
-echo "Please set up the DNS A record to point $CERTIFICATE_NAME to $IP_ADDRESS."
-echo "You can verify it by running: nslookup $CERTIFICATE_NAME"
-echo "The process will continue in a few second"
-sleep 30
+# Check if CERTIFICATE_NAME is an IP address
+if [[ $CERTIFICATE_NAME =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "=========================================================================="
+    echo "======================HTTP-ONLY DEPLOYMENT============================"
+    echo "Deploying with HTTP-only configuration using IP: $CERTIFICATE_NAME"
+    echo "No DNS setup required. Your application will be available at: http://$CERTIFICATE_NAME"
+    echo "========================================================================"
+else
+    # Wait for user to confirm DNS setup
+    echo "=========================================================================="
+    echo "==========================IMPORTANT!!!!!=================================="
+    echo "Please set up the DNS A record to point $CERTIFICATE_NAME to $IP_ADDRESS."
+    echo "You can verify it by running: nslookup $CERTIFICATE_NAME"
+    echo "The process will continue in a few second"
+    sleep 30
+fi
 
 # Run Script
 echo "Running Installation Script..."

@@ -50,5 +50,11 @@ WORKDIR /app/products/${MAIN_CLASS}/backend
 CMD ["sh", "-c", "\
   productline_lower=$(echo $PRODUCTLINE | tr 'A-Z' 'a-z') && \
   mainclass_lower=$(echo $MAIN_CLASS | tr 'A-Z' 'a-z') && \
-  java -cp $productline_lower.product.$mainclass_lower --module-path $productline_lower.product.$mainclass_lower -m $productline_lower.product.$mainclass_lower \
+  service_name=$(echo $MAIN_CLASS | sed 's/.*\\.//g') && \
+  service_name_lower=$(echo $service_name | tr 'A-Z' 'a-z') && \
+  echo 'Starting application with PRODUCTLINE='$PRODUCTLINE' and MAIN_CLASS='$MAIN_CLASS && \
+  echo 'Extracted service name: '$service_name && \
+  echo 'Constructed main class: '$productline_lower'.product.'$service_name_lower'.HeroBank' && \
+  ls -la /app/products/${MAIN_CLASS}/backend/ && \
+  java -cp \"/app/products/${MAIN_CLASS}/backend/*\" $productline_lower.product.$service_name_lower.HeroBank \
 "]

@@ -39,7 +39,7 @@ if [ "$status_code" == "200" ]; then
     echo "Starting the jobs... after 60s" >> "$LOG_FILE_LOCATION"
     sleep 60
     # Script after propagated
-    sudo bash "$VM_ROOT_FILES/setup_after_propagate.sh" "$CERTIFICATE_NAME" "$NGINX_CERTIFICATE_NAME" 2>>"$ERROR_LOG"
+    sudo bash "$VM_ROOT_FILES/setup_after_propagate.sh" "$USERNAME" "$CERTIFICATE_NAME" "$NGINX_CERTIFICATE_NAME" 2>>"$ERROR_LOG"
     # Deploy
     sudo bash "$VM_ROOT_FILES/deploy_443.sh" "$PRODUCT_NAME" "$PRODUCT_DIR" "$CERTIFICATE_NAME" "$NGINX_CERTIFICATE_NAME" "$PRODUCT_PREFIX" 2>>"$ERROR_LOG"
     
