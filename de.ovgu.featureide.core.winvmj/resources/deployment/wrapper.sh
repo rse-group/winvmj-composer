@@ -55,14 +55,18 @@ if [[ "$PROVISION" == "yes" ]]; then
     INSTANCE_NAME="$6"
     PUBLIC_KEY="$7"
 
+    # Convert arguments to uppercase for case-insensitive matching
+    MACHINE_TYPE_UPPER=$(echo "$MACHINE_TYPE" | tr '[:lower:]' '[:upper:]')
+    ZONE_UPPER=$(echo "$ZONE" | tr '[:lower:]' '[:upper:]')
+
     if [ "$PROVIDER" == "aws" ]; then
         USERNAME="ubuntu"
-        MACHINE_TYPE=${AWS_MACHINE_TYPE_MAP[$2]}
-        ZONE=${AWS_ZONE_MAP[$3]}
+        MACHINE_TYPE=${AWS_MACHINE_TYPE_MAP[$MACHINE_TYPE_UPPER]}
+        ZONE=${AWS_ZONE_MAP[$ZONE_UPPER]}
     elif [ "$PROVIDER" == "gcp" ]; then
         USERNAME=$1
-        MACHINE_TYPE=${GCP_MACHINE_TYPE_MAP[$2]}
-        ZONE=${GCP_ZONE_MAP[$3]}
+        MACHINE_TYPE=${GCP_MACHINE_TYPE_MAP[$MACHINE_TYPE_UPPER]}
+        ZONE=${GCP_ZONE_MAP[$ZONE_UPPER]}
     else
         echo "Error: Unsupported provider!"
         exit 1
