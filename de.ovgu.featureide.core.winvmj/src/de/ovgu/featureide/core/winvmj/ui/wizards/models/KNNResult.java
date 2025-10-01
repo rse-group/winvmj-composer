@@ -1,5 +1,7 @@
 package de.ovgu.featureide.core.winvmj.ui.wizards.misc.model;
 
+import de.ovgu.featureide.core.winvmj.ui.wizards.misc.model.CloudConfiguration;
+
 /**
  * Represents a candidate result with distance information
  */
@@ -10,6 +12,10 @@ public class KNNResult {
     public KNNResult(CloudConfiguration config, long distance) {
         this.config = config;
         this.distance = distance;
+    }
+
+    public CloudConfiguration getConfig() {
+        return this.config;
     }
     
     @Override

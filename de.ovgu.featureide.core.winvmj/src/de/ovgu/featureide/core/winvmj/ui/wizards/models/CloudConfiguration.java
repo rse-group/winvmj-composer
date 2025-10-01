@@ -19,10 +19,25 @@ public class CloudConfiguration {
         this.apdex = apdex;
         this.provider = provider;
     }
-    
-    // Backward compatibility constructor for existing code
-    public CloudConfiguration(int tps, int transactions, String instanceType, String region, double apdex, String provider) {
-        this(tps, transactions, instanceType, region, apdex, provider);
+
+    public String getInstance() {
+        return this.instanceType;
+    }
+
+    public String getProvider() {
+        return this.provider;
+    }
+
+    public int getTPS() {
+        return this.tps;
+    }
+
+    public int getTransactions() {
+        return this.transactions;
+    }
+
+    public String getRegion() {
+        return this.region;
     }
     
     @Override

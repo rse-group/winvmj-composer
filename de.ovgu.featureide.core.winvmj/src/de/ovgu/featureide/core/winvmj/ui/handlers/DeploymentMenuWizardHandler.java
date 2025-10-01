@@ -15,6 +15,7 @@ public class DeploymentMenuWizardHandler extends AFeatureProjectHandler {
 		WinVMJConsole.showConsole();
         Shell shell = getShell();
         DeploymentWizard deploymentWizard = new DeploymentWizard();
+        deploymentWizard.setProject(project);
         WizardDialog wizardDialog = new WizardDialog(shell, deploymentWizard);
         wizardDialog.open();
     }

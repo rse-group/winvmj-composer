@@ -34,6 +34,7 @@ import java.nio.file.Paths;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import de.ovgu.featureide.core.IFeatureProject;
 
 
 public class DeploymentWizard extends Wizard {
@@ -44,9 +45,18 @@ public class DeploymentWizard extends Wizard {
     private AmanahDeploymentPage amanahPage;
     private DeploymentTargetPage deploymentTargetPage;
     private NFRDefinitionPage nfrPage;
+    private IFeatureProject project;
 
     public DeploymentWizard() {
         setWindowTitle("Deployment Wizard");
+    }
+
+    public void setProject(IFeatureProject project) {
+        this.project = project;
+    }
+    
+    public IFeatureProject getProject() {
+        return this.project;
     }
 
     @Override
@@ -57,7 +67,7 @@ public class DeploymentWizard extends Wizard {
         configPage = new DeploymentConfigProvisioningPage("Configuration");
         configExistPage = new DeploymentConfigExistingPage("Configuration");
         amanahPage = new AmanahDeploymentPage("Amanah Configuration");
-        nfrPage = new NFRDefinitionPage("Non-Functional Requirement Definition");
+        //nfrPage = new NFRDefinitionPage("Non-Functional Requirement Definition");
         
         addPage(deploymentTargetPage);
         addPage(deploymentPage);
@@ -65,7 +75,7 @@ public class DeploymentWizard extends Wizard {
         addPage(configPage);
         addPage(configExistPage);
         addPage(amanahPage);
-        addPage(nfrPage);
+        //addPage(nfrPage);
     }
     
     @Override
@@ -413,7 +423,7 @@ public class DeploymentWizard extends Wizard {
 	    return command;
     }
     
-    private List<String> generateCommandProvisionForLinux(String scriptPath, String deploymentMethod, String isProvisioning,
+    private List<String> generateCommandProvisionForLinux(String  scriptPath, String deploymentMethod, String isProvisioning,
     	    String username, String machineType, String region, String credentialPath, String provider, String instanceName,
     	    String pubKeyPath, String productName, String certificateName, String nginxCertName,
     	    String productPrefix, String productPath, String privKeyPath, String numBackends) {

@@ -100,6 +100,13 @@
             >
             </command>
             <command
+                  commandId="de.ovgu.featureide.core.winvmj.ui.handlers.deploymentv2handler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.deploymentv2handler"
+                  label="Deployment V2"
+                  style="push">
+            </command>
+            <command
                   commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
                   icon="resources/icons/FeatureIconSmall.ico"
                   id="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler"
@@ -159,6 +166,10 @@
       <handler
             class="de.ovgu.featureide.core.winvmj.ui.handlers.MicroservicesComposeHandler"
             commandId="de.ovgu.featureide.core.winvmj.microservicescomposehandler">
+      </handler>
+      <handler
+            class="de.ovgu.featureide.core.winvmj.ui.handlers.DeploymentV2Handler"
+            commandId="de.ovgu.featureide.core.winvmj.ui.handlers.deploymentv2handler">
       </handler>
    </extension>
 </plugin>

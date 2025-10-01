@@ -6,6 +6,7 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.*;
 
+import de.ovgu.featureide.core.winvmj.ui.handlers.DeploymentV2Handler;
 import de.ovgu.featureide.core.winvmj.ui.wizards.DeploymentWizard;
 
 public class CredentialAndProductPage extends WizardPage {
@@ -17,11 +18,21 @@ public class CredentialAndProductPage extends WizardPage {
     private Button browsePubKeyButton;
     private Button browseCredButton;
     private String deploymentTarget;
+    private boolean isV2 = false;
+    private String defaultProductPath;
 
     public CredentialAndProductPage(String pageName) {
         super(pageName);
         setTitle("Select Credential, Product and Key Files");
         setDescription("Choose the credential (.json product (.zip), and key (public and private) files.");
+    }
+
+    public CredentialAndProductPage() {
+        super("Credential Input");
+        defaultProductPath = DeploymentV2Handler.getZipPath();
+        isV2 = true;
+        setTitle("Select Credential and Key Files");
+        setDescription("Choose the credential (.json) and key (public and private) files.");
     }
 
     @Override
@@ -62,6 +73,12 @@ public class CredentialAndProductPage extends WizardPage {
                 setPageComplete(isPageComplete());
             }
         });
+
+        if (isV2) {
+            productFileText.setText(defaultProductPath);
+            productFileText.setEnabled(false);
+            browseProductButton.setEnabled(false);
+        }
         
         // Private key file
         new Label(container, SWT.NONE).setText("Private Key File:");
@@ -114,20 +131,22 @@ public class CredentialAndProductPage extends WizardPage {
         super.setVisible(visible);
 
         if (visible) {
-            deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentTargetPage().getSelectedDeploymentTarget();
-                          
-            if ("provisioning".equalsIgnoreCase(deploymentTarget)) {
-            	pubKeyText.setEnabled(true);
-            	browsePubKeyButton.setEnabled(true);
-            	credentialFileText.setEnabled(true);
-            	browseCredButton.setEnabled(true);
-            } else if ("existing".equalsIgnoreCase(deploymentTarget)) {
-            	pubKeyText.setEnabled(false);
-            	pubKeyText.setText("");
-            	browsePubKeyButton.setEnabled(false);
-            	credentialFileText.setEnabled(false);
-            	credentialFileText.setText("");
-            	browseCredButton.setEnabled(false);
+            if (!isV2) {
+                deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentTargetPage().getSelectedDeploymentTarget();
+                            
+                if ("provisioning".equalsIgnoreCase(deploymentTarget)) {
+                    pubKeyText.setEnabled(true);
+                    browsePubKeyButton.setEnabled(true);
+                    credentialFileText.setEnabled(true);
+                    browseCredButton.setEnabled(true);
+                } else if ("existing".equalsIgnoreCase(deploymentTarget)) {
+                    pubKeyText.setEnabled(false);
+                    pubKeyText.setText("");
+                    browsePubKeyButton.setEnabled(false);
+                    credentialFileText.setEnabled(false);
+                    credentialFileText.setText("");
+                    browseCredButton.setEnabled(false);
+                }
             }
 
             setPageComplete(isPageComplete());
