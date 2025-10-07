@@ -146,7 +146,76 @@ generate_nginx_config() {
   BE_PORT=$product_be_port
   OUT=$NGINX_CERTIFICATE_NAME_OUT
 
-  cat <<EOF | sudo tee $OUT >/dev/null
+  # Check if we're using IP address (HTTP mode) instead of domain name (HTTPS mode)
+  if [[ "$CERTIFICATE_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Generating HTTP-only nginx configuration for IP: $CERTIFICATE_NAME"
+    
+    cat <<EOF | sudo tee $OUT >/dev/null
+server {
+  listen 80;
+  server_name ${CERTIFICATE_NAME};
+  client_max_body_size 20M;
+
+  location / {
+    root ${PRODUCT_DIR}/frontend/build;
+    index index.html;
+    try_files \$uri \$uri/ /index.html /index.htm =404;
+  }
+
+  location @admin_endpoint {
+    proxy_pass             http://localhost:${STATIC_PORT};
+    proxy_redirect         off;
+    proxy_http_version     1.1;
+    proxy_set_header       Upgrade \$http_upgrade;
+    proxy_set_header       Connection "upgrade";
+    proxy_set_header       Last-Modified \$date_gmt;
+    proxy_set_header       Cache-Control 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
+    proxy_no_cache         1;
+    proxy_cache_bypass     1;
+    add_header             Last-Modified \$date_gmt;
+    add_header             Cache-Control 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
+    if_modified_since      off;
+    expires                off;
+    etag                   off;
+  }
+
+  location /apiadmin {
+    try_files \$uri @admin_endpoint;
+  }
+
+  location /apiimage {
+    try_files \$uri @admin_endpoint;
+  }
+
+  location /call {
+    proxy_pass http://localhost:${BE_PORT};
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header Authorization \$http_authorization;
+  }
+
+  location /auth {
+    proxy_pass http://localhost:${BE_PORT};
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header Authorization \$http_authorization;
+  }
+
+  location /static-data{
+    try_files \$uri @admin_endpoint;
+  }
+
+  location /appearance{
+    try_files \$uri @admin_endpoint;
+  }
+}
+EOF
+  else
+    echo "Generating HTTPS nginx configuration for domain: $CERTIFICATE_NAME"
+    
+    cat <<EOF | sudo tee $OUT >/dev/null
 server {
   listen 443 ssl;
   server_name ${CERTIFICATE_NAME};
@@ -219,6 +288,7 @@ server {
   return 301 https://\$host\$request_uri;
 }
 EOF
+  fi
 }
 
 be_systemd_setup() {
