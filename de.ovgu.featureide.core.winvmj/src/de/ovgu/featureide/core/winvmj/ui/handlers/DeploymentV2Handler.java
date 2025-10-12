@@ -206,6 +206,7 @@ public class DeploymentV2Handler extends AFeatureProjectHandler {
             case "Instance" -> instanceType = new Instance(feature);
             case "Transaction" -> transaction = new Transaction(feature);
             case "TPS" -> tps = new TPS(feature);
+            case "Region" -> region = new Region(feature);
             default -> WinVMJConsole.println("[WARNING] The feature " + parent + " is not available in the current model");
         }
     }
