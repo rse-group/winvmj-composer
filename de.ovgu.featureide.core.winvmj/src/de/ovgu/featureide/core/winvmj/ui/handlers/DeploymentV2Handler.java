@@ -113,8 +113,6 @@ public class DeploymentV2Handler extends AFeatureProjectHandler {
 
 	@Override
 	protected void singleAction(IFeatureProject project) {
-		//WinVMJConsole.showConsole();
-
         String currentConfigFile = project.getCurrentConfiguration().toFile().getName();
         WinVMJConsole.println("Current Product Configuration: " + currentConfigFile);
         WinVMJConsole.println("\n=== Compiling src ===");
@@ -137,19 +135,9 @@ public class DeploymentV2Handler extends AFeatureProjectHandler {
             WinVMJConsole.println("[ERROR] Please define the Provider and Instance!");
             return;
         }
-		// final LongRunningMethod<Boolean> job = new LongRunningMethod<Boolean>() {
-
-		// 	@Override
-		// 	public Boolean execute(IMonitor<Boolean> workMonitor) throws Exception {
-				
-
-		// 		return true;
-		// 	}
-		// };
 
         WinVMJConsole.println("\n=== Opening Deployment V2 Wizard ===");
 		
-        //LongRunningWrapper.getRunner(job, "Compile JAR").schedule();
         openDeploymentV2Wizard(project);
 	}
 
