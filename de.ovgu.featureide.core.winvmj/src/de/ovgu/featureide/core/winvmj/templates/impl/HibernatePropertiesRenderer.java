@@ -37,7 +37,6 @@ public class HibernatePropertiesRenderer extends TemplateRenderer {
 	protected IFile getOutputFile(WinVMJProduct product) {
 		return project.getProject().getFolder("src-gen")
 				.getFolder(product.getProductName())
-				.getFolder(product.getProductQualifiedName())
 				.getFile("hibernate.properties");
 	}
 }
