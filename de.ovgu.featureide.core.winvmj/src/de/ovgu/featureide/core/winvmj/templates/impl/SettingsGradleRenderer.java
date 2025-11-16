@@ -3,9 +3,12 @@ package de.ovgu.featureide.core.winvmj.templates.impl;
 import java.util.HashMap;
 import java.util.Map;
 
-import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import org.eclipse.core.resources.IFile;
 
-public class SettingsGradleRenderer {
+import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
+public class SettingsGradleRenderer extends TemplateRenderer{
     public SettingsGradleRenderer(IFeatureProject project) {
         super(project);
     }

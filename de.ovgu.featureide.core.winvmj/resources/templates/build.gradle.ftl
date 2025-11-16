@@ -31,27 +31,32 @@ dependencies {
 
 }
 
-
+def jarsDirFile = file('${product}')
 def jarFile = file('${product}/${productName}.jar')
 def jf = new java.util.jar.JarFile(jarFile)
 def mainCls = jf.manifest?.mainAttributes?.getValue('Main-Class')
+
+def dbUser = '${dbUsername}'
+def dbPass = '${dbPassword}'
+def dbName = "${dbname}"
 
 // === 1. CREATE DATABASE ===
 task createDB(type: Exec) {
     group = 'application'
     description = 'Creates DB if not exists.'
 
-    environment 'PGPASSWORD', '${dbPassword}'
+    <#noparse>
+    environment 'PGPASSWORD', dbPass
     doFirst {
         println 'Creating database if not exists...'
-        def dbName = "${dbname}"
         def sql = "SELECT 'CREATE DATABASE ${dbName}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${dbName}') \\gexec"
         def os = System.getProperty('os.name').toLowerCase()
         if (os.contains('windows')) {
-            commandLine 'cmd', '/c', "echo ${sql} | psql -U postgres"
+            commandLine 'cmd', '/c', "echo ${sql} | psql -U ${dbUser}"
         } else {
-            commandLine 'bash', '-c', "echo \"${sql}\" | psql -U postgres"
+            commandLine 'bash', '-c', "echo \"${sql}\" | psql -U ${dbUser}"
         }
+        </#noparse>
     }
     doLast {
         println "Database created or already exists."
@@ -68,10 +73,12 @@ task createTable {
         println "Starting app (half run)..."
         def process = ['java', '-jar', jarFile.absolutePath].execute()
         Thread.start {
-            process.in.eachLine { println it }
+            process.in.eachLine { line -> 
+            	println line 
+            }
         }
 
-        // Wait for ~50% runtime (adjust duration as needed)
+        // Wait for creating database table (adjust duration as needed)
         sleep(15000) // 15 seconds as an example
         println "Stopping halfway..."
         process.destroy()
@@ -83,7 +90,7 @@ task loadSql(type: Exec) {
     group = 'application'
     description = 'Loads all SQL scripts into PostgreSQL.'
     dependsOn createTable
-
+    <#noparse>
     def sqlDir = file("${rootProject.projectDir}/sql")
     def sqlFiles = sqlDir.exists() ? fileTree(dir: sqlDir, include: ['**/*.sql']).files : []
 
@@ -94,13 +101,15 @@ task loadSql(type: Exec) {
 
         def os = System.getProperty('os.name').toLowerCase()
         if (os.contains('windows')) {
-            def command = sqlFiles.collect { f -> "psql -a -f \"${f.absolutePath}\" \"postgresql://postgres:admin@localhost/bankaccount_product_overdraftaccount\"" }.join(" & ")
+    
+            def command = sqlFiles.collect { f -> "psql -a -f \"${f.absolutePath}\" \"postgresql://${dbUser}:${dbPass}@localhost/${dbName}\"" }.join(" & ")
             commandLine 'cmd', '/c', command
         } else {
-            def command = sqlFiles.collect { f -> "psql -a -f \"${f.absolutePath}\" \"postgresql://postgres:admin@localhost/bankaccount_product_overdraftaccount\"" }.join(" ; ")
+            def command = sqlFiles.collect { f -> "psql -a -f \"${f.absolutePath}\" \"postgresql://${dbUser}:${dbPass}@localhost/${dbName}\"" }.join(" ; ")
             commandLine 'bash', '-c', command
         }
     }
+    </#noparse>
     doLast {
         println "All SQL scripts executed."
     }
