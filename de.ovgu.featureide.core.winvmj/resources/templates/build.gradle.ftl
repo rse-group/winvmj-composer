@@ -22,7 +22,7 @@ sourceSets {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(dir: 'libs/default', include: ['*.jar'])
     implementation 'javax.persistence:javax.persistence-api:2.2'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.hibernate:hibernate-core:5.5.0.Final'
@@ -70,18 +70,47 @@ task createTable {
     dependsOn createDB
 
     doLast {
-        println "Starting app (half run)..."
-        def process = ['java', '-jar', jarFile.absolutePath].execute()
-        Thread.start {
-            process.in.eachLine { line -> 
-            	println line 
+        def cpFiles = files(jarFile) + 
+                      fileTree(dir: jarsDirFile, include: ['**/*.jar']) +
+                      fileTree(dir: 'libs', include: ['**/*.jar']) + 
+                      files(project.projectDir) +
+                      configurations.runtimeClasspath
+
+        def cpString = cpFiles.getAsPath() 
+
+        def command = [
+            "java", 
+            "-cp", cpString, 
+            mainCls // Ensure 'def mainCls = ...' is visible here
+        ]
+
+        ProcessBuilder pb = new ProcessBuilder(command)
+        pb.directory(project.projectDir) // Usually safer to run from project root
+        
+        // This allows you to see errors in the console
+        pb.inheritIO() 
+
+        println "Starting app process..."
+        Process process = pb.start()
+        <#noparse>
+        println "App started with PID: ${process.pid()}"
+        </#noparse>
+
+        try {
+            // run for 10 seconds
+            Thread.sleep(10000) 
+        } catch (InterruptedException e) {
+            // Handle case where user stops Gradle manually
+        } finally {
+            if (process.isAlive()) {
+                process.destroy()
+                println "App stopped forcefully after timeout."
+            } else {
+                println "App stopped on its own before 10 seconds were up."
+                // If it stopped early, it likely crashed. 
+                // Check the logs above because of .inheritIO()
             }
         }
-
-        // Wait for creating database table (adjust duration as needed)
-        sleep(15000) // 15 seconds as an example
-        println "Stopping halfway..."
-        process.destroy()
     }
 }
 
