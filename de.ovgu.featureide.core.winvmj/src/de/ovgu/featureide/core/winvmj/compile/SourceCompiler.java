@@ -57,6 +57,7 @@ public class SourceCompiler {
 	private static String OUTPUT_FOLDER = "src-gen";
 	private static String OUTPUT_MODULES_FOLDER = "modules-gen";
 	private static String MODULES_FOLDER = "modules";
+	private static String LIB_FOLDER = "libs/default";
 	private static ArrayList<String> WINVMJ_LIBRARIES = new ArrayList<>(Arrays.asList(
 		"vmj.auth",
 		"vmj.auth.model",
@@ -69,6 +70,10 @@ public class SourceCompiler {
 	};
 
 	public static void compileSource(IFeatureProject project) {
+		final File file = new File(SourceCompiler.class
+				.getProtectionDomain().getCodeSource()
+				.getLocation().getPath());
+		Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
 		try {
 			WinVMJProduct sourceProduct = new ComposedProduct(project);
 			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
@@ -81,6 +86,7 @@ public class SourceCompiler {
 			importWinVMJProductConfigs(compiledProductDir);
 			generateConfigFiles(project, sourceProduct);
 			compileModules(project, compiledProductDir, sourceProduct);
+			deleteLibraries(compiledProductDir.getFolder(sourceProduct.getProductQualifiedName()), srcResource);
 			insertSqlFolder(compiledProductDir, project);
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
@@ -231,11 +237,11 @@ public class SourceCompiler {
 
 	private static void importWinVMJLibraries(IFolder compiledProductDir, WinVMJProduct product)
 			throws IOException, URISyntaxException, CoreException {
-		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+		IFolder productModule = compiledProductDir.getFolder(LIB_FOLDER+"/default");
 		if (!productModule.exists())
 			productModule.create(false, true, null);
 		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
-		InternalResourceManager.loadResourceDirectory("winvmj-libraries", productModule.getLocation().toOSString());
+		InternalResourceManager.loadResourceDirectory("vmj-libraries", productModule.getLocation().toOSString());
 		WinVMJConsole.println("WinVMJ Libraries unpacked");
 	}
 
