@@ -36,8 +36,12 @@ def jarFile = file('${product}/${productName}.jar')
 def jf = new java.util.jar.JarFile(jarFile)
 def mainCls = jf.manifest?.mainAttributes?.getValue('Main-Class')
 
-def dbUser = '${dbUsername}'
-def dbPass = '${dbPassword}'
+def hibernateProperties = new Properties()
+file('hibernate.properties').withReader { reader ->
+    hibernateProperties.load(reader)
+}
+def dbUser = hibernateProperties.getProperty('hibernate.connection.username')
+def dbPass = hibernateProperties.getProperty('hibernate.connection.password')
 def dbName = "${dbname}"
 
 // === 1. CREATE DATABASE ===
@@ -81,7 +85,7 @@ task createTable {
         def command = [
             "java", 
             "-cp", cpString, 
-            mainCls // Ensure 'def mainCls = ...' is visible here
+            mainCls
         ]
 
         ProcessBuilder pb = new ProcessBuilder(command)
@@ -148,6 +152,16 @@ task loadSql(type: Exec) {
 tasks.register("runWinVMJ", JavaExec) {
     group = 'application'
     dependsOn loadSql
+    mainClass.set(mainCls)
+    classpath = files(jarFile)
+    classpath.from fileTree(dir: jarsDirFile, include: ['**/*.jar'])
+    classpath.from fileTree(dir: 'libs', include: ['**/*.jar'])
+    classpath.from files(project.projectDir)
+    classpath.from configurations.runtimeClasspath
+}
+
+tasks.register("runWinVMJNoSQL", JavaExec) {
+    group = 'application'
     mainClass.set(mainCls)
     classpath = files(jarFile)
     classpath.from fileTree(dir: jarsDirFile, include: ['**/*.jar'])
