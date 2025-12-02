@@ -9,7 +9,6 @@ import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -57,7 +56,7 @@ public class SourceCompiler {
 	private static String OUTPUT_FOLDER = "src-gen";
 	private static String OUTPUT_MODULES_FOLDER = "modules-gen";
 	private static String MODULES_FOLDER = "modules";
-	private static String LIB_FOLDER = "libs/default";
+	private static String LIB_FOLDER = "lib";
 	private static ArrayList<String> WINVMJ_LIBRARIES = new ArrayList<>(Arrays.asList(
 		"vmj.auth",
 		"vmj.auth.model",
@@ -75,7 +74,7 @@ public class SourceCompiler {
 				.getLocation().getPath());
 		Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
 		try {
-			WinVMJProduct sourceProduct = new ComposedProduct(project);
+						WinVMJProduct sourceProduct = new ComposedProduct(project);
 			IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
 			if (!compiledProductDir.exists())
 				compiledProductDir.create(false, true, null);
@@ -88,6 +87,7 @@ public class SourceCompiler {
 			compileModules(project, compiledProductDir, sourceProduct);
 			deleteLibraries(compiledProductDir.getFolder(sourceProduct.getProductQualifiedName()), srcResource);
 			insertSqlFolder(compiledProductDir, project);
+            importVMJLibraries(compiledProductDir, sourceProduct);
 		} catch (CoreException | IOException | URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -236,12 +236,25 @@ public class SourceCompiler {
 	}
 
 	private static void importWinVMJLibraries(IFolder compiledProductDir, WinVMJProduct product)
+	throws IOException, URISyntaxException, CoreException {
+		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+        if (!productModule.exists())
+            productModule.create(false, true, null);
+		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("winvmj-libraries", productModule.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+
+	private static void importVMJLibraries(IFolder compiledProductDir, WinVMJProduct product)
 			throws IOException, URISyntaxException, CoreException {
-		IFolder productModule = compiledProductDir.getFolder(LIB_FOLDER+"/default");
+		IFolder productModule = compiledProductDir.getFolder(LIB_FOLDER);
+		IFolder defaultLib = compiledProductDir.getFolder(LIB_FOLDER).getFolder("default");
 		if (!productModule.exists())
 			productModule.create(false, true, null);
+			if (!defaultLib.exists())
+				defaultLib.create(false, true, null);
 		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
-		InternalResourceManager.loadResourceDirectory("vmj-libraries", productModule.getLocation().toOSString());
+		InternalResourceManager.loadResourceDirectory("vmj-libraries", defaultLib.getLocation().toOSString());
 		WinVMJConsole.println("WinVMJ Libraries unpacked");
 	}
 

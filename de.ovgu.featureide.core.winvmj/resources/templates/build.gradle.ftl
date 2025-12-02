@@ -22,13 +22,19 @@ sourceSets {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs/default', include: ['*.jar'])
+    // Default WinVMJ dependencies
+    implementation fileTree(dir: 'libs/default', include: ['**/*.jar'])
     implementation 'javax.persistence:javax.persistence-api:2.2'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.hibernate:hibernate-core:5.5.0.Final'
     implementation 'com.auth0:java-jwt:4.4.0'
     implementation 'org.postgresql:postgresql:42.7.4'
+    
+    // Additional dependencies
 
+    <#list dependencies as dependency>
+    implementation '${dependency}'
+    </#list>
 }
 
 def jarsDirFile = file('${product}')

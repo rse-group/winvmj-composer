@@ -1,12 +1,21 @@
 package de.ovgu.featureide.core.winvmj.templates.impl;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Collections;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IFile;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
+import de.ovgu.featureide.core.winvmj.runtime.WinVMJConsole;
 import de.ovgu.featureide.core.winvmj.templates.TemplateRenderer;
 
 public class BuildGradleRenderer extends TemplateRenderer {
@@ -27,10 +36,12 @@ public class BuildGradleRenderer extends TemplateRenderer {
 
     protected Map<String, Object> extractDataModel(WinVMJProduct product) {
         Map<String, Object> dataModel = new HashMap<>();
-
+        List<String> dependencies = getDependencies();
+        WinVMJConsole.println("Dependencies: " + dependencies.toString());
         dataModel.put("dbname", product.getProductQualifiedName().replace(".", "_"));
         dataModel.put("product", product.getProductQualifiedName());
         dataModel.put("productName", product.getProductName());
+        dataModel.put("dependencies", dependencies);
         dataModel.put("dbUsername", dbUsername);
         dataModel.put("dbPassword", dbPassword);
         dataModel.put("SQLFolder", "sql");
@@ -39,5 +50,22 @@ public class BuildGradleRenderer extends TemplateRenderer {
 
     protected String loadTemplateFilename() {
         return "build.gradle";
+    }
+
+    private List<String> getDependencies() {
+        // Pre-compile the pattern (More efficient if called repeatedly)
+        Pattern pattern = Pattern.compile("implementation\\s*'((?:[^'\\\\\\r\\n\\t]|\\\\[^rnt])*)'");
+        try (BufferedReader reader = new BufferedReader(
+        		new InputStreamReader(
+        				project.getProject().getFile("build.gradle").getContents(), StandardCharsets.UTF_8))) {
+            return reader.lines() 
+                .map(pattern::matcher)       
+                .filter(Matcher::find)       
+                .map(m -> m.group(1))
+                .collect(Collectors.toList()); 
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Collections.emptyList(); // Return empty list on error
+        }
     }
 }
