@@ -37,7 +37,7 @@ public class BuildGradleRenderer extends TemplateRenderer {
     protected Map<String, Object> extractDataModel(WinVMJProduct product) {
         Map<String, Object> dataModel = new HashMap<>();
         List<String> dependencies = getDependencies();
-        WinVMJConsole.println("Dependencies: " + dependencies.toString());
+        // WinVMJConsole.println("Dependencies: " + dependencies.toString());
         dataModel.put("dbname", product.getProductQualifiedName().replace(".", "_"));
         dataModel.put("product", product.getProductQualifiedName());
         dataModel.put("productName", product.getProductName());
@@ -54,15 +54,15 @@ public class BuildGradleRenderer extends TemplateRenderer {
 
     private List<String> getDependencies() {
         // Pre-compile the pattern (More efficient if called repeatedly)
-        Pattern pattern = Pattern.compile("implementation\\s*'((?:[^'\\\\\\r\\n\\t]|\\\\[^rnt])*)'");
+        Pattern pattern = Pattern.compile("(?:(?:api|implementation|compileOnly|compileOnlyApi|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly))\\s*(['\"])((?:[^'\"\\r\\n\\t]|\\\\[^rnt])*)\\1");
         try (BufferedReader reader = new BufferedReader(
         		new InputStreamReader(
         				project.getProject().getFile("build.gradle").getContents(), StandardCharsets.UTF_8))) {
-            return reader.lines() 
-                .map(pattern::matcher)       
-                .filter(Matcher::find)       
-                .map(m -> m.group(1))
-                .collect(Collectors.toList()); 
+            return reader.lines()
+                .map(pattern::matcher)
+                .filter(Matcher::find)
+                .map(m -> m.group(0).trim())
+                .collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();
             return Collections.emptyList(); // Return empty list on error

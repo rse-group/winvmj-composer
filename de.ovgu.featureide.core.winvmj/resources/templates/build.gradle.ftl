@@ -23,7 +23,7 @@ sourceSets {
 
 dependencies {
     // Default WinVMJ dependencies
-    implementation fileTree(dir: 'libs/default', include: ['**/*.jar'])
+    implementation fileTree(dir: 'lib', include: ['**/*.jar'])
     implementation 'javax.persistence:javax.persistence-api:2.2'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'org.hibernate:hibernate-core:5.5.0.Final'
@@ -33,7 +33,7 @@ dependencies {
     // Additional dependencies
 
     <#list dependencies as dependency>
-    implementation '${dependency}'
+    ${dependency}
     </#list>
 }
 
