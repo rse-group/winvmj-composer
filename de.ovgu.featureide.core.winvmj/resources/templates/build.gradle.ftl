@@ -29,6 +29,7 @@ dependencies {
     implementation 'org.hibernate:hibernate-core:5.5.0.Final'
     implementation 'com.auth0:java-jwt:4.4.0'
     implementation 'org.postgresql:postgresql:42.7.4'
+    implementation 'commons-codec:commons-codec:1.20.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0'
     implementation 'com.fasterxml:classmate:1.5.1'
     implementation 'org.json:json:20250517'
