@@ -4,7 +4,7 @@
    <extension
          point="de.ovgu.featureide.core.composers">
       <composer
-            class="de.ovgu.featureide.core.winvmj.WinVMJComposer"
+            class="id.ac.ui.cs.prices.winvmj.composer.WinVMJComposer"
             description="Compose Web Backend with Delta-Oriented Programming approach"
             id="de.ovgu.featureide.core.winvmj.composer"
             name="WinVMJ"
@@ -14,7 +14,7 @@
    <extension
          point="de.ovgu.featureide.fm.core.FMComposer">
       <fmComposer
-            class="de.ovgu.featureide.core.winvmj.WinVMJFMComposer"
+            class="id.ac.ui.cs.prices.winvmj.composer.WinVMJFMComposer"
             composer="de.ovgu.featureide.core.winvmj.composer"
             id="de.ovgu.featureide.core.winvmj.fmcomposer"
             name="WinVMJ Feature Model Composer">
@@ -100,10 +100,10 @@
             >
             </command>
             <command
-                  commandId="de.ovgu.featureide.core.winvmj.ui.handlers.deploymentv2handler"
+                  commandId="de.ovgu.featureide.core.winvmj.ui.handlers.deploymenttoscahandler"
                   icon="resources/icons/FeatureIconSmall.ico"
-                  id="de.ovgu.featureide.core.winvmj.deploymentv2handler"
-                  label="Deployment V2"
+                  id="de.ovgu.featureide.core.winvmj.deploymenttoscahandler"
+                  label="Deployment via OpenTOSCA"
                   style="push">
             </command>
             <command
@@ -140,36 +140,36 @@
    <extension
          point="org.eclipse.ui.handlers">
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileHandler"
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.CompileHandler"
             commandId="de.ovgu.featureide.core.winvmj.compilehandler">
       </handler>
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.RoutingGenHandler"
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.RoutingGenHandler"
             commandId="de.ovgu.featureide.core.winvmj.routinggenhandler">
       </handler>
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileModulesHandler"
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.CompileModulesHandler"
             commandId="de.ovgu.featureide.core.winvmj.compileModulesHandler">
       </handler>
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.CompileModuleHandler"
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.CompileModuleHandler"
             commandId="de.ovgu.featureide.core.winvmj.compileModuleHandler">
       </handler>
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.OpenFeatureWizardHandler"
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.OpenFeatureWizardHandler"
             commandId="de.ovgu.featureide.core.winvmj.openfeaturewizardhandler">
       </handler>
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.DeploymentMenuWizardHandler"
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentMenuWizardHandler"
             commandId="de.ovgu.featureide.core.winvmj.deploymentmenuwizardhandler">
       </handler>
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.MicroservicesComposeHandler"
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.MicroservicesComposeHandler"
             commandId="de.ovgu.featureide.core.winvmj.microservicescomposehandler">
       </handler>
       <handler
-            class="de.ovgu.featureide.core.winvmj.ui.handlers.DeploymentV2Handler"
-            commandId="de.ovgu.featureide.core.winvmj.ui.handlers.deploymentv2handler">
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentToscaHandler"
+            commandId="de.ovgu.featureide.core.winvmj.ui.handlers.deploymenttoscahandler">
       </handler>
    </extension>
 </plugin>

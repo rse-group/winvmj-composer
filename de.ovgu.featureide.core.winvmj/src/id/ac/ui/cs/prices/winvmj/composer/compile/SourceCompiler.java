@@ -1,0 +1,865 @@
+package id.ac.ui.cs.prices.winvmj.composer.compile;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.URISyntaxException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import de.ovgu.featureide.core.CorePlugin;
+import de.ovgu.featureide.core.IFeatureProject;
+import de.ovgu.featureide.fm.core.base.IFeature;
+import id.ac.ui.cs.prices.winvmj.composer.Utils;
+import id.ac.ui.cs.prices.winvmj.composer.WinVMJComposer;
+import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
+import id.ac.ui.cs.prices.winvmj.composer.core.impl.ComposedMicroserviceProduct;
+import id.ac.ui.cs.prices.winvmj.composer.core.impl.ComposedProduct;
+import id.ac.ui.cs.prices.winvmj.composer.internal.InternalResourceManager;
+import id.ac.ui.cs.prices.winvmj.composer.microservicepreprocessor.ModulePreprocessor;
+import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.CorsPropertiesRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.EndpointsConfigRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.HibernatePropertiesRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixDeploymentScriptRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixRunAllScriptRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixRunScriptRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.WindowsDeploymentScriptRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.WindowsRunScriptRenderer;
+
+public class SourceCompiler {
+
+	private static String OUTPUT_FOLDER = "src-gen";
+	private static String OUTPUT_MODULES_FOLDER = "modules-gen";
+	private static String MODULES_FOLDER = "modules";
+	private static ArrayList<String> WINVMJ_LIBRARIES = new ArrayList<>(Arrays.asList(
+		"vmj.auth",
+		"vmj.auth.model",
+		"vmj.hibernate.integrator",
+		"vmj.object.mapper",
+		"vmj.routing.route"
+	));
+
+	private SourceCompiler() {
+	};
+
+	public static void compileSource(IFeatureProject project) {
+		try {
+			// Get All Product Modules
+			List<IFolder> productModules = Stream
+				    .of(project.getBuildFolder().members())  
+				    .filter(module -> module instanceof IFolder)  
+				    .map(module -> (IFolder) module)  
+				    .filter(folder -> folder.getName().contains(".product."))
+				    .collect(Collectors.toList()); 
+			
+			boolean isMicroservices = productModules.size() > 1;
+			
+			if (isMicroservices) {
+				String messagingModuleName = "vmj.messaging";
+				
+				Map<String,Integer> modulesCount = new HashMap<String, Integer>();
+		    	Set<WinVMJProduct> serviceProducts = new HashSet<WinVMJProduct>();
+				for (IFolder productModule : productModules) {
+					WinVMJProduct sourceProduct = new ComposedMicroserviceProduct(project, productModule);
+					serviceProducts.add(sourceProduct);
+					
+					for (IFolder module : sourceProduct.getModules()) {
+						String moduleName = module.getName();
+						if (moduleName.equals(messagingModuleName)) {
+							continue;
+						}
+						modulesCount.put(moduleName, modulesCount.getOrDefault(moduleName, 0) + 1);
+					}
+			    	
+				}
+				
+				Set<String> duplicateModuleNames = new HashSet<>();
+		    	for (Map.Entry<String, Integer> entry : modulesCount.entrySet()) {
+		    		String module = entry.getKey();
+					Integer moduleCount = entry.getValue();
+					
+					if (moduleCount >= 2) {
+						duplicateModuleNames.add(module);
+					}
+		    	}
+		    	Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(project.getProject());
+		    	Map<String,List<IFeature>> serviceDefMap = Utils.getMicroservicesDefinition(project);
+		    	Map<String,List<IFeature>> serviceNonExposedFeaturesMap = Utils.getMicroserviceNonExposedFeatures(project);
+		    	
+				for (WinVMJProduct sourceProduct : serviceProducts) {
+		        	IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+					if (!compiledProductDir.exists())
+						compiledProductDir.create(false, true, null);
+					compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
+					if (!compiledProductDir.exists())
+						compiledProductDir.create(false, true, null);
+					importWinVMJLibraries(compiledProductDir, sourceProduct);
+					importWinVMJProductConfigs(compiledProductDir);
+					importRabbitmqLibraries(compiledProductDir, sourceProduct);
+					generateConfigFiles(project, sourceProduct);
+					
+		        	// Pre-process module for specific product
+					String productModuleName = sourceProduct.getProductQualifiedName();
+					
+						// backup to save the module before modification
+					IFolder tempBackupModules = project.getProject().getFolder(".tmp_module_backup");
+				    if (!tempBackupModules.exists()) tempBackupModules.create(true, true, null);
+				    
+				   
+				    List<IFolder> modifiedModules = new ArrayList<>();
+				    
+				    	// get all selected feature module of a micro-service from service-def.json 
+				    List<IFeature> selectedFeatures = serviceDefMap.getOrDefault((sourceProduct.getProductName()), null);
+				    List<IFeature> nonExposedFeatures = serviceNonExposedFeaturesMap.getOrDefault((sourceProduct.getProductName()), null);
+				    
+				    List<IFeature> exposedFeatures = new ArrayList<>(selectedFeatures);
+				    exposedFeatures.removeAll(nonExposedFeatures);
+				    
+;				    Set<String> exposedFeatureModulesName = Utils.getSelectedFeatureModulesName(exposedFeatures, featureToModuleNameMap);
+
+				    for (IFolder module : sourceProduct.getModules()) {
+				    	boolean isDuplicatedModule = duplicateModuleNames.contains(module.getName());
+				    	boolean isExposedFeatureModule = exposedFeatureModulesName.contains(module.getName());
+				    	boolean isPreprocessedModule = isDuplicatedModule || !isExposedFeatureModule;
+				    	
+				    	if (isPreprocessedModule) {
+				    		// backup module
+				            IFolder backup = tempBackupModules.getFolder(module.getName());
+				            if (backup.exists()) backup.delete(true, null); 
+				            module.copy(backup.getFullPath(), true, null);   
+				            modifiedModules.add(module);
+				    	}
+				    	
+				        if (isDuplicatedModule) {
+				            ModulePreprocessor.modifyModuleInfo(module, productModuleName);
+				        }
+				        
+				        if (!isExposedFeatureModule) {
+				        	ModulePreprocessor.deleteResourceLayer(module);
+				        }
+				    }
+
+				    compileModules(project, compiledProductDir, sourceProduct);
+
+				    // Restore module
+				    for (IFolder module : modifiedModules) {
+				        IFolder backup = tempBackupModules.getFolder(module.getName());
+				        if (module.exists()) module.delete(true, null);
+				        backup.copy(module.getFullPath(), true, null); 
+				    }
+				    
+					insertSqlFolder(compiledProductDir, project);
+				}
+				compileAndPackageApiGateway(project);
+				
+				
+			} else {
+				IFolder productModule = productModules.get(0);
+				WinVMJProduct sourceProduct = new ComposedProduct(project, productModule);
+				IFolder compiledProductDir = project.getProject().getFolder(OUTPUT_FOLDER);
+				if (!compiledProductDir.exists())
+					compiledProductDir.create(false, true, null);
+				compiledProductDir = compiledProductDir.getFolder(sourceProduct.getProductName());
+				if (!compiledProductDir.exists())
+					compiledProductDir.create(false, true, null);
+				importWinVMJLibraries(compiledProductDir, sourceProduct);
+				importWinVMJProductConfigs(compiledProductDir);
+				generateConfigFiles(project, sourceProduct);
+				compileModules(project, compiledProductDir, sourceProduct);
+				insertSqlFolder(compiledProductDir, project);
+
+			}
+			
+		} catch (CoreException | IOException | URISyntaxException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void compileModulesSource(IFeatureProject project) throws URISyntaxException {
+		try {
+			IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
+			if (!compiledModulesDir.exists())
+				compiledModulesDir.create(false, true, null);
+			IFolder modulesDir = project.getProject().getFolder(MODULES_FOLDER);
+
+			final File file = new File(SourceCompiler.class
+					.getProtectionDomain().getCodeSource()
+					.getLocation().getPath());
+			
+			Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
+			IFolder externalDir = project.getProject().getFolder("external");
+
+			importWinVMJLibrariesForModules(compiledModulesDir);
+			compileFolderModules(project, compiledModulesDir, modulesDir);
+			deleteLibraries(compiledModulesDir, srcResource);
+			deleteExternal(compiledModulesDir, externalDir);
+		} catch (CoreException | IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void compileModuleSource(IFolder module, IFeatureProject project)
+	        throws URISyntaxException {
+		final File file = new File(SourceCompiler.class
+				.getProtectionDomain().getCodeSource()
+				.getLocation().getPath());
+		
+		Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
+        IFolder externalDir = project.getProject().getFolder("external");
+	    try {
+	        IFolder compiledModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
+	        if (!compiledModulesDir.exists())
+	            compiledModulesDir.create(false, true, null);
+
+	        IFile compiledJar = compiledModulesDir.getFile(module.getName() + ".jar");
+
+	        long moduleLastModified = getLastModifiedTime(module);
+	        long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
+
+	        
+	        Set<String> requirements = extractRequirements(project, module);
+	        boolean requiresUpdate = false;
+
+	        for (String require : requirements) {
+	        	if (WINVMJ_LIBRARIES.contains(require)) continue;
+				
+	            IFolder requireFolder = project.getProject().getFolder(MODULES_FOLDER).getFolder(require);
+	            if (requireFolder.exists()) {
+	                IFile generatedJar = compiledModulesDir.getFile(require + ".jar");
+
+	                long requireLastModified = getLastModifiedTime(requireFolder);
+	                long requireJarLastModified = generatedJar.exists() ? generatedJar.getLocalTimeStamp() : -1;
+
+	                if (!generatedJar.exists() || requireLastModified > requireJarLastModified) {
+	                    WinVMJConsole.println("Required module " + require + " is outdated. Recompiling...");
+	                    compileModuleSource(requireFolder, project);
+	                    requiresUpdate = true; 
+	                }
+	            }
+	        }
+	        if (requiresUpdate || moduleLastModified > jarLastModified) {
+	            WinVMJConsole.println("Compiling module " + module.getName() + "...");
+	            List<IResource> externalLibraries = listAllExternalLibraries(project);
+	            importWinVMJLibrariesForModules(compiledModulesDir);
+	            importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, module);
+	            compileModuleForProduct(project, compiledModulesDir, module, "compileModule");
+	            cleanBinaries(project);
+	        } else {
+	            WinVMJConsole.println("Module " + module.getName() + " is up-to-date. Skipping compilation.");
+	        }
+	        
+            deleteLibraries(compiledModulesDir, srcResource);
+            deleteExternal(compiledModulesDir, externalDir);
+	    } catch (CoreException | IOException e) {
+	        e.printStackTrace();
+	    }
+	}
+
+	private static void importWinVMJLibrariesForModules(IFolder compiledModulesDir)
+			throws IOException, URISyntaxException, CoreException {
+		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("winvmj-libraries",
+				compiledModulesDir.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+
+	private static List<String> parseModuleInfo(IFeatureProject project, IFolder module)
+			throws IOException, CoreException {
+		IFile moduleInfo = module.getFile("module-info.java");
+		List<String> requiredModules = new ArrayList<>();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(moduleInfo.getContents()));
+		String line = null;
+		while ((line = reader.readLine()) != null) {
+			String trimmedLine = line.trim();
+			if (trimmedLine.startsWith("requires")) {
+				String[] moduleStatement = trimmedLine.split(" ");
+				requiredModules.add(moduleStatement[moduleStatement.length - 1].replace(";", ""));
+			}
+		}
+		reader.close();
+		return requiredModules;
+	}
+
+	private static void generateConfigFiles(IFeatureProject project, WinVMJProduct product)
+			throws CoreException, IOException {
+		Properties dbProperties = new Properties();
+		dbProperties.load(project.getProject().getFile(WinVMJComposer.DB_CONFIG_FILENAME).getContents());
+
+		String dbUsername = dbProperties.getProperty("db.username");
+		String dbPassword = dbProperties.getProperty("db.password");
+		
+		WinVMJConsole.println("Generating additional config files for product...");
+
+		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
+		new CorsPropertiesRenderer(project).render(product);
+		// new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
+		new WindowsRunScriptRenderer(project, dbUsername, dbPassword).render(product);
+		new UnixRunScriptRenderer(project, dbUsername, dbPassword).render(product);
+		// new DeploymentScriptRenderer(project).render(product);
+		new WindowsDeploymentScriptRenderer(project).render(product);
+		new UnixDeploymentScriptRenderer(project).render(product);
+		new UnixRunAllScriptRenderer(project, dbUsername, dbPassword).render(product);
+		new EndpointsConfigRenderer(project).render(product);
+
+		WinVMJConsole.println("All additional config files has been generated");
+	}
+
+	private static void cleanBinaries(IFeatureProject project) throws CoreException {
+		IFolder binModuleFolder = project.getProject().getFolder("bin-comp");
+		if (binModuleFolder.exists())
+			binModuleFolder.delete(true, null);
+	}
+
+	private static void importWinVMJProductConfigs(IFolder compiledProductDir) throws IOException, CoreException {
+		WinVMJConsole.println("Unpack WinVMJ Configs for product...");
+		InternalResourceManager.loadResourceDirectory("winvmj-configs", compiledProductDir.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Configs unpacked");
+	}
+
+	private static void importWinVMJLibraries(IFolder compiledProductDir, WinVMJProduct product)
+			throws IOException, URISyntaxException, CoreException {
+		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+		if (!productModule.exists())
+			productModule.create(false, true, null);
+		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("winvmj-libraries", productModule.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+	
+	private static void importRabbitmqLibraries(IFolder compiledProductDir, WinVMJProduct product)
+			throws IOException, URISyntaxException, CoreException {
+		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+		if (!productModule.exists())
+			productModule.create(false, true, null);
+		WinVMJConsole.println("Unpack RabbitMQ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("microservice-preprocessor/rabbitmq-libraries", productModule.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+
+	private static void compileModules(IFeatureProject project, IFolder compiledProductDir, WinVMJProduct product)
+			throws CoreException, IOException {
+		String productModule = product.getProductQualifiedName();
+
+		IFolder generatedModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
+		List<IResource> externalLibraries = listAllExternalLibraries(project);
+		for (IFolder module : product.getModules()) {
+
+			boolean isJarCopied = false;
+
+			isJarCopied = copyInternalJarsByModuleName(project, generatedModulesDir, compiledProductDir, product,
+					module);
+
+			if (isJarCopied) {
+				WinVMJConsole.println("Module " + module.getName() + " copied to product folder");
+			} else {
+				importExternalLibrariesByModuleInfo(project, externalLibraries, compiledProductDir, product, module);
+				compileModuleForProduct(project, compiledProductDir, module, productModule);
+			}
+
+		}
+		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
+		cleanBinaries(project);
+	}
+
+	public static void deleteLibraries(IFolder compiledModulesDir, Path winvmjLibrariesDir) throws CoreException {
+		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
+
+		Set<String> jarNamesFromLibraries = new HashSet<>();
+	    try (DirectoryStream<Path> stream = Files.newDirectoryStream(winvmjLibrariesDir, "*.jar")) {
+	        for (Path jarPath : stream) {
+	            jarNamesFromLibraries.add(jarPath.getFileName().toString());
+	        }
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+
+	    // Add specific files to delete manually
+	    Set<String> filesToDelete = new HashSet<>(Arrays.asList(
+	        "cas.client.jar",
+	        "commons-logging-1.2.jar",
+	        "sqlite.jdbc.jar"
+	    ));
+
+	    jarNamesFromLibraries.addAll(filesToDelete);
+
+	    // Delete matching files from compiledModulesDir
+	    for (IResource resource : compiledModulesDir.members()) {
+	        if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+	            if (jarNamesFromLibraries.contains(resource.getName())) {
+	                resource.delete(true, null);
+	            }
+	        }
+	    }
+	}
+
+	private static void deleteExternal(IFolder compiledModulesDir, IFolder externalDir)
+			throws CoreException, IOException {
+		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
+
+		Set<String> baseNames = new HashSet<>();
+		for (IResource resource : externalDir.members()) {
+			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+				String baseName = getBaseNameFromFile(resource.getName());
+				baseNames.add(baseName);
+			}
+		}
+		for (IResource resource : compiledModulesDir.members()) {
+			if (resource.getType() == IResource.FILE && resource.getName().endsWith(".jar")) {
+				String baseName = getBaseNameFromFile(resource.getName());
+				if (baseNames.contains(baseName)) {
+					resource.delete(true, null);
+				}
+			}
+		}
+	}
+
+	private static boolean copyInternalJarsByModuleName(IFeatureProject project, IFolder generatedModulesDir,
+			IFolder compiledProductDir, WinVMJProduct product, IFolder module) throws CoreException, IOException {
+
+		if (!generatedModulesDir.exists()) {
+			return false;
+		}
+
+		IResource[] internalResources = generatedModulesDir.members();
+		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+
+		String moduleName = module.getName();
+
+		for (IResource internalResource : internalResources) {
+			if (internalResource instanceof IFile && internalResource.getName().endsWith(".jar")) {
+				String internalBaseName = getBaseNameFromFile(internalResource.getName());
+
+				if (internalBaseName.equals(moduleName)) {
+					IFolder moduleFolder = project.getProject().getFolder(MODULES_FOLDER).getFolder(moduleName);
+		            long moduleLastModified = getLastModifiedTime(moduleFolder);
+		            long JarLastModified = internalResource.exists() ? internalResource.getLocalTimeStamp() : -1;
+		            if (moduleLastModified > JarLastModified) {
+		                WinVMJConsole.println("Required module " + moduleName + " is outdated. Recompiling...");
+		                return false;
+		            }
+					else {
+						WinVMJConsole.println(
+								"Copying internal JAR: " + internalResource.getName() + " to " + productModule.getName());
+						copyFile((IFile) internalResource, productModule);
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private static String getBaseNameFromFile(String fileName) {
+		int dashIndex = fileName.lastIndexOf('-');
+		int dotIndex = fileName.lastIndexOf('.');
+		if (dashIndex > 0 && dotIndex > dashIndex) {
+			return fileName.substring(0, dashIndex);
+		}
+		return fileName.substring(0, dotIndex);
+	}
+
+	private static List<IFolder> getModulesFromComposedProduct(IFeatureProject featureProject) throws CoreException {
+		List<String> moduleOrders = getModuleOrdersByMappings(featureProject, featureProject.getProject());
+		List<IFolder> orderedSourceModules = new ArrayList<>();
+		for (String module : moduleOrders) {
+			orderedSourceModules.add(featureProject.getProject().getFolder("modules").getFolder(module));
+		}
+
+		return orderedSourceModules;
+	}
+
+	private static List<String> getModuleOrdersByMappings(IFeatureProject featureProject, IProject project)
+			throws CoreException {
+		List<String> moduleOrders = new ArrayList<>();
+
+		Reader mapReader = new InputStreamReader(
+				project.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents());
+		Gson gson = new Gson();
+		Map<String, List<String>> splMappings = gson.fromJson(mapReader,
+				new TypeToken<LinkedHashMap<String, List<String>>>() {
+				}.getType());
+
+		for (Entry<String, List<String>> mapping : splMappings.entrySet()) {
+			String key = mapping.getKey();
+			List<String> value = mapping.getValue();
+
+			if (Utils.isMultiLevelDelta(mapping)) {
+				String multiLevelDeltaModule = changeDeltaModule(value.get(0), key.toLowerCase(), featureProject);
+				value.add(multiLevelDeltaModule);
+			}
+
+			moduleOrders.addAll(value);
+		}
+
+		return moduleOrders.stream().distinct().collect(Collectors.toList());
+	}
+
+	private static String changeDeltaModule(String module, String deltaName, IFeatureProject featureProject) {
+		String[] splittedModule = module.split("\\.");
+		String splName = splittedModule[0];
+		String featureName = splittedModule[1];
+		String multiLevelDeltaModule = String.format("%s.%s.%s", splName, featureName, deltaName);
+
+		IFolder moduleFolder = featureProject.getBuildFolder().getFolder(multiLevelDeltaModule + featureName);
+		if (moduleFolder.exists())
+			multiLevelDeltaModule += featureName;
+
+		return multiLevelDeltaModule;
+	}
+
+	private static void compileFolderModules(IFeatureProject project, IFolder compiledModulesDir, IFolder modulesDir)
+			throws CoreException, IOException {
+		IResource[] moduleResources = modulesDir.members();
+		List<IResource> externalLibraries = listAllExternalLibraries(project);
+
+		List<IFolder> modulesFromFeatureJSON = getModulesFromComposedProduct(project);
+
+		Set<IResource> filteredModule = new LinkedHashSet<>();
+		filteredModule.addAll(modulesFromFeatureJSON.stream()
+				.filter(folder -> Arrays.stream(moduleResources)
+						.anyMatch(resource -> resource.getName().equals(folder.getName())))
+				.collect(Collectors.toList()));
+		
+		filteredModule.addAll(Arrays.asList(moduleResources));
+		
+		for (IResource resource : filteredModule) {
+			if (resource instanceof IFolder) {
+				IFolder moduleFolder = (IFolder) resource;
+				IFile compiledJar = compiledModulesDir.getFile(moduleFolder.getName() + ".jar");
+
+				long moduleLastModified = getLastModifiedTime(moduleFolder);
+				long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
+
+				if (compiledJar.exists() && moduleLastModified <= jarLastModified) {
+					WinVMJConsole.println(
+							"Module " + moduleFolder.getName() + " has already been generated and is up-to-date");
+					System.out.println(
+							"Module " + moduleFolder.getName() + " has already been generated and is up-to-date");
+					continue;
+				}
+
+				if (!(moduleFolder.getName().contains("product.template"))) {
+					importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir,
+							moduleFolder);
+					compileModuleForProduct(project, compiledModulesDir, moduleFolder, "");
+				}
+
+			}
+		}
+
+		cleanBinaries(project);
+	}
+
+	private static long getLastModifiedTime(IFolder folder) throws CoreException {
+		long latestTimestamp = folder.getLocalTimeStamp();
+		for (IResource resource : folder.members()) {
+			if (resource instanceof IFile) {
+				latestTimestamp = Math.max(latestTimestamp, resource.getLocalTimeStamp());
+			} else if (resource instanceof IFolder) {
+				latestTimestamp = Math.max(latestTimestamp, getLastModifiedTime((IFolder) resource));
+			}
+		}
+		return latestTimestamp;
+	}
+
+	private static void importExternalLibrariesByModuleInfoForModules(IFeatureProject project,
+			List<IResource> externalLibs, IFolder compiledModulesDir, IFolder module)
+			throws IOException, CoreException {
+		List<String> requiredModules = parseModuleInfo(project, module);
+		for (String requiredModule : requiredModules) {
+			Stream.of(externalLibs).forEach(els -> {
+				els.forEach(el -> {
+					try {
+						copyFile((IFile) el, compiledModulesDir);
+					} catch (CoreException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				});
+			});
+		}
+	}
+
+	private static List<IResource> listAllExternalLibraries(IFeatureProject project) throws CoreException {
+		List<IResource> externalLibraries = new ArrayList<>();
+		for (IProject externalProject : project.getProject().getReferencedProjects()) {
+			CorePlugin.getDefault();
+			externalLibraries.addAll(listAllExternalLibraries(CorePlugin.getFeatureProject(externalProject)));
+		}
+		externalLibraries.addAll(
+				Arrays.asList(project.getProject().getFolder(WinVMJComposer.EXTERNAL_LIB_FOLDERNAME).members()));
+		return externalLibraries;
+	}
+
+	private static void importExternalLibrariesByModuleInfo(IFeatureProject project, List<IResource> externalLibs,
+			IFolder compiledProductDir, WinVMJProduct product, IFolder module) throws IOException, CoreException {
+		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
+		List<String> requiredModules = parseModuleInfo(project, module);
+		for (String requiredModule : requiredModules) {
+			Stream.of(externalLibs).forEach(els -> {
+				els.forEach(el -> {
+					try {
+						copyFile((IFile) el, productModule);
+					} catch (CoreException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				});
+			});
+		}
+	}
+
+	private static void compileModuleForProduct(IFeatureProject project, IFolder productDir, IFolder module,
+			String productModule) throws CoreException, IOException {
+		IFolder compiledFolder;
+
+		if (productModule != "" && productModule != "compileModule") {
+			compiledFolder = productDir.getFolder(productModule);
+		} else {
+			compiledFolder = productDir;
+		}
+
+		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(module.getName());
+
+		List<String> compileCommand = constructCompileCommand(project, module, binFolder, compiledFolder, productModule);
+
+		System.out.println(String.join(" ", compileCommand));
+
+		try {
+		    JavaCLI.execute("Compiling " + module + " module...", module + " module compiled", compileCommand);
+		} catch (Exception e) {
+			WinVMJConsole.println("Compilation failed for module: " + module + ". Skipping packaging.");
+		    return;
+		}
+
+		List<String> jarCommand = constructJARCommand(binFolder, compiledFolder, module.getName());
+
+		System.out.println(String.join(" ", jarCommand));
+
+		JavaCLI.execute("Packaging " + module + " module...", module + " module packaged", jarCommand);
+	}
+
+	public static void compileProductJar(IFeatureProject project, IFolder productDir, String productModule,
+			String productName) throws IOException, CoreException {
+		IFolder compiledProductFolder = productDir.getFolder(productModule);
+		IFolder binFolder = project.getProject().getFolder("bin-comp").getFolder(productModule);
+
+		List<String> compileCommand = constructCompileCommand(project, project.getBuildFolder().getFolder(productModule),
+				binFolder, compiledProductFolder, "");
+
+		System.out.println(String.join(" ", compileCommand));
+
+		JavaCLI.execute("Compiling " + productModule + " module...", productModule + " module compiled",
+				compileCommand);
+
+		String mainClass = productModule + "." + productName;
+
+		List<String> jarCommand = constructJARCommand(binFolder, compiledProductFolder, productName, mainClass);
+
+		System.out.println(String.join(" ", jarCommand));
+
+		JavaCLI.execute("Compiling " + productModule + " product module...", productModule + " product module packaged",
+				jarCommand);
+	}
+
+	private static List<String> constructCompileCommand(IFeatureProject project, IFolder sourceFolder, IFolder binFolder, IFolder modulePath, String handleRequirements)
+			throws CoreException, IOException {
+
+		List<String> modulePaths = transverseModuleFilePaths(sourceFolder);
+
+		List<String> compileCommand = new ArrayList<>();
+		compileCommand.add("javac");
+		compileCommand.add("-d");
+		compileCommand.add(quoteString(binFolder.getLocation().toOSString()));
+		compileCommand.add("--module-path");
+		compileCommand.add(quoteString(modulePath.getLocation().toOSString()));
+		compileCommand.addAll(modulePaths);
+
+		return compileCommand;
+	}
+	
+	private static Set<String> extractRequirements(IFeatureProject project, IFolder moduleFolder) throws CoreException {
+	    Set<String> dependencies = new HashSet<>();
+	    
+	    IFile moduleInfoFile = moduleFolder.getFile("module-info.java");
+	    if (moduleInfoFile.exists()) {
+	        try (BufferedReader reader = new BufferedReader(new InputStreamReader(moduleInfoFile.getContents()))) {
+	            String line;
+	            while ((line = reader.readLine()) != null) {
+	                line = line.trim();
+	                if (line.startsWith("requires ")) {
+	                    String[] parts = line.split("\\s+");
+	                    
+	                    String requiredModule = parts.length == 3 ? parts[2] : parts[1];
+	                    requiredModule = requiredModule.replace(";", "");
+	                    
+	                    if (project.getProject().getFolder("modules").getFolder(requiredModule).exists()) {
+	                        dependencies.add(requiredModule);
+	                    }
+	                }
+	            }
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        }
+	    }
+
+	    return dependencies;
+	}
+
+	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, String jarName)
+			throws CoreException {
+		return constructJARCommand(binFolder, destFolder, jarName, "");
+	}
+
+	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, String jarName,
+			String mainClass) throws CoreException {
+		IFile jarFile = destFolder.getFile(jarName + ".jar");
+
+		List<String> jarCommand = new ArrayList<>();
+		jarCommand.add("jar");
+		jarCommand.add("--create");
+		jarCommand.add("--file");
+		jarCommand.add(quoteString(jarFile.getLocation().toOSString()));
+		if (mainClass.length() > 0) {
+			jarCommand.add("--main-class");
+			jarCommand.add(mainClass);
+		}
+		jarCommand.add("-C");
+		jarCommand.add(quoteString(binFolder.getLocation().toOSString()));
+		jarCommand.add(".");
+
+		return jarCommand;
+	}
+
+	private static List<String> transverseModuleFilePaths(IFolder module) throws CoreException {
+		List<String> fileNames = new ArrayList<>();
+		transverseModuleFilePaths(module, fileNames);
+
+		return fileNames;
+	}
+
+	private static void transverseModuleFilePaths(IFolder submodule, List<String> fileNames) throws CoreException {
+		for (IResource resource : submodule.members()) {
+			if (resource instanceof IFolder)
+				transverseModuleFilePaths((IFolder) resource, fileNames);
+			else if (resource instanceof IFile && resource.getName().endsWith(".java"))
+				fileNames.add(quoteString(resource.getLocation().toOSString()));
+		}
+	}
+
+	private static void copyFile(IFile file, IFolder outputFolder) throws CoreException {
+		IFile copiedFile = outputFolder.getFile(file.getName());
+		if (!copiedFile.exists())
+			copiedFile.create(file.getContents(), false, null);
+		else
+			copiedFile.setContents(file.getContents(), 1, null);
+	}
+
+	private static boolean isWindows() {
+		return System.getProperty("os.name").toLowerCase().contains("win");
+	}
+
+	private static String quoteString(String str) {
+		if (isWindows())
+			return "\"" + str + "\"";
+		return "/" + str;
+	}
+
+	private static void insertSqlFolder(IFolder compiledProductDir, IFeatureProject project)
+			throws IOException, CoreException {
+		IFolder sqlFolder = project.getProject().getFolder("sql");
+		WinVMJConsole.println("Insert SQL Files");
+		IFolder sqlDestinationFolder = compiledProductDir.getFolder("sql");
+		if (!sqlDestinationFolder.exists())
+			sqlDestinationFolder.create(false, true, null);
+		for (IResource resource : sqlFolder.members()) {
+			copyFile((IFile) resource, compiledProductDir.getFolder("sql"));
+		}
+		WinVMJConsole.println("SQL Files inserted");
+	}
+	
+	public static void compileAndPackageApiGateway(IFeatureProject project) throws IOException, CoreException {
+		String apiGatewayDirName = "ApiGateway";
+		
+		IFolder binFolder = project.getProject().getFolder("bin-comp");
+		if (!binFolder.exists()){
+			binFolder.create(true, true, null);
+		}
+		
+		IFolder apiGatewayBin = binFolder.getFolder(apiGatewayDirName); // bin-comp/ApiGateway
+		IFolder compiledApiGatewayDir = project.getProject().getFolder(OUTPUT_FOLDER).getFolder(apiGatewayDirName); // src-gen/ApiGateway
+
+	    if (!apiGatewayBin.exists()) {
+	    	apiGatewayBin.create(true, true, null);
+	    }
+	    if (!compiledApiGatewayDir.exists()) {
+	    	compiledApiGatewayDir.create(true, true, null);
+	    }
+
+	    String sourceFile = project.getBuildFolder().getFolder("ApiGateway").getFile("ApiGateway.java").getLocation().toOSString();
+
+	    // Compile command
+	    List<String> compileCommand = new ArrayList<>();
+	    compileCommand.add("javac");
+	    compileCommand.add("-d");
+	    compileCommand.add(apiGatewayBin.getLocation().toOSString());
+	    compileCommand.add(sourceFile);
+
+	    JavaCLI.execute(
+	            "Compiling ApiGateway...", 
+	            "ApiGateway compiled", 
+	            compileCommand
+	    );
+
+	    // Jar command
+	    List<String> jarCommand = new ArrayList<>();
+	    jarCommand.add("jar");
+	    jarCommand.add("--create");
+	    jarCommand.add("--file");
+	    jarCommand.add(compiledApiGatewayDir.getLocation().append(apiGatewayDirName + ".jar").toOSString()); // src-gen/ApiGateway/ApiGateway.jar
+	    jarCommand.add("--main-class");
+	    jarCommand.add("ApiGateway");
+	    jarCommand.add("-C");
+	    jarCommand.add(apiGatewayBin.getLocation().toOSString());
+	    jarCommand.add(".");
+
+	    System.out.println(String.join(" ", jarCommand));
+
+	    JavaCLI.execute(
+	            "Packaging ApiGateway...", 
+	            "ApiGateway packaged", 
+	            jarCommand
+	    );
+	    
+	    InternalResourceManager.loadResourceFile("microservice-preprocessor/api-gateway/run.bat",
+				compiledApiGatewayDir.getLocation().toOSString() + "/run.bat");
+	}
+
+}

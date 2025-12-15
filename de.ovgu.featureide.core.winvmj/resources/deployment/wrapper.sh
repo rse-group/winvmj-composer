@@ -55,18 +55,18 @@ if [[ "$PROVISION" == "yes" ]]; then
     INSTANCE_NAME="$6"
     PUBLIC_KEY="$7"
 
-    if [ "$PROVIDER" == "aws" ]; then
-        USERNAME="ubuntu"
-        MACHINE_TYPE=${AWS_MACHINE_TYPE_MAP[$2]}
-        ZONE=${AWS_ZONE_MAP[$3]}
-    elif [ "$PROVIDER" == "gcp" ]; then
-        USERNAME=$1
-        MACHINE_TYPE=${GCP_MACHINE_TYPE_MAP[$2]}
-        ZONE=${GCP_ZONE_MAP[$3]}
-    else
-        echo "Error: Unsupported provider!"
-        exit 1
-    fi
+g    # if [ "$PROVIDER" == "aws" ]; then
+    #     USERNAME="ubuntu"
+    #     MACHINE_TYPE=${AWS_MACHINE_TYPE_MAP[$2]}
+    #     ZONE=${AWS_ZONE_MAP[$3]}
+    # elif [ "$PROVIDER" == "gcp" ]; then
+    #     USERNAME=$1
+    #     MACHINE_TYPE=${GCP_MACHINE_TYPE_MAP[$2]}
+    #     ZONE=${GCP_ZONE_MAP[$3]}
+    # else
+    #     echo "Error: Unsupported provider!"
+    #     exit 1
+    # fi
 
     ./terraform/create_vm.sh "$USERNAME" "$MACHINE_TYPE" "$ZONE" "$CREDENTIALS" "$PROVIDER" "$INSTANCE_NAME" "$PUBLIC_KEY"
 
