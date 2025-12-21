@@ -21,9 +21,9 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.MultiLevelDeltaTemplateRende
 public class MultiLevelDeltaResourceRenderer extends MultiLevelDeltaTemplateRenderer {
     private String featureVariationName;
     private List<String> defaultLibraries = new ArrayList<>(Arrays.asList(
-        "import vmj.routing.route.Route;",
-        "import vmj.routing.route.VMJExchange;",
-        "import vmj.routing.route.exceptions.*;",
+        "import id.ac.ui.cs.prices.winvmj.core.Route;",
+        "import id.ac.ui.cs.prices.winvmj.core.VMJExchange;",
+        "import id.ac.ui.cs.prices.winvmj.core.exceptions.*;",
         String.format("import %s.%s;", coreModule, featureName),
         String.format("import %s.%sResource;", coreModule, featureName),
         String.format("import %s.%sResourceDecorator;", coreModule, featureName),

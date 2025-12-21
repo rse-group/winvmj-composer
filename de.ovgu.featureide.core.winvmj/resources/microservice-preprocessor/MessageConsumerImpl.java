@@ -2,7 +2,7 @@ import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import vmj.hibernate.integrator.RepositoryUtil;
+import id.ac.ui.cs.prices.winvmj.hibernate.RepositoryUtil;
 import vmj.messaging.Property;
 import vmj.messaging.StateTransferMessage;
 import vmj.messaging.MessageConsumeException;

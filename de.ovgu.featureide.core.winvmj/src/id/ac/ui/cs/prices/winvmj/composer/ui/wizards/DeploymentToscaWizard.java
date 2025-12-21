@@ -186,13 +186,13 @@ public class DeploymentToscaWizard extends Wizard {
             yaml.append("aws_ssh_key_file: \"").append(sshKeyPath).append("\"\n");
         } else if ("GCP".equalsIgnoreCase(provider)) {
             yaml.append("# GCP Configuration\n");
-            yaml.append("gcp_service_account_file: \"").append(gcpServiceAccountFile).append("\"\n");
+            yaml.append("gcp_service_account_file: \"").append(convertWindowsPathToWslPath(gcpServiceAccountFile)).append("\"\n");
             yaml.append("gcp_project: \"").append(gcpProject).append("\"\n");
             yaml.append("gcp_instance_type: \"").append(NFRDefinition.getInstance().get()).append("\"\n");
             yaml.append("gcp_region: \"").append(region).append("\"\n");
             yaml.append("gcp_zone: \"").append(gcpZone).append("\"\n");
             yaml.append("gcp_ssh_user: \"").append(gcpSshUser).append("\"\n");
-            yaml.append("gcp_ssh_key_file: \"").append(sshKeyPath).append("\"\n");
+            yaml.append("gcp_ssh_key_file: \"").append(convertWindowsPathToWslPath(sshKeyPath)).append("\"\n");
         }
         
         try (FileWriter writer = new FileWriter(inputsFilePath)) {

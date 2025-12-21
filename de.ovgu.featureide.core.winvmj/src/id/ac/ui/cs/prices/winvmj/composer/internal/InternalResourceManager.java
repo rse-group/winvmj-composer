@@ -28,13 +28,17 @@ public class InternalResourceManager {
 	}
 	
 	public static void loadJarResource(File jarPlugin, String resourceDirPath, String outPath) throws IOException {
+		String jarResourcePath = resourceDirPath.startsWith("resources/") 
+        ? resourceDirPath 
+        : "resources/" + resourceDirPath;
+		
 		final JarFile jar = new JarFile(jarPlugin);
 	    final Enumeration<JarEntry> entries = jar.entries();
 	    while(entries.hasMoreElements()) {
 	        final String name = entries.nextElement().getName();
-	        if (name.startsWith(resourceDirPath + "/")) {
+	        if (name.startsWith(jarResourcePath + "/")) {
 	        	InputStream initScript = InternalResourceManager.class.getResourceAsStream("/" + name);
-	        	String outFileName = name.replaceFirst(resourceDirPath, "");
+	        	String outFileName = name.replaceFirst(jarResourcePath, "");
 	        	File targetFile = new File(new File(outPath), outFileName);
 	        	System.out.println(targetFile.getAbsolutePath());
 	        	if (outFileName.endsWith("/")) {

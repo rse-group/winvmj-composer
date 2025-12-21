@@ -11,17 +11,17 @@ import java.util.Properties;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import vmj.routing.route.VMJCors;
-import vmj.routing.route.VMJServer;
-import vmj.routing.route.Router;
-import vmj.hibernate.integrator.HibernateUtil;
+import id.ac.ui.cs.prices.winvmj.core.VMJCors;
+import id.ac.ui.cs.prices.winvmj.core.VMJServer;
+import id.ac.ui.cs.prices.winvmj.core.Router;
+import id.ac.ui.cs.prices.winvmj.hibernate.HibernateUtil;
 import org.hibernate.cfg.Configuration;
 
 <#if defaultAuthModel>
-import vmj.auth.model.UserResourceFactory;
-import vmj.auth.model.RoleResourceFactory;
-import vmj.auth.model.core.UserResource;
-import vmj.auth.model.core.RoleResource;
+import id.ac.ui.cs.prices.winvmj.auth.model.UserResourceFactory;
+import id.ac.ui.cs.prices.winvmj.auth.model.RoleResourceFactory;
+import id.ac.ui.cs.prices.winvmj.auth.model.core.UserResource;
+import id.ac.ui.cs.prices.winvmj.auth.model.core.RoleResource;
 
 </#if>
 <#list imports as import>
@@ -52,19 +52,19 @@ public class ${productName} {
         setDBProperties("AMANAH_DB_PASSWORD","password", configuration);
 
 		<#if defaultAuthModel>
-		configuration.addAnnotatedClass(vmj.auth.model.core.Role.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.RoleComponent.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.RoleDecorator.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.RoleImpl.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.UserRole.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.UserRoleComponent.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.UserRoleDecorator.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.UserRoleImpl.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.User.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.UserComponent.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.UserDecorator.class);
-        configuration.addAnnotatedClass(vmj.auth.model.core.UserImpl.class);
-        configuration.addAnnotatedClass(vmj.auth.model.passworded.UserImpl.class);
+		configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.Role.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.RoleComponent.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.RoleDecorator.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.RoleImpl.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.UserRole.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.UserRoleComponent.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.UserRoleDecorator.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.UserRoleImpl.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.User.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.UserComponent.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.UserDecorator.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.UserImpl.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.passworded.UserImpl.class);
 
 		</#if>
 		<#list models as modelSpec>
@@ -99,17 +99,17 @@ public class ${productName} {
 		System.out.println("== CREATING OBJECTS AND BINDING ENDPOINTS ==");
 		<#if defaultAuthModel>
 		UserResource userResource = UserResourceFactory
-            .createUserResource("vmj.auth.model.core.UserResourceImpl"
+            .createUserResource("id.ac.ui.cs.prices.winvmj.auth.model.core.UserResourceImpl"
 			);
 
 		RoleResource roleResource = RoleResourceFactory
-        	.createRoleResource("vmj.auth.model.core.RoleResourceImpl"
+        	.createRoleResource("id.ac.ui.cs.prices.winvmj.auth.model.core.RoleResourceImpl"
 			);
         
         UserResource userPasswordedResource = UserResourceFactory
-	        .createUserResource("vmj.auth.model.passworded.UserResourceImpl"
+	        .createUserResource("id.ac.ui.cs.prices.winvmj.auth.model.passworded.UserResourceImpl"
 			,
-		    UserResourceFactory.createUserResource("vmj.auth.model.core.UserResourceImpl"));
+		    UserResourceFactory.createUserResource("id.ac.ui.cs.prices.winvmj.auth.model.core.UserResourceImpl"));
 		</#if>
 
 		<#list routings as moduleRoutings>
@@ -176,22 +176,22 @@ public class ${productName} {
 
 		</#list>
 		featureModelMappings.put(
-	            vmj.auth.model.core.UserComponent.class.getName(),
+	            id.ac.ui.cs.prices.winvmj.auth.model.core.UserComponent.class.getName(),
 				new HashMap<String, String[]>() {{
 					put("components", new String[] {
-						vmj.auth.model.core.UserComponent.class.getName()
+						id.ac.ui.cs.prices.winvmj.auth.model.core.UserComponent.class.getName()
 					});
 					put("deltas", new String[] {
-						vmj.auth.model.passworded.UserImpl.class.getName()
+						id.ac.ui.cs.prices.winvmj.auth.model.passworded.UserImpl.class.getName()
 					});
 				}}
 	        );
 	        
 	    featureModelMappings.put(
-				vmj.auth.model.core.RoleComponent.class.getName(),
+				id.ac.ui.cs.prices.winvmj.auth.model.core.RoleComponent.class.getName(),
 				new HashMap<String, String[]>() {{
 					put("components", new String[] {
-						vmj.auth.model.core.RoleComponent.class.getName()
+						id.ac.ui.cs.prices.winvmj.auth.model.core.RoleComponent.class.getName()
 					});
 					put("deltas", new String[] {
 					});
@@ -199,10 +199,10 @@ public class ${productName} {
 	        );
 	    
 	    featureModelMappings.put(
-				vmj.auth.model.core.UserRoleComponent.class.getName(),
+				id.ac.ui.cs.prices.winvmj.auth.model.core.UserRoleComponent.class.getName(),
 				new HashMap<String, String[]>() {{
 					put("components", new String[] {
-						vmj.auth.model.core.UserRoleComponent.class.getName()
+						id.ac.ui.cs.prices.winvmj.auth.model.core.UserRoleComponent.class.getName()
 					});
 					put("deltas", new String[] {
 					});

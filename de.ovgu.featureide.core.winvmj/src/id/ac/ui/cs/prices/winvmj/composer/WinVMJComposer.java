@@ -62,6 +62,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	public static String INTER_SPL_PRODUCT_MAPPER_FILENAME = "inter_spl_product.json";
 	public static String DB_CONFIG_FILENAME = "db.properties";
+	public static String LIB_FOLDER = "libs";
 	public static String EXTERNAL_LIB_FOLDERNAME = "external";
 	public static String MODULE_FOLDERNAME = "modules";
 	public static String INTERFACES_FOLDERNAME = "interfaces";
@@ -355,6 +356,16 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			
 			IFolder externalLibFolder = project.getProject().getFolder(EXTERNAL_LIB_FOLDERNAME);
 			if (!externalLibFolder.exists()) externalLibFolder.create(false, true, null);
+
+			IFile buildGradleFile = project.getProject().getFile("build.gradle");
+			System.out.println(buildGradleFile.exists());
+			System.out.println("Creating build.gradle");
+			if (!buildGradleFile.exists()) {
+				String buildGradleContent = "dependencies {\n    // Add dependencies here\n}";
+				InputStream buildGradleStream = new ByteArrayInputStream(buildGradleContent.getBytes());
+				buildGradleFile.create(buildGradleStream, true, null);
+			}
+			
 		} catch (CoreException | IOException e) {
 			WinVMJConsole.println(e.getMessage());
 			e.printStackTrace();

@@ -44,9 +44,11 @@ import id.ac.ui.cs.prices.winvmj.composer.core.impl.ComposedProduct;
 import id.ac.ui.cs.prices.winvmj.composer.internal.InternalResourceManager;
 import id.ac.ui.cs.prices.winvmj.composer.microservicepreprocessor.ModulePreprocessor;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.BuildGradleRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.CorsPropertiesRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.EndpointsConfigRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.HibernatePropertiesRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.SettingsGradleRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixDeploymentScriptRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixRunAllScriptRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixRunScriptRenderer;
@@ -58,18 +60,22 @@ public class SourceCompiler {
 	private static String OUTPUT_FOLDER = "src-gen";
 	private static String OUTPUT_MODULES_FOLDER = "modules-gen";
 	private static String MODULES_FOLDER = "modules";
+	private static String LIB_FOLDER = "lib";
 	private static ArrayList<String> WINVMJ_LIBRARIES = new ArrayList<>(Arrays.asList(
-		"vmj.auth",
-		"vmj.auth.model",
-		"vmj.hibernate.integrator",
-		"vmj.object.mapper",
-		"vmj.routing.route"
+		"id.ac.ui.cs.prices.winvmj.auth",
+		"id.ac.ui.cs.prices.winvmj.auth.model",
+		"id.ac.ui.cs.prices.winvmj.core",
+		"id.ac.ui.cs.prices.winvmj.hibernate" 
 	));
 
 	private SourceCompiler() {
 	};
 
 	public static void compileSource(IFeatureProject project) {
+		final File file = new File(SourceCompiler.class
+				.getProtectionDomain().getCodeSource()
+				.getLocation().getPath());
+		Path srcResource = Path.of(file.getAbsolutePath(), "resources", "winvmj-libraries");
 		try {
 			// Get All Product Modules
 			List<IFolder> productModules = Stream
@@ -193,8 +199,9 @@ public class SourceCompiler {
 				importWinVMJProductConfigs(compiledProductDir);
 				generateConfigFiles(project, sourceProduct);
 				compileModules(project, compiledProductDir, sourceProduct);
+				deleteLibraries(compiledProductDir.getFolder(sourceProduct.getProductQualifiedName()), srcResource);
 				insertSqlFolder(compiledProductDir, project);
-
+				importVMJLibraries(compiledProductDir, sourceProduct);
 			}
 			
 		} catch (CoreException | IOException | URISyntaxException e) {
@@ -317,6 +324,8 @@ public class SourceCompiler {
 		
 		WinVMJConsole.println("Generating additional config files for product...");
 
+		new BuildGradleRenderer(project, dbUsername, dbPassword).render(product);
+		new SettingsGradleRenderer(project).render(product);
 		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
 		new CorsPropertiesRenderer(project).render(product);
 		// new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
@@ -347,9 +356,23 @@ public class SourceCompiler {
 			throws IOException, URISyntaxException, CoreException {
 		IFolder productModule = compiledProductDir.getFolder(product.getProductQualifiedName());
 		if (!productModule.exists())
-			productModule.create(false, true, null);
+            productModule.create(false, true, null);
 		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
 		InternalResourceManager.loadResourceDirectory("winvmj-libraries", productModule.getLocation().toOSString());
+		WinVMJConsole.println("WinVMJ Libraries unpacked");
+	}
+
+	private static void importVMJLibraries(IFolder compiledProductDir, WinVMJProduct product)
+			throws IOException, URISyntaxException, CoreException {
+		IFolder productModule = compiledProductDir.getFolder(LIB_FOLDER);
+		IFolder defaultLib = compiledProductDir.getFolder(LIB_FOLDER).getFolder("default");
+		if (!productModule.exists())
+			productModule.create(false, true, null);
+			if (!defaultLib.exists())
+				defaultLib.create(false, true, null);
+		WinVMJConsole.println("Unpack WinVMJ Libraries for product...");
+		InternalResourceManager.loadResourceDirectory("winvmj-libraries", productModule.getLocation().toOSString());
+		InternalResourceManager.loadResourceDirectory("vmj-libraries", defaultLib.getLocation().toOSString());
 		WinVMJConsole.println("WinVMJ Libraries unpacked");
 	}
 	
