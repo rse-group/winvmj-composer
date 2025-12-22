@@ -326,7 +326,8 @@ public class SourceCompiler {
 
 		new BuildGradleRenderer(project, dbUsername, dbPassword).render(product);
 		new SettingsGradleRenderer(project).render(product);
-		new HibernatePropertiesRenderer(project, dbUsername, dbPassword).render(product);
+		new HibernatePropertiesRenderer(project, dbUsername, dbPassword, true).render(product);
+		new HibernatePropertiesRenderer(project, dbUsername, dbPassword, false).render(product);
 		new CorsPropertiesRenderer(project).render(product);
 		// new RunScriptRenderer(project, dbUsername, dbPassword).render(product);
 		new WindowsRunScriptRenderer(project, dbUsername, dbPassword).render(product);

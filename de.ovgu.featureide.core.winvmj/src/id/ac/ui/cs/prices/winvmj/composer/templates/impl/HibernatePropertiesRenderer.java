@@ -13,12 +13,14 @@ public class HibernatePropertiesRenderer extends TemplateRenderer {
 	
 	private String dbUsername;
 	private String dbPassword;
+	private boolean isInsideProduct;
 	
 	public HibernatePropertiesRenderer(IFeatureProject project, 
-			String dbUsername, String dbPassword) {
+			String dbUsername, String dbPassword, boolean isInsideProduct) {
 		super(project);
 		this.dbUsername = dbUsername;
 		this.dbPassword = dbPassword;
+		this.isInsideProduct = isInsideProduct;
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
@@ -35,7 +37,13 @@ public class HibernatePropertiesRenderer extends TemplateRenderer {
 	}
 	
 	protected IFile getOutputFile(WinVMJProduct product) {
-		return project.getProject().getFolder("src-gen")
+		return isInsideProduct ? 
+			project.getProject().getFolder("src-gen")
+				.getFolder(product.getProductName())
+				.getFolder(product.getProductQualifiedName())
+				.getFile("hibernate.properties")
+				
+		:   project.getProject().getFolder("src-gen")
 				.getFolder(product.getProductName())
 				.getFile("hibernate.properties");
 	}
