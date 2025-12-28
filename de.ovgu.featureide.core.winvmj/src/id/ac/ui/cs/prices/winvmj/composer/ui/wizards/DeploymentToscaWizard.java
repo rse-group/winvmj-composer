@@ -92,6 +92,7 @@ public class DeploymentToscaWizard extends Wizard {
         String provider = credentialAndProductPage.getProvider(); // AWS or GCP
         String region = credentialAndProductPage.getRegion();
         String productZipPath = isWindows ? convertWindowsPathToWslPath(project.getProject().getLocation().toFile().toPath().resolve("application.zip").toString()) : project.getProject().getLocation().toFile().toPath().resolve("application.zip").toString();
+        String frontEndZipPath = isWindows ? convertWindowsPathToWslPath(credentialAndProductPage.getFrontEndPath()) : credentialAndProductPage.getFrontEndPath();
         String sshKeyPath = isWindows ? convertWindowsPathToWslPath(credentialAndProductPage.getSshKeyPath()) : credentialAndProductPage.getSshKeyPath();
         String sshKey = sshKeyPath.split("/")[sshKeyPath.split("/").length-1];
         try {
@@ -141,6 +142,7 @@ public class DeploymentToscaWizard extends Wizard {
                     templateName,
                     templateDir,
                     productZipPath,
+                    frontEndZipPath,
                     inputsFilePath
                 );
                 
@@ -174,6 +176,12 @@ public class DeploymentToscaWizard extends Wizard {
         yaml.append("db_password: \"").append(dbPassword).append("\"\n");
         yaml.append("db_username: \"").append(dbUsername).append("\"\n");
         yaml.append("db_name: \"").append(dbName).append("\"\n\n");
+
+        yaml.append("# Frontend Configuration\n");
+        yaml.append("frontend_port: 80\n");
+        yaml.append("backend_port: 8080\n");
+        yaml.append("backend_host: \"localhost\"\n\n");
+    
         
         if ("AWS".equalsIgnoreCase(provider)) {
             yaml.append("# AWS Configuration\n");
@@ -207,7 +215,7 @@ public class DeploymentToscaWizard extends Wizard {
     /**
      * Run TOSCA deployment using Vintner
      */
-    private void runToscaDeployment(String templateName, String templateDir, String sourceJarPath, String toscaInputPath) {
+    private void runToscaDeployment(String templateName, String templateDir, String sourceJarPath, String frontEndZipPath, String toscaInputPath) {
         boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
         String scriptsDir = templateDir + "/scripts";
         
@@ -237,6 +245,7 @@ public class DeploymentToscaWizard extends Wizard {
             command.add(templateDir);
             command.add(deploymentVariant);
             command.add(convertWindowsPathToWslPath(sourceJarPath));
+            command.add(frontEndZipPath);
             command.add(convertWindowsPathToWslPath(toscaInputPath));
             
         } else {
@@ -257,6 +266,7 @@ public class DeploymentToscaWizard extends Wizard {
             command.add(templateDir);
             command.add(deploymentVariant);
             command.add(sourceJarPath);
+            command.add(frontEndZipPath);
             command.add(toscaInputPath);
         }
         

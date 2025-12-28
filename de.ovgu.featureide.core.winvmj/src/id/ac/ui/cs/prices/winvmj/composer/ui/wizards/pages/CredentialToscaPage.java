@@ -20,6 +20,7 @@ import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.NFRDef
 public class CredentialToscaPage extends WizardPage {
 
     private Text credentialFileText;
+    private Text frontendProductFileText;
     private Text productFileText;
     private Text privKeyText;
     private Text pubKeyText;
@@ -139,7 +140,25 @@ public class CredentialToscaPage extends WizardPage {
                 setPageComplete(validateToscaPage());
             }
         });
-        
+
+        createLabel(container, "Front End Zip (.zip):");
+        frontendProductFileText = new Text(container, SWT.BORDER);
+        frontendProductFileText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        frontendProductFileText.addListener(SWT.Modify, e -> setPageComplete(validateToscaPage()));
+
+        Button browseFrontendProductButton = new Button(container, SWT.PUSH);
+        browseFrontendProductButton.setText("Browse...");
+        browseFrontendProductButton.addListener(SWT.Selection, e -> {
+            FileDialog dialog = new FileDialog(getShell(), SWT.OPEN);
+            dialog.setFilterExtensions(new String[]{"*.zip"});
+            dialog.setFilterNames(new String[]{"ZIP Files (*.zip)"});
+            String selected = dialog.open();
+            if (selected != null) {
+                frontendProductFileText.setText(selected);
+                setPageComplete(validateToscaPage());
+            }
+        });
+                
         createLabel(container, "SSH Private Key:");
         privKeyText = new Text(container, SWT.BORDER);
         privKeyText.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
@@ -469,6 +488,10 @@ public class CredentialToscaPage extends WizardPage {
 
     public String getProductFilePath() {
         return productFileText.getText();
+    }
+
+    public String getFrontEndPath() {
+        return frontendProductFileText.getText();
     }
     
     public String getPrivKeyFilePath() {
