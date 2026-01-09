@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?> 
+<cheatsheet title="First FeatureIDE Project" id="de.ovgu.featureide.ui.doc.setup">
+	<intro>
+		<description>
+It is now time to compile and run the product. 
+</description>
+</intro>
+   <item
+         title="Prerequisites">
+      <description>
+         1. Generate modules from UML-DOP before proceeding to the next steps. <br/>
+2. Move the generated modules from your UML-DOP directory to the modules directory in the project where you want to generate them.
+      </description>
+   </item>
+   <item
+         title="Generating a product">
+      <description>
+         <b>Generating the Product</b><br/><br/>
+    The product generation starts by creating a new configuration:<br/><br/>
+    <b>1.</b> The configuration is defined in the directory <b>configs</b>.<br/>
+    <b>2.</b> Right click on the project, then select <b>NEW -&gt; OTHER -&gt; FeatureIDE -&gt; Configuration File</b>.<br/>
+    <b>3.</b> Define the configuration file&apos;s name to represent the product&apos;s name.<br/>
+    <b>4.</b> Select the required features, then right click on the configuration file and choose <b>FeatureIDE -&gt; Set As Current Configuration</b>.<br/><br/>
+    Generated modules are available in the directory <b>src</b>, If the generated modules do not appear, make sure you have generated the modules from the UML and placed them in the modules directory.<br/><br/>
+      </description>
+   </item>
+	
+ <item
+       title="Compiling a product">
+    <description>
+    <b>Compiling a Product</b><br/><br/>
+    If you feel that the generated product is ready, you can compile it by following these steps:<br/><br/>
+    <b>1.</b> Right click on the <b>src</b> directory.<br/>
+    <b>2.</b> Select <b>FeatureIDE &gt; WinVMJ &gt; Compile</b>.<br/>
+    <b>3.</b> Please wait until the compilation process is completed. You can check the <b>WinVMJ Console</b> to track this process.<br/><br/>
+The generated application will be placed in the directory <b>src-gen</b>.
+</description>
+
+ </item>
+ <item
+       title="Running a product">
+    <description>
+       <b>Running the Product</b><br/><br/>
+    We can run the product by following these steps:<br/><br/>
+    <b>1.</b> On the top toolbar, click on <b>Run &gt; External Tools &gt; External Tool Configuration</b>.<br/>
+    <b>2.</b> Select the script location at <b>src-gen/[Product Name]/run.[bat (Windows) / sh (Linux / Mac)]</b>.<br/>
+    <b>3.</b> Select the working directory at <b>src-gen/[Product Name]/</b>.<br/><br/>
+    
+    <b>4.</b> Go to the <b>Environment</b> menu and add the following new environment variables:<br/>
+        - <b>PROJECTNAME_DB_USER</b> (e.g., <b>AMANAH_DB_USER</b>) -&gt; your PostgreSQL username (e.g., &quot;postgres&quot;)<br/>
+        - <b>PROJECTNAME_DB_PASSWORD</b> (e.g., <b>AMANAH_DB_PASSWORD</b>) -&gt; your PostgreSQL password (e.g., &quot;postgres&quot;)<br/>
+        - <b>PROJECTNAME_DB_URL</b> (e.g., <b>AMANAH_DB_URL</b>) -&gt; the Database URL (e.g., &quot;postgresql://localhost/{db_name}&quot;)<br/>
+          Example: <b>&quot;postgresql://localhost/bankaccount&quot;</b><br/><br/>
+    
+    <b>5.</b> Click <b>Apply</b> to save the environment variables.<br/><br/>
+    
+    <b>6.</b> Click <b>Run</b>.<br/>
+    </description>
+ </item>
+ 
+</cheatsheet>
