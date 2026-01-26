@@ -54,8 +54,9 @@ public class ${productName} {
 
 		<#if monitoringEnabled>
 		// Initialize OpenTelemetry monitoring
-		initializeMonitoring();
-		System.out.println("== MONITORING ENABLED - Prometheus metrics at :9464/metrics ==");
+		int monitoringPort = getMonitoringPort();
+		initializeMonitoring(monitoringPort);
+		System.out.println("== MONITORING ENABLED - Prometheus metrics at :" + monitoringPort + "/metrics ==");
 		</#if>
 
 		// get hostAddress and portnum from env var
@@ -265,6 +266,15 @@ public class ${productName} {
             int portNumInt = Integer.parseInt(portNum);
             return portNumInt;
     }
+	
+    <#if monitoringEnabled>
+    // Get monitoring port from env var, default 9464
+    public static int getMonitoringPort(){
+            String portNum = System.getenv("AMANAH_MONITORING_PORT")  != null? System.getenv("AMANAH_MONITORING_PORT")  : "9464";
+            int portNumInt = Integer.parseInt(portNum);
+            return portNumInt;
+    }
+	</#if>
 
 	public static void setCors() {
     	Properties properties = new Properties();
@@ -289,11 +299,11 @@ public class ${productName} {
 
 	<#if monitoringEnabled>
 
-	private static void initializeMonitoring() {
+	private static void initializeMonitoring(int port) {
 		try {
-			// Create Prometheus HTTP server on port 9464
+			// Create Prometheus HTTP server on configurable port
 			MetricReader prometheusReader = PrometheusHttpServer.builder()
-				.setPort(9464)
+				.setPort(port)
 				.build();
 			
 			// Build OpenTelemetry SDK with Prometheus exporter
@@ -311,7 +321,7 @@ public class ${productName} {
 				.setDescription("Total HTTP requests")
 				.build();
 				
-			System.out.println("OpenTelemetry initialized successfully");
+			System.out.println("OpenTelemetry initialized successfully on port " + port);
 		} catch (Exception e) {
 			System.err.println("Failed to initialize monitoring: " + e.getMessage());
 			e.printStackTrace();
