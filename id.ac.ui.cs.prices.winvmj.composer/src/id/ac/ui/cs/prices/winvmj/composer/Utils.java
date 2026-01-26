@@ -271,6 +271,28 @@ public class Utils {
 				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
 		return splMappings;
 	}
+	
+	public static Map<String, Map<String, Object>> getFeatureMonitoringConfig(IProject project) throws CoreException {
+		try {
+			Reader configReader = new InputStreamReader(project
+					.getFile(WinVMJComposer.MONITORING_CONFIG_FILENAME).getContents());
+			Gson gson = new Gson();
+			Map<String, Map<String, Object>> monitoringConfig = gson.fromJson(configReader,
+					new TypeToken<LinkedHashMap<String, Map<String, Object>>>() {}.getType());
+			return monitoringConfig != null ? monitoringConfig : new LinkedHashMap<>();
+		} catch (Exception e) {
+			return new LinkedHashMap<>();
+		}
+	}
+	
+	public static boolean isFeatureMonitoringEnabled(Map<String, Map<String, Object>> monitoringConfig, String featureName) {
+		if (monitoringConfig == null || !monitoringConfig.containsKey(featureName)) {
+			return false;
+		}
+		Map<String, Object> featureConfig = monitoringConfig.get(featureName);
+		Object enabled = featureConfig.get("enabled");
+		return enabled instanceof Boolean && (Boolean) enabled;
+	}
 
 	private static String getFeatureName(String module) {
 		String[] moduleParts = module.split("\\.");

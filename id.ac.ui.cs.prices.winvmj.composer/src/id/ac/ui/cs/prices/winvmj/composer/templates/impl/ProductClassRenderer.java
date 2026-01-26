@@ -46,6 +46,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	private Map<String, List<String>> featureToModuleMap;
+	private Map<String, Map<String, Object>> monitoringConfig;
 	protected List<String> selectedFeature;
 	private Map<String, Integer> variableNameCounts = new HashMap<>();
 
@@ -53,6 +54,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 		super(project);
 		try {
 			featureToModuleMap = Utils.getFeatureToModuleMap(project.getProject());
+			monitoringConfig = Utils.getFeatureMonitoringConfig(project.getProject());
 		} catch (CoreException e) {
 			e.printStackTrace();
 		}
@@ -66,6 +68,12 @@ public class ProductClassRenderer extends TemplateRenderer {
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("productName", product.getProductName());
 		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
+		
+		// Add monitoring configuration
+		boolean monitoringEnabled = isAnyFeatureMonitoringEnabled();
+		dataModel.put("monitoringEnabled", monitoringEnabled);
+		dataModel.put("monitoredFeatures", getMonitoredFeatures());
+		
 		try {
 			dataModel.put("imports", getImports(product));
 			dataModel.put("models", getRequiredModels(product));
@@ -542,5 +550,30 @@ public class ProductClassRenderer extends TemplateRenderer {
 		}
 
 		return null;
+	}
+
+	private boolean isAnyFeatureMonitoringEnabled() {
+		if (monitoringConfig == null || monitoringConfig.isEmpty()) {
+			return false;
+		}
+		for (String feature : selectedFeature) {
+			if (Utils.isFeatureMonitoringEnabled(monitoringConfig, feature)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private List<String> getMonitoredFeatures() {
+		List<String> monitoredFeatures = new ArrayList<>();
+		if (monitoringConfig == null || monitoringConfig.isEmpty()) {
+			return monitoredFeatures;
+		}
+		for (String feature : selectedFeature) {
+			if (Utils.isFeatureMonitoringEnabled(monitoringConfig, feature)) {
+				monitoredFeatures.add(feature);
+			}
+		}
+		return monitoredFeatures;
 	}
 }

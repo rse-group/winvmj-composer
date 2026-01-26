@@ -17,6 +17,17 @@ import id.ac.ui.cs.prices.winvmj.core.Router;
 import id.ac.ui.cs.prices.winvmj.hibernate.HibernateUtil;
 import org.hibernate.cfg.Configuration;
 
+<#if monitoringEnabled>
+// OpenTelemetry imports
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
+</#if>
+
 <#if defaultAuthModel>
 import id.ac.ui.cs.prices.winvmj.auth.model.UserResourceFactory;
 import id.ac.ui.cs.prices.winvmj.auth.model.RoleResourceFactory;
@@ -29,8 +40,23 @@ import ${import};
 </#list>
 
 public class ${productName} {
+    
+	<#if monitoringEnabled>
+
+	// OpenTelemetry monitoring fields
+	private static OpenTelemetry openTelemetry;
+	private static Meter meter;
+	private static LongCounter requestCounter;
+
+    </#if>
 
 	public static void main(String[] args) {
+
+		<#if monitoringEnabled>
+		// Initialize OpenTelemetry monitoring
+		initializeMonitoring();
+		System.out.println("== MONITORING ENABLED - Prometheus metrics at :9464/metrics ==");
+		</#if>
 
 		// get hostAddress and portnum from env var
         // ex:
@@ -260,6 +286,38 @@ public class ${productName} {
 			System.out.println("allowedOrigin = http://example.com");
         }
     }
+
+	<#if monitoringEnabled>
+
+	private static void initializeMonitoring() {
+		try {
+			// Create Prometheus HTTP server on port 9464
+			MetricReader prometheusReader = PrometheusHttpServer.builder()
+				.setPort(9464)
+				.build();
+			
+			// Build OpenTelemetry SDK with Prometheus exporter
+			SdkMeterProvider meterProvider = SdkMeterProvider.builder()
+				.registerMetricReader(prometheusReader)
+				.build();
+			
+			openTelemetry = OpenTelemetrySdk.builder()
+				.setMeterProvider(meterProvider)
+				.build();
+			
+			// Create meter and counter
+			meter = openTelemetry.getMeter("winvmj-app");
+			requestCounter = meter.counterBuilder("http_requests_total")
+				.setDescription("Total HTTP requests")
+				.build();
+				
+			System.out.println("OpenTelemetry initialized successfully");
+		} catch (Exception e) {
+			System.err.println("Failed to initialize monitoring: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	</#if>
 
 
 }
