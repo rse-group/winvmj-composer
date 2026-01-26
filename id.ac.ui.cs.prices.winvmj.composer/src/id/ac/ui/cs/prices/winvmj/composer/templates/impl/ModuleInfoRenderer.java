@@ -12,15 +12,18 @@ import org.eclipse.core.resources.IFolder;
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.Utils;
 
 public class ModuleInfoRenderer extends TemplateRenderer {
 
 	protected static List<String> exportedModules;
 	protected Map<String, List<String>> multiLevelDeltaMappings;
+	private Map<String, Map<String, Object>> monitoringConfig;
 	
 	public ModuleInfoRenderer(IFeatureProject project) {
 		super(project);
 		exportedModules = new ArrayList<>();
+		monitoringConfig = Utils.getFeatureMonitoringConfig(project.getProject());
 	}
 
 	public ModuleInfoRenderer(
@@ -30,6 +33,7 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		super(project);
 		exportedModules = new ArrayList<>();
 		this.multiLevelDeltaMappings = multiLevelDeltaMappings;
+		monitoringConfig = Utils.getFeatureMonitoringConfig(project.getProject());
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
@@ -38,6 +42,10 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("requiredModules", getRequiredModules(product));
 		dataModel.put("exportedModules", exportedModules);
+		
+		// Add monitoring flag for OpenTelemetry modules
+		boolean monitoringEnabled = isAnyFeatureMonitoringEnabled(product);
+		dataModel.put("monitoringEnabled", monitoringEnabled);
 		
 		return dataModel;
 	}
@@ -78,5 +86,17 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		}
 
 		return requiredModules;
+	}
+	
+	private boolean isAnyFeatureMonitoringEnabled(WinVMJProduct product) {
+		if (monitoringConfig == null || monitoringConfig.isEmpty()) {
+			return false;
+		}
+		for (String moduleName : product.getModuleNames()) {
+			if (Utils.isFeatureMonitoringEnabled(monitoringConfig, moduleName)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

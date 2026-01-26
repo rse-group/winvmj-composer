@@ -10,6 +10,14 @@ module ${productPackage} {
     requires com.fasterxml.classmate;
     requires jdk.unsupported;
 
+<#if monitoringEnabled>
+    // OpenTelemetry modules for monitoring
+    requires io.opentelemetry.api;
+    requires io.opentelemetry.sdk;
+    requires io.opentelemetry.sdk.metrics;
+    requires io.opentelemetry.exporter.prometheus;
+</#if>
+
     <#list requiredModules as requiredModule>
     requires ${requiredModule};
     </#list>
