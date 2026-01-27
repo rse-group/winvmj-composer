@@ -55,6 +55,7 @@ import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.MicroserviceProductClassRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.ModuleInfoRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.MonitoringAspectRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.ProductClassRenderer;
 
 public class WinVMJComposer extends ComposerExtensionClass {
@@ -295,8 +296,16 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(
 			featureProject, multiLevelDeltaMappings);
 		TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
+		MonitoringAspectRenderer monitoringAspectRenderer = new MonitoringAspectRenderer(featureProject);
+		
 		moduleInfoRenderer.render(product);
 		productClassRenderer.render(product);
+		
+		// Generate monitoring aspect if any feature has monitoring enabled
+		if (monitoringAspectRenderer.shouldRender()) {
+			monitoringAspectRenderer.render(product);
+			WinVMJConsole.println("[Monitoring] Generated MonitoringAspect.java");
+		}
 	}
 	
 	@Override
