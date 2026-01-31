@@ -5,17 +5,53 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 
-import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
 
 @Aspect
 public class MonitoringAspect {
 
-    private static final Meter meter = GlobalOpenTelemetry.getMeter("${productPackage}");
+    private static final OpenTelemetry openTelemetry;
+    private static final Meter meter;
+    
+    static {
+        // Initialize OpenTelemetry with Prometheus exporter
+        int port = getMonitoringPort();
+        System.out.println("== MONITORING ASPECT: Initializing OpenTelemetry on port " + port + " ==");
+        
+        try {
+            MetricReader prometheusReader = PrometheusHttpServer.builder()
+                .setPort(port)
+                .build();
+            
+            SdkMeterProvider meterProvider = SdkMeterProvider.builder()
+                .registerMetricReader(prometheusReader)
+                .build();
+            
+            openTelemetry = OpenTelemetrySdk.builder()
+                .setMeterProvider(meterProvider)
+                .build();
+            
+            meter = openTelemetry.getMeter("${productPackage}");
+            
+            System.out.println("== MONITORING ASPECT: OpenTelemetry initialized - Prometheus metrics at :" + port + "/metrics ==");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize OpenTelemetry monitoring", e);
+        }
+    }
+    
+    private static int getMonitoringPort() {
+        String portStr = System.getenv("AMANAH_MONITORING_PORT");
+        return portStr != null ? Integer.parseInt(portStr) : 9464;
+    }
     
     private static final LongCounter methodCallCounter = meter
         .counterBuilder("method_calls_total")

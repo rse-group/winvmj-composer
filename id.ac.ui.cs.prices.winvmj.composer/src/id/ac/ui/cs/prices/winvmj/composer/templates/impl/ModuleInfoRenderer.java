@@ -5,8 +5,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -20,19 +18,10 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 
 	protected static List<String> exportedModules;
 	protected Map<String, List<String>> multiLevelDeltaMappings;
-	private Map<String, Map<String, Object>> monitoringConfig;
-	protected List<String> selectedFeature;
 	
 	public ModuleInfoRenderer(IFeatureProject project) {
 		super(project);
 		exportedModules = new ArrayList<>();
-		getSelectedFeature(project);
-		try {
-			monitoringConfig = Utils.getFeatureMonitoringConfig(project.getProject());
-		} catch (Exception e) {
-			monitoringConfig = new HashMap<>();
-			System.err.println("Failed to load monitoring config: " + e.getMessage());
-		}
 	}
 
 	public ModuleInfoRenderer(
@@ -42,13 +31,6 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		super(project);
 		exportedModules = new ArrayList<>();
 		this.multiLevelDeltaMappings = multiLevelDeltaMappings;
-		getSelectedFeature(project);
-		try {
-			monitoringConfig = Utils.getFeatureMonitoringConfig(project.getProject());
-		} catch (Exception e) {
-			monitoringConfig = new HashMap<>();
-			System.err.println("Failed to load monitoring config: " + e.getMessage());
-		}
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
@@ -57,10 +39,6 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("requiredModules", getRequiredModules(product));
 		dataModel.put("exportedModules", exportedModules);
-		
-		// Add monitoring flag for OpenTelemetry modules
-		boolean monitoringEnabled = isAnyFeatureMonitoringEnabled(product);
-		dataModel.put("monitoringEnabled", monitoringEnabled);
 		
 		return dataModel;
 	}
@@ -101,31 +79,5 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		}
 
 		return requiredModules;
-	}
-	
-	private boolean isAnyFeatureMonitoringEnabled(WinVMJProduct product) {
-		if (monitoringConfig == null || monitoringConfig.isEmpty()) {
-			return false;
-		}
-		for (String feature : selectedFeature) {
-			if (Utils.isFeatureMonitoringEnabled(monitoringConfig, feature)) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	private void getSelectedFeature(IFeatureProject winVmjProject) {
-		try {
-			Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
-			// Remove module prefix (e.g., "aisco.Program" -> "Program")
-			features = features.stream()
-				.map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
-				.collect(Collectors.toSet());
-			selectedFeature = new ArrayList<>(features);
-		} catch (Exception e) {
-			System.err.println("Failed to load selected features: " + e.getMessage());
-			selectedFeature = new ArrayList<>();
-		}
 	}
 }

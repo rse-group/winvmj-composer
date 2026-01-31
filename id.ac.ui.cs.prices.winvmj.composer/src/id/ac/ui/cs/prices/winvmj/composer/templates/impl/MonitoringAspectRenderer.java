@@ -11,6 +11,13 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.CoreException;
 
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+import java.io.StringWriter;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
@@ -44,11 +51,27 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         selectedFeature = new ArrayList<>(features);
     }
 
+    /**
+     * Get the module package name for MonitoringAspect module.
+     * Format: {spl}.monitoring.aspect (e.g., bankaccount.monitoring.aspect)
+     * Note: Does NOT use .product. to avoid being treated as a product module
+     */
+    private String getModulePackage(WinVMJProduct product) {
+        String[] parts = product.getProductQualifiedName().split("\\.");
+        // Use spl name + monitoring.aspect (avoids .product. pattern)
+        if (parts.length >= 1) {
+            return parts[0] + ".monitoring.aspect";
+        }
+        return "monitoring.aspect";
+    }
+
     @Override
     protected Map<String, Object> extractDataModel(WinVMJProduct product) {
         Map<String, Object> dataModel = new HashMap<>();
 
-        dataModel.put("productPackage", product.getProductQualifiedName());
+        String modulePackage = getModulePackage(product);
+        dataModel.put("productPackage", modulePackage + ".monitoring");
+        dataModel.put("modulePackage", modulePackage);
         dataModel.put("productName", product.getProductName());
         
         // Get list of monitored modules (packages to intercept)
@@ -67,18 +90,87 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
 
     @Override
     protected IFile getOutputFile(WinVMJProduct product) {
-        IFolder productModuleFolder = project.getBuildFolder()
-                .getFolder(product.getProductQualifiedName());
-        for (String modulePath : product.getProductQualifiedName().split("\\.")) {
-            productModuleFolder = productModuleFolder.getFolder(modulePath);
-            if (!productModuleFolder.exists())
+        String modulePackage = getModulePackage(product);
+        
+        // Create separate module folder for MonitoringAspect
+        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
+        if (!moduleFolder.exists()) {
+            try {
+                moduleFolder.create(false, true, null);
+            } catch (CoreException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        // Create package structure inside module folder
+        IFolder packageFolder = moduleFolder;
+        for (String part : modulePackage.split("\\.")) {
+            packageFolder = packageFolder.getFolder(part);
+            if (!packageFolder.exists()) {
                 try {
-                    productModuleFolder.create(false, true, null);
+                    packageFolder.create(false, true, null);
                 } catch (CoreException e) {
                     e.printStackTrace();
                 }
+            }
         }
-        return productModuleFolder.getFile("MonitoringAspect.java");
+        
+        // Create monitoring subfolder
+        IFolder monitoringFolder = packageFolder.getFolder("monitoring");
+        if (!monitoringFolder.exists()) {
+            try {
+                monitoringFolder.create(false, true, null);
+            } catch (CoreException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        return monitoringFolder.getFile("MonitoringAspect.java");
+    }
+
+    /**
+     * Generate module-info.java for the MonitoringAspect module.
+     */
+    public void generateModuleInfo(WinVMJProduct product) {
+        String modulePackage = getModulePackage(product);
+        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
+        
+        if (!moduleFolder.exists()) {
+            try {
+                moduleFolder.create(false, true, null);
+            } catch (CoreException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        
+        IFile moduleInfoFile = moduleFolder.getFile("module-info.java");
+        
+        try {
+            Configuration cfg = new Configuration(Configuration.VERSION_2_3_31);
+            cfg.setClassForTemplateLoading(this.getClass(), "/templates");
+            Template template = cfg.getTemplate("MonitoringAspectModuleInfo.ftl");
+            
+            Map<String, Object> dataModel = new HashMap<>();
+            dataModel.put("modulePackage", modulePackage);
+            
+            StringWriter writer = new StringWriter();
+            template.process(dataModel, writer);
+            
+            ByteArrayInputStream content = new ByteArrayInputStream(
+                writer.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)
+            );
+            
+            if (!moduleInfoFile.exists()) {
+                moduleInfoFile.create(content, false, null);
+            } else {
+                moduleInfoFile.setContents(content, true, false, null);
+            }
+            
+            WinVMJConsole.println("[MonitoringAspect] Generated module-info.java for " + modulePackage);
+        } catch (CoreException | IOException | TemplateException e) {
+            e.printStackTrace();
+        }
     }
 
     private List<String> getMonitoredModules() {
@@ -107,5 +199,65 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
 
     public boolean shouldRender() {
         return !getMonitoredModules().isEmpty();
+    }
+
+    /**
+     * Generate META-INF/aop.xml for AspectJ load-time weaving configuration.
+     */
+    public void generateAopXml(WinVMJProduct product) {
+        String modulePackage = getModulePackage(product);
+        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
+        
+        if (!moduleFolder.exists()) {
+            try {
+                moduleFolder.create(false, true, null);
+            } catch (CoreException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        
+        // Create META-INF folder
+        IFolder metaInfFolder = moduleFolder.getFolder("META-INF");
+        if (!metaInfFolder.exists()) {
+            try {
+                metaInfFolder.create(false, true, null);
+            } catch (CoreException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        
+        IFile aopXmlFile = metaInfFolder.getFile("aop.xml");
+        
+        try {
+            Configuration cfg = new Configuration(Configuration.VERSION_2_3_31);
+            cfg.setClassForTemplateLoading(this.getClass(), "/templates");
+            Template template = cfg.getTemplate("aop.xml.ftl");
+            
+            Map<String, Object> dataModel = new HashMap<>();
+            dataModel.put("aspectPackage", modulePackage + ".monitoring");
+            
+            // Get monitored packages for weaving
+            List<String> monitoredPackages = getMonitoredModules();
+            dataModel.put("monitoredPackages", monitoredPackages);
+            
+            StringWriter writer = new StringWriter();
+            template.process(dataModel, writer);
+            
+            ByteArrayInputStream content = new ByteArrayInputStream(
+                writer.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)
+            );
+            
+            if (!aopXmlFile.exists()) {
+                aopXmlFile.create(content, false, null);
+            } else {
+                aopXmlFile.setContents(content, true, false, null);
+            }
+            
+            WinVMJConsole.println("[MonitoringAspect] Generated META-INF/aop.xml for LTW");
+        } catch (CoreException | IOException | TemplateException e) {
+            e.printStackTrace();
+        }
     }
 }

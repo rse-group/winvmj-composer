@@ -17,17 +17,6 @@ import id.ac.ui.cs.prices.winvmj.core.Router;
 import id.ac.ui.cs.prices.winvmj.hibernate.HibernateUtil;
 import org.hibernate.cfg.Configuration;
 
-<#if monitoringEnabled>
-// OpenTelemetry imports
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
-import io.opentelemetry.sdk.metrics.export.MetricReader;
-</#if>
-
 <#if defaultAuthModel>
 import id.ac.ui.cs.prices.winvmj.auth.model.UserResourceFactory;
 import id.ac.ui.cs.prices.winvmj.auth.model.RoleResourceFactory;
@@ -41,23 +30,18 @@ import ${import};
 
 public class ${productName} {
     
-	<#if monitoringEnabled>
-
-	// OpenTelemetry monitoring fields
-	private static OpenTelemetry openTelemetry;
-	private static Meter meter;
-	private static LongCounter requestCounter;
-
-    </#if>
-
 	public static void main(String[] args) {
 
 		<#if monitoringEnabled>
-		// Initialize OpenTelemetry monitoring
-		int monitoringPort = getMonitoringPort();
-		initializeMonitoring(monitoringPort);
-		System.out.println("== MONITORING ENABLED - Prometheus metrics at :" + monitoringPort + "/metrics ==");
+		// Initialize monitoring aspect early (before Hibernate) to start Prometheus server
+		try {
+			Class.forName("${productPackage?split('.')[0]}.monitoring.aspect.monitoring.MonitoringAspect");
+			System.out.println("[Monitoring] MonitoringAspect initialized - Prometheus server starting");
+		} catch (ClassNotFoundException e) {
+			System.out.println("[Monitoring] MonitoringAspect not found - monitoring disabled");
+		}
 		</#if>
+
 
 		// get hostAddress and portnum from env var
         // ex:
@@ -107,9 +91,15 @@ public class ${productName} {
 		
         configuration.setProperty("feature.model.mappings", convertedFeatureModelMappings);
 		configuration.buildMappings();
-		HibernateUtil.buildSessionFactory(configuration);
-
-		createObjectsAndBindEndPoints();
+		// Try to initialize Hibernate - graceful failure if DB not available
+		try {
+			HibernateUtil.buildSessionFactory(configuration);
+			createObjectsAndBindEndPoints();
+		} catch (Exception e) {
+			System.out.println("== WARNING: Database connection failed ==");
+			System.out.println("Server running but database features disabled.");
+			System.out.println("Error: " + e.getMessage());
+		}
 	}
 
 	public static void activateServer(String hostName, int portNumber) {
@@ -179,7 +169,7 @@ public class ${productName} {
 		<#list featureModelMappings as ftm>
 		featureModelMappings.put(
             ${ftm['referenceComponent']}.class.getName(),
-			new HashMap<String, String[]>() {{
+			new HashMap<String, String[]>() {{ 
 				put("components", new String[] {
 					<#list ftm['featureModels']['components'] as component>
 					<#if component?index != (ftm['featureModels']['components']?size - 1)>
@@ -198,44 +188,39 @@ public class ${productName} {
 					</#if>
 					</#list>
 				});
-			}}
-        );
-
+			}});
 		</#list>
 		featureModelMappings.put(
 	            id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserComponent.class.getName(),
-				new HashMap<String, String[]>() {{
+				new HashMap<String, String[]>() {{ 
 					put("components", new String[] {
 						id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserComponent.class.getName()
 					});
 					put("deltas", new String[] {
 						id.ac.ui.cs.prices.winvmj.auth.model.passworded.model.UserImpl.class.getName()
 					});
-				}}
-	        );
-	        
+				}});
+        
 	    featureModelMappings.put(
 				id.ac.ui.cs.prices.winvmj.auth.model.core.model.RoleComponent.class.getName(),
-				new HashMap<String, String[]>() {{
+				new HashMap<String, String[]>() {{ 
 					put("components", new String[] {
 						id.ac.ui.cs.prices.winvmj.auth.model.core.model.RoleComponent.class.getName()
 					});
 					put("deltas", new String[] {
 					});
-				}}
-	        );
-	    
+				}});
+        
 	    featureModelMappings.put(
 				id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserRoleComponent.class.getName(),
-				new HashMap<String, String[]>() {{
+				new HashMap<String, String[]>() {{ 
 					put("components", new String[] {
 						id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserRoleComponent.class.getName()
 					});
 					put("deltas", new String[] {
 					});
-				}}
-	        );
-	    
+				}});
+        
 		return featureModelMappings;
 	}
 
@@ -267,15 +252,6 @@ public class ${productName} {
             return portNumInt;
     }
 	
-    <#if monitoringEnabled>
-    // Get monitoring port from env var, default 9464
-    public static int getMonitoringPort(){
-            String portNum = System.getenv("AMANAH_MONITORING_PORT")  != null? System.getenv("AMANAH_MONITORING_PORT")  : "9464";
-            int portNumInt = Integer.parseInt(portNum);
-            return portNumInt;
-    }
-	</#if>
-
 	public static void setCors() {
     	Properties properties = new Properties();
         String propertyValue = "";
@@ -296,38 +272,5 @@ public class ${productName} {
 			System.out.println("allowedOrigin = http://example.com");
         }
     }
-
-	<#if monitoringEnabled>
-
-	private static void initializeMonitoring(int port) {
-		try {
-			// Create Prometheus HTTP server on configurable port
-			MetricReader prometheusReader = PrometheusHttpServer.builder()
-				.setPort(port)
-				.build();
-			
-			// Build OpenTelemetry SDK with Prometheus exporter
-			SdkMeterProvider meterProvider = SdkMeterProvider.builder()
-				.registerMetricReader(prometheusReader)
-				.build();
-			
-			openTelemetry = OpenTelemetrySdk.builder()
-				.setMeterProvider(meterProvider)
-				.build();
-			
-			// Create meter and counter
-			meter = openTelemetry.getMeter("winvmj-app");
-			requestCounter = meter.counterBuilder("http_requests_total")
-				.setDescription("Total HTTP requests")
-				.build();
-				
-			System.out.println("OpenTelemetry initialized successfully on port " + port);
-		} catch (Exception e) {
-			System.err.println("Failed to initialize monitoring: " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
-	</#if>
-
 
 }

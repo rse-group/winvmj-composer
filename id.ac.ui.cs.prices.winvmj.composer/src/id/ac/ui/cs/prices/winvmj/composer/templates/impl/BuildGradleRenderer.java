@@ -45,6 +45,15 @@ public class BuildGradleRenderer extends TemplateRenderer {
         dataModel.put("dbUsername", dbUsername);
         dataModel.put("dbPassword", dbPassword);
         dataModel.put("SQLFolder", "sql");
+        
+        // Check if monitoring aspect module exists
+        String[] parts = product.getProductQualifiedName().split("\\.");
+        String prefix = parts.length >= 1 ? parts[0] : "monitoring";
+        String monitoringModuleName = prefix + ".monitoring.aspect";
+        boolean hasMonitoringAspect = project.getBuildFolder().getFolder(monitoringModuleName).exists();
+        dataModel.put("hasMonitoringAspect", hasMonitoringAspect);
+        dataModel.put("monitoringModule", monitoringModuleName);
+        
         return dataModel;
     }
 

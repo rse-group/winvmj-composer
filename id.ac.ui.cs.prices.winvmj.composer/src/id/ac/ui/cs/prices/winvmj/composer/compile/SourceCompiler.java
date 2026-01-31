@@ -199,7 +199,7 @@ public class SourceCompiler {
 				importWinVMJProductConfigs(compiledProductDir);
 				generateConfigFiles(project, sourceProduct);
 				compileModules(project, compiledProductDir, sourceProduct);
-				deleteLibraries(compiledProductDir.getFolder(sourceProduct.getProductQualifiedName()), srcResource);
+				// deleteLibraries(compiledProductDir.getFolder(sourceProduct.getProductQualifiedName()), srcResource);
 				insertSqlFolder(compiledProductDir, project);
 			}
 			
@@ -394,7 +394,65 @@ public class SourceCompiler {
 
 		}
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
+		
+		// Copy MonitoringAspect module source if it exists (Gradle will compile)
+		copyMonitoringAspectModule(project, compiledProductDir, product);
+		
 		cleanBinaries(project);
+	}
+	
+	/**
+	 * Copy the MonitoringAspect module source files to the output directory.
+	 * Compilation is delegated to Gradle since it requires OpenTelemetry/AspectJ dependencies.
+	 */
+	private static void copyMonitoringAspectModule(IFeatureProject project, IFolder compiledProductDir, 
+			WinVMJProduct product) throws IOException, CoreException {
+		// MonitoringAspect module naming: {prefix}.monitoring.aspect
+		String[] parts = product.getProductQualifiedName().split("\\.");
+		String prefix = parts.length >= 1 ? parts[0] : "monitoring";
+		String monitoringModuleName = prefix + ".monitoring.aspect";
+		
+		IFolder monitoringModuleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
+		if (!monitoringModuleFolder.exists()) {
+			return; // No monitoring module to copy
+		}
+		
+		WinVMJConsole.println("[Monitoring] Copying " + monitoringModuleName + " source files...");
+		
+		// Copy source files to output directory at same level as product (Gradle will compile)
+		IFolder monitoringOutputFolder = compiledProductDir.getFolder(monitoringModuleName);
+		
+		if (!monitoringOutputFolder.exists()) {
+			monitoringOutputFolder.create(true, true, null);
+		}
+		
+		// Recursively copy all source files
+		copyFolder(monitoringModuleFolder, monitoringOutputFolder);
+		
+		WinVMJConsole.println("[Monitoring] " + monitoringModuleName + " source copied (Gradle will compile)");
+	}
+	
+	/**
+	 * Recursively copy folder contents.
+	 */
+	private static void copyFolder(IFolder source, IFolder target) throws CoreException {
+		for (IResource resource : source.members()) {
+			if (resource instanceof IFile) {
+				IFile file = (IFile) resource;
+				IFile targetFile = target.getFile(file.getName());
+				if (targetFile.exists()) {
+					targetFile.delete(true, null);
+				}
+				file.copy(targetFile.getFullPath(), true, null);
+			} else if (resource instanceof IFolder) {
+				IFolder folder = (IFolder) resource;
+				IFolder targetFolder = target.getFolder(folder.getName());
+				if (!targetFolder.exists()) {
+					targetFolder.create(true, true, null);
+				}
+				copyFolder(folder, targetFolder);
+			}
+		}
 	}
 
 	public static void deleteLibraries(IFolder compiledModulesDir, Path winvmjLibrariesDir) throws CoreException {
