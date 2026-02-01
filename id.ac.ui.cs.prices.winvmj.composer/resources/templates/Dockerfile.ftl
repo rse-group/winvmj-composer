@@ -40,6 +40,7 @@ RUN sed -i 's/\r$//' /app/entrypoint.sh && \
 USER winvmj
 
 # Environment variables with defaults
+ENV AMANAH_HOST_BE=0.0.0.0
 ENV AMANAH_DB_URL=jdbc:postgresql://postgres:5432/${productName?lower_case}
 ENV AMANAH_DB_USERNAME=postgres
 ENV AMANAH_DB_PASSWORD=postgres123
