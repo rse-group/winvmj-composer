@@ -2,14 +2,14 @@
 # Product: ${productName}
 # Context: src-gen/${productName}/ (same level as docker-compose.yml)
 
-# Stage 1: Download Gradle dependencies
-FROM gradle:8.5-jdk17 AS deps
+# Stage 1: Download Gradle dependencies (needs full project context)
+FROM gradle:8.5-jdk17 AS builder
 
 WORKDIR /app
-COPY build.gradle settings.gradle ./
+COPY . .
 
-# Download all dependencies to /app/deps
-RUN gradle copyDependencies --no-daemon || true
+# Compile sources and download dependencies
+RUN gradle compileJava copyDependencies --no-daemon
 
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
@@ -24,13 +24,18 @@ RUN addgroup -g 1001 winvmj && \
 COPY . .
 
 # Copy Gradle-downloaded dependencies into jars folder
-COPY --from=deps /app/deps/ ./jars/
+COPY --from=builder /app/deps/ ./jars/
+
+# Copy compiled classes (includes MonitoringAspect)
+COPY --from=builder /app/build/classes/java/main/ ./classes/
 
 # Move product JARs to jars folder for unified classpath
 RUN mv ${productPackage}/*.jar ./jars/ 2>/dev/null || true
 
-# Set permissions
-RUN chmod +x /app/entrypoint.sh && chown -R winvmj:winvmj /app
+# Fix Windows CRLF line endings and set permissions
+RUN sed -i 's/\r$//' /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh && \
+    chown -R winvmj:winvmj /app
 
 USER winvmj
 

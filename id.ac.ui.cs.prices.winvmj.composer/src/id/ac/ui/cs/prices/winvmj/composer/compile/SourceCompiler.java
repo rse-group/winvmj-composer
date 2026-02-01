@@ -46,6 +46,7 @@ import id.ac.ui.cs.prices.winvmj.composer.microservicepreprocessor.ModulePreproc
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.BuildGradleRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.CorsPropertiesRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.DockerRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.EndpointsConfigRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.HibernatePropertiesRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.SettingsGradleRenderer;
@@ -201,6 +202,10 @@ public class SourceCompiler {
 				compileModules(project, compiledProductDir, sourceProduct);
 				// deleteLibraries(compiledProductDir.getFolder(sourceProduct.getProductQualifiedName()), srcResource);
 				insertSqlFolder(compiledProductDir, project);
+				
+				// Generate Docker files after compilation
+				DockerRenderer dockerRenderer = new DockerRenderer(project);
+				dockerRenderer.renderAll(sourceProduct);
 			}
 			
 		} catch (CoreException | IOException | URISyntaxException e) {

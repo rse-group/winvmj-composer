@@ -57,7 +57,6 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.impl.MicroserviceProductClas
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.ModuleInfoRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.MonitoringAspectRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.ProductClassRenderer;
-import id.ac.ui.cs.prices.winvmj.composer.templates.impl.DockerRenderer;
 
 public class WinVMJComposer extends ComposerExtensionClass {
 	
@@ -308,10 +307,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			monitoringAspectRenderer.generateAopXml(product);
 			WinVMJConsole.println("[Monitoring] Generated MonitoringAspect module with aop.xml");
 		}
-		
-		// Generate Docker files (Dockerfile, docker-compose.yml, .env.example)
-		DockerRenderer dockerRenderer = new DockerRenderer(featureProject);
-		dockerRenderer.renderAll(product);
 	}
 	
 	@Override

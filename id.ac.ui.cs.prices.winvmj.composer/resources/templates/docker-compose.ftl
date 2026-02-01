@@ -15,7 +15,6 @@ services:
       - "${"$"}{HOST_PORT_POSTGRES:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./sql:/docker-entrypoint-initdb.d:ro
     networks:
       - ${productName?lower_case}-network
     healthcheck:
