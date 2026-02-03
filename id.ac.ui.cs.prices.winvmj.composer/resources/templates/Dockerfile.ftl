@@ -32,6 +32,12 @@ COPY --from=builder /app/build/classes/java/main/ ./classes/
 # Move product JARs to jars folder for unified classpath
 RUN mv ${productPackage}/*.jar ./jars/ 2>/dev/null || true
 
+<#if hasMonitoringAspect>
+# Copy aop.xml to classpath root for AspectJ load-time weaving
+RUN mkdir -p META-INF && \
+    cp ${monitoringAspectPackage}/META-INF/aop.xml META-INF/aop.xml 2>/dev/null || true
+</#if>
+
 # Fix Windows CRLF line endings and set permissions
 RUN sed -i 's/\r$//' /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh && \

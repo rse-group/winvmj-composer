@@ -6,6 +6,8 @@
     </aspects>
     
     <weaver options="-verbose -showWeaveInfo">
+        <!-- Include the aspect itself for weaving (generates aspectOf()) -->
+        <include within="${aspectPackage}..*"/>
         <!-- Include packages to be woven -->
         <#list monitoredPackages as pkg>
         <include within="${pkg}..*"/>
