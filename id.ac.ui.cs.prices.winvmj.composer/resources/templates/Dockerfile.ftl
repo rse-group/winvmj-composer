@@ -60,8 +60,4 @@ EXPOSE 7776
 EXPOSE 9464
 </#if>
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:7776/health || exit 1
-
 ENTRYPOINT ["/app/entrypoint.sh"]
