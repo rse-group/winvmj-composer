@@ -16,13 +16,8 @@ repositories {
 sourceSets {
     main {
         java {
-            srcDirs = ['${product}'<#if shouldHaveMonitoring>, '${monitoringModule}'</#if>]
+            srcDirs = ['${product}']
         }
-        <#if shouldHaveMonitoring>
-        resources {
-            srcDirs = ['${monitoringModule}']
-        }
-        </#if>
     }
 }
 
@@ -197,7 +192,6 @@ tasks.register("runWinVMJ", JavaExec) {
     classpath.from files(project.projectDir)
     classpath.from configurations.runtimeClasspath
     <#if shouldHaveMonitoring>
-    classpath.from sourceSets.main.output
     doFirst {
         if (aspectjWeaverJar) {
             jvmArgs "-javaagent:${r"${aspectjWeaverJar}"}"
@@ -215,7 +209,6 @@ tasks.register("runWinVMJNoSQL", JavaExec) {
     classpath.from files(project.projectDir)
     classpath.from configurations.runtimeClasspath
     <#if shouldHaveMonitoring>
-    classpath.from sourceSets.main.output
     doFirst {
         if (aspectjWeaverJar) {
             jvmArgs "-javaagent:${r"${aspectjWeaverJar}"}"

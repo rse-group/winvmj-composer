@@ -47,12 +47,6 @@ public class BuildGradleRenderer extends TemplateRenderer {
         dataModel.put("dbPassword", dbPassword);
         dataModel.put("SQLFolder", "sql");
         
-        // Monitoring module name for sourceSets
-        String[] parts = product.getProductQualifiedName().split("\\.");
-        String prefix = parts.length >= 1 ? parts[0] : "monitoring";
-        String monitoringModule = prefix + ".monitoring.aspect";
-        dataModel.put("monitoringModule", monitoringModule);
-        
         // Check if JVM metrics are enabled (global option)
         boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
         dataModel.put("enableJvmMetrics", enableJvmMetrics);

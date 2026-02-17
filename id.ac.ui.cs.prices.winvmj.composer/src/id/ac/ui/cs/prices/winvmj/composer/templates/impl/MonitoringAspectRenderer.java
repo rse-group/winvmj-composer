@@ -53,18 +53,9 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         selectedFeature = new ArrayList<>(features);
     }
 
-    /**
-     * Get the module package name for MonitoringAspect module.
-     * Format: {spl}.monitoring.aspect (e.g., bankaccount.monitoring.aspect)
-     * Note: Does NOT use .product. to avoid being treated as a product module
-     */
+
     private String getModulePackage(WinVMJProduct product) {
-        String[] parts = product.getProductQualifiedName().split("\\.");
-        // Use spl name + monitoring.aspect (avoids .product. pattern)
-        if (parts.length >= 1) {
-            return parts[0] + ".monitoring.aspect";
-        }
-        return "monitoring.aspect";
+        return Utils.getMonitoringModuleName(product.getProductQualifiedName());
     }
 
     @Override

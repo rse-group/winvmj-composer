@@ -20,11 +20,11 @@ import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 
 /**
- * Renderer for Docker-related files: Dockerfile, docker-compose.yml, .env.example
+ * Renderer for Docker-related files for monolith deployment: Dockerfile, docker-compose.yml, .env.example
  */
-public class DockerRenderer extends TemplateRenderer {
+public class DockerMonolithRenderer extends TemplateRenderer {
 
-    public DockerRenderer(IFeatureProject project) {
+    public DockerMonolithRenderer(IFeatureProject project) {
         super(project);
     }
 
@@ -43,12 +43,6 @@ public class DockerRenderer extends TemplateRenderer {
         dataModel.put("productName", product.getProductName());
         dataModel.put("productPackage", product.getProductQualifiedName());
         
-        // Monitoring package name for aop.xml path
-        String[] parts = product.getProductQualifiedName().split("\\.");
-        String prefix = parts.length >= 1 ? parts[0] : "monitoring";
-        String monitoringPackage = prefix + ".monitoring.aspect";
-        dataModel.put("monitoringPackage", monitoringPackage);
-        
         // Check if JVM metrics are enabled (global option)
         boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
         dataModel.put("enableJvmMetrics", enableJvmMetrics);
@@ -65,41 +59,26 @@ public class DockerRenderer extends TemplateRenderer {
 
     @Override
     protected String loadTemplateFilename() {
-        return "Dockerfile";
+        return "DockerfileMonolith";
     }
 
     /**
-     * Render all Docker files: Dockerfile, docker-compose.yml, .env.example, entrypoint.sh
+     * Render all Docker files: Dockerfile, docker-compose.yml, .env.example
      */
     public void renderAll(WinVMJProduct product) {
         // Render Dockerfile
         render(product);
-        WinVMJConsole.println("[Docker] Generated Dockerfile");
-        
-        // Render entrypoint.sh
-        renderEntrypoint(product);
-        WinVMJConsole.println("[Docker] Generated entrypoint.sh");
+        WinVMJConsole.println("[DockerMonolith] Generated Dockerfile");
         
         // Render docker-compose.yml
         renderDockerCompose(product);
-        WinVMJConsole.println("[Docker] Generated docker-compose.yml");
+        WinVMJConsole.println("[DockerMonolith] Generated docker-compose.yml");
         
         // Render .env.example
         renderEnvExample(product);
-        WinVMJConsole.println("[Docker] Generated .env.example");
+        WinVMJConsole.println("[DockerMonolith] Generated .env.example");
     }
     
-    /**
-     * Generate entrypoint.sh file
-     */
-    private void renderEntrypoint(WinVMJProduct product) {
-        IFolder outputFolder = project.getProject().getFolder("src-gen")
-                .getFolder(product.getProductName());
-        IFile outputFile = outputFolder.getFile("entrypoint.sh");
-        
-        renderTemplate("entrypoint.sh.ftl", outputFile, extractDataModel(product));
-    }
-
     /**
      * Generate docker-compose.yml file
      */
@@ -108,7 +87,7 @@ public class DockerRenderer extends TemplateRenderer {
                 .getFolder(product.getProductName());
         IFile outputFile = outputFolder.getFile("docker-compose.yml");
         
-        renderTemplate("docker-compose.ftl", outputFile, extractDataModel(product));
+        renderTemplate("docker-composeMonolith.ftl", outputFile, extractDataModel(product));
     }
 
     /**
@@ -119,7 +98,7 @@ public class DockerRenderer extends TemplateRenderer {
                 .getFolder(product.getProductName());
         IFile outputFile = outputFolder.getFile(".env.example");
         
-        renderTemplate("env.example.ftl", outputFile, extractDataModel(product));
+        renderTemplate("env.exampleMonolith.ftl", outputFile, extractDataModel(product));
     }
 
     /**
@@ -144,7 +123,7 @@ public class DockerRenderer extends TemplateRenderer {
                 outputFile.setContents(content, true, false, null);
             }
         } catch (CoreException | IOException | TemplateException e) {
-            WinVMJConsole.println("[Docker] Error rendering " + templateName + ": " + e.getMessage());
+            WinVMJConsole.println("[DockerMonolith] Error rendering " + templateName + ": " + e.getMessage());
             e.printStackTrace();
         }
     }

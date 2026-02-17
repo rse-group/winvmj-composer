@@ -360,4 +360,17 @@ public class Utils {
 		String[] moduleParts = module.split("\\.");
 		return moduleParts[1];
 	}
+	
+	/**
+	 * Get the monitoring aspect module name for a product.
+	 * Format: {spl}.monitoring.aspect (e.g., bankaccount.monitoring.aspect)
+	 * Note: Does NOT use .product. to avoid being treated as a product module.
+	 */
+	public static String getMonitoringModuleName(String productQualifiedName) {
+		String[] parts = productQualifiedName.split("\\.");
+		if (parts.length >= 1) {
+			return parts[0] + ".monitoring.aspect";
+		}
+		return "monitoring.aspect";
+	}
 }

@@ -46,7 +46,7 @@ import id.ac.ui.cs.prices.winvmj.composer.microservicepreprocessor.ModulePreproc
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.BuildGradleRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.CorsPropertiesRenderer;
-import id.ac.ui.cs.prices.winvmj.composer.templates.impl.DockerRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.DockerMonolithRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.EndpointsConfigRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.HibernatePropertiesRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.SettingsGradleRenderer;
@@ -130,7 +130,7 @@ public class SourceCompiler {
 					importWinVMJLibraries(compiledProductDir, sourceProduct);
 					importWinVMJProductConfigs(compiledProductDir);
 					importRabbitmqLibraries(compiledProductDir, sourceProduct);
-					generateConfigFiles(project, sourceProduct);
+					generateConfigFiles(project, sourceProduct, true);
 					
 		        	// Pre-process module for specific product
 					String productModuleName = sourceProduct.getProductQualifiedName();
@@ -198,14 +198,10 @@ public class SourceCompiler {
 					compiledProductDir.create(false, true, null);
 				importWinVMJLibraries(compiledProductDir, sourceProduct);
 				importWinVMJProductConfigs(compiledProductDir);
-				generateConfigFiles(project, sourceProduct);
+				generateConfigFiles(project, sourceProduct, false);
 				compileModules(project, compiledProductDir, sourceProduct);
 				// deleteLibraries(compiledProductDir.getFolder(sourceProduct.getProductQualifiedName()), srcResource);
 				insertSqlFolder(compiledProductDir, project);
-				
-				// Generate Docker files after compilation
-				DockerRenderer dockerRenderer = new DockerRenderer(project);
-				dockerRenderer.renderAll(sourceProduct);
 			}
 			
 		} catch (CoreException | IOException | URISyntaxException e) {
@@ -318,7 +314,7 @@ public class SourceCompiler {
 		return requiredModules;
 	}
 
-	private static void generateConfigFiles(IFeatureProject project, WinVMJProduct product)
+	private static void generateConfigFiles(IFeatureProject project, WinVMJProduct product, boolean isMicroservice)
 			throws CoreException, IOException {
 		Properties dbProperties = new Properties();
 		dbProperties.load(project.getProject().getFile(WinVMJComposer.DB_CONFIG_FILENAME).getContents());
@@ -341,6 +337,12 @@ public class SourceCompiler {
 		new UnixDeploymentScriptRenderer(project).render(product);
 		new UnixRunAllScriptRenderer(project, dbUsername, dbPassword).render(product);
 		new EndpointsConfigRenderer(project).render(product);
+		
+		// Generate Docker files for non-microservice (monolith) only
+		// Microservice Docker files are handled by deployment scripts
+		if (!isMicroservice) {
+			new DockerMonolithRenderer(project).renderAll(product);
+		}
 
 		WinVMJConsole.println("All additional config files has been generated");
 	}
@@ -400,66 +402,16 @@ public class SourceCompiler {
 		}
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
 		
-		// Copy MonitoringAspect module source if it exists (Gradle will compile)
-		copyMonitoringAspectModule(project, compiledProductDir, product);
+		// Compile MonitoringAspect module to JAR if it exists (same as other modules)
+		String monitoringModuleName = Utils.getMonitoringModuleName(productModule);
+		IFolder monitoringModuleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
+		if (monitoringModuleFolder.exists()) {
+			importExternalLibrariesByModuleInfo(project, externalLibraries, compiledProductDir, product, monitoringModuleFolder);
+			compileModuleForProduct(project, compiledProductDir, monitoringModuleFolder, productModule);
+		}
 		
 		cleanBinaries(project);
 	}
-	
-	/**
-	 * Copy the MonitoringAspect module source files to the output directory.
-	 * Compilation is delegated to Gradle since it requires OpenTelemetry/AspectJ dependencies.
-	 */
-	private static void copyMonitoringAspectModule(IFeatureProject project, IFolder compiledProductDir, 
-			WinVMJProduct product) throws IOException, CoreException {
-		// MonitoringAspect module naming: {prefix}.monitoring.aspect
-		String[] parts = product.getProductQualifiedName().split("\\.");
-		String prefix = parts.length >= 1 ? parts[0] : "monitoring";
-		String monitoringModuleName = prefix + ".monitoring.aspect";
-		
-		IFolder monitoringModuleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
-		if (!monitoringModuleFolder.exists()) {
-			return; // No monitoring module to copy
-		}
-		
-		WinVMJConsole.println("[Monitoring] Copying " + monitoringModuleName + " source files...");
-		
-		// Copy source files to output directory at same level as product (Gradle will compile)
-		IFolder monitoringOutputFolder = compiledProductDir.getFolder(monitoringModuleName);
-		
-		if (!monitoringOutputFolder.exists()) {
-			monitoringOutputFolder.create(true, true, null);
-		}
-		
-		// Recursively copy all source files
-		copyFolder(monitoringModuleFolder, monitoringOutputFolder);
-		
-		WinVMJConsole.println("[Monitoring] " + monitoringModuleName + " source copied (Gradle will compile)");
-	}
-	
-	/**
-	 * Recursively copy folder contents.
-	 */
-	private static void copyFolder(IFolder source, IFolder target) throws CoreException {
-		for (IResource resource : source.members()) {
-			if (resource instanceof IFile) {
-				IFile file = (IFile) resource;
-				IFile targetFile = target.getFile(file.getName());
-				if (targetFile.exists()) {
-					targetFile.delete(true, null);
-				}
-				file.copy(targetFile.getFullPath(), true, null);
-			} else if (resource instanceof IFolder) {
-				IFolder folder = (IFolder) resource;
-				IFolder targetFolder = target.getFolder(folder.getName());
-				if (!targetFolder.exists()) {
-					targetFolder.create(true, true, null);
-				}
-				copyFolder(folder, targetFolder);
-			}
-		}
-	}
-
 	public static void deleteLibraries(IFolder compiledModulesDir, Path winvmjLibrariesDir) throws CoreException {
 		compiledModulesDir.refreshLocal(IFolder.DEPTH_INFINITE, null);
 
