@@ -272,26 +272,32 @@ public class Utils {
 		return splMappings;
 	}
 	
-	public static Map<String, Map<String, Object>> getFeatureMonitoringConfig(IProject project) throws CoreException {
+	public static JsonObject getFeatureMonitoringConfig(IProject project) throws CoreException {
 		try {
 			Reader configReader = new InputStreamReader(project
 					.getFile(WinVMJComposer.MONITORING_CONFIG_FILENAME).getContents());
 			Gson gson = new Gson();
-			Map<String, Map<String, Object>> monitoringConfig = gson.fromJson(configReader,
-					new TypeToken<LinkedHashMap<String, Map<String, Object>>>() {}.getType());
-			return monitoringConfig != null ? monitoringConfig : new LinkedHashMap<>();
+			JsonObject config = gson.fromJson(configReader, JsonObject.class);
+			return config != null ? config : new JsonObject();
 		} catch (Exception e) {
-			return new LinkedHashMap<>();
+			return new JsonObject();
 		}
 	}
 	
-	public static boolean isFeatureMonitoringEnabled(Map<String, Map<String, Object>> monitoringConfig, String featureName) {
-		if (monitoringConfig == null || !monitoringConfig.containsKey(featureName)) {
+	public static boolean isFeatureMonitoringEnabled(JsonObject monitoringConfig, String featureName) {
+		if (monitoringConfig == null || !monitoringConfig.has(featureName)) {
 			return false;
 		}
-		Map<String, Object> featureConfig = monitoringConfig.get(featureName);
-		Object enabled = featureConfig.get("enabled");
-		return enabled instanceof Boolean && (Boolean) enabled;
+		try {
+			JsonObject featureConfig = monitoringConfig.getAsJsonObject(featureName);
+			if (featureConfig != null && featureConfig.has("enabled")) {
+				return featureConfig.get("enabled").getAsBoolean();
+			}
+			return false;
+		} catch (Exception e) {
+			// Not a JsonObject (e.g., enableJvmMetrics is boolean)
+			return false;
+		}
 	}
 	
 	/**
@@ -299,7 +305,7 @@ public class Utils {
 	 */
 	public static boolean hasAnyFeatureMonitoringEnabled(IProject project) {
 		try {
-			Map<String, Map<String, Object>> config = getFeatureMonitoringConfig(project);
+			JsonObject config = getFeatureMonitoringConfig(project);
 			for (String key : config.keySet()) {
 				// Skip non-feature keys like enableJvmMetrics
 				if (key.equals("enableJvmMetrics")) continue;

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import java.util.stream.Collectors;
 
@@ -46,7 +47,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
 	private Map<String, List<String>> featureToModuleMap;
-	private Map<String, Map<String, Object>> monitoringConfig;
+	private JsonObject monitoringConfig;
 	protected List<String> selectedFeature;
 	private Map<String, Integer> variableNameCounts = new HashMap<>();
 
@@ -69,9 +70,12 @@ public class ProductClassRenderer extends TemplateRenderer {
 		dataModel.put("productName", product.getProductName());
 		dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 		
-		// Add monitoring configuration
-		boolean monitoringEnabled = isAnyFeatureMonitoringEnabled();
+		// Add monitoring configuration (feature monitoring OR JVM metrics)
+		boolean hasFeatureMonitoring = isAnyFeatureMonitoringEnabled();
+		boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
+		boolean monitoringEnabled = hasFeatureMonitoring || enableJvmMetrics;
 		dataModel.put("monitoringEnabled", monitoringEnabled);
+		dataModel.put("enableJvmMetrics", enableJvmMetrics);
 		dataModel.put("monitoredFeatures", getMonitoredFeatures());
 		
 		try {
@@ -553,7 +557,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 	}
 
 	private boolean isAnyFeatureMonitoringEnabled() {
-		if (monitoringConfig == null || monitoringConfig.isEmpty()) {
+		if (monitoringConfig == null || monitoringConfig.size() == 0) {
 			return false;
 		}
 		for (String feature : selectedFeature) {
@@ -566,7 +570,7 @@ public class ProductClassRenderer extends TemplateRenderer {
 	
 	private List<String> getMonitoredFeatures() {
 		List<String> monitoredFeatures = new ArrayList<>();
-		if (monitoringConfig == null || monitoringConfig.isEmpty()) {
+		if (monitoringConfig == null || monitoringConfig.size() == 0) {
 			return monitoredFeatures;
 		}
 		for (String feature : selectedFeature) {

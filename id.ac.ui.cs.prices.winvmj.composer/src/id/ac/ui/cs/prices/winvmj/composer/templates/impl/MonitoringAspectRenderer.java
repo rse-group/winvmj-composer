@@ -18,6 +18,8 @@ import java.io.StringWriter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
+import com.google.gson.JsonObject;
+
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
@@ -26,7 +28,7 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 
 public class MonitoringAspectRenderer extends TemplateRenderer {
 
-    private Map<String, Map<String, Object>> monitoringConfig;
+    private JsonObject monitoringConfig;
     private Map<String, List<String>> featureToModuleMap;
     protected List<String> selectedFeature;
 
@@ -37,7 +39,7 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             featureToModuleMap = Utils.getFeatureToModuleMap(project.getProject());
         } catch (CoreException e) {
             e.printStackTrace();
-            monitoringConfig = new HashMap<>();
+            monitoringConfig = new JsonObject();
             featureToModuleMap = new HashMap<>();
         }
         getSelectedFeature(project);
@@ -136,7 +138,7 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
     private List<String> getMonitoredModules() {
         List<String> monitoredModules = new ArrayList<>();
         
-        if (monitoringConfig == null || monitoringConfig.isEmpty() || featureToModuleMap == null) {
+        if (monitoringConfig == null || monitoringConfig.size() == 0 || featureToModuleMap == null) {
             return monitoredModules;
         }
 
