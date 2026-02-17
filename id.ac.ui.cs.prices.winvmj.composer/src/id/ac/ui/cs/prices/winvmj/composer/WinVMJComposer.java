@@ -304,8 +304,9 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		// Generate monitoring aspect module if any feature has monitoring enabled
 		if (monitoringAspectRenderer.shouldRender()) {
 			monitoringAspectRenderer.render(product);
+			monitoringAspectRenderer.generateModuleInfo(product);
 			monitoringAspectRenderer.generateAopXml(product);
-			WinVMJConsole.println("[Monitoring] Generated MonitoringAspect module with aop.xml");
+			WinVMJConsole.println("[Monitoring] Generated MonitoringAspect module with module-info.java and aop.xml");
 		}
 	}
 	

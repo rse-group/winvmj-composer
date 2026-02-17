@@ -225,4 +225,51 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Generate module-info.java for JPMS compatibility.
+     * This is required for SourceCompiler to compile the monitoring module into a JAR.
+     */
+    public void generateModuleInfo(WinVMJProduct product) {
+        String modulePackage = getModulePackage(product);
+        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
+        
+        if (!moduleFolder.exists()) {
+            try {
+                moduleFolder.create(false, true, null);
+            } catch (CoreException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        
+        IFile moduleInfoFile = moduleFolder.getFile("module-info.java");
+        
+        try {
+            Configuration cfg = new Configuration(Configuration.VERSION_2_3_31);
+            cfg.setClassForTemplateLoading(this.getClass(), "/templates");
+            Template template = cfg.getTemplate("MonitoringAspectModuleInfo.ftl");
+            
+            Map<String, Object> dataModel = new HashMap<>();
+            dataModel.put("modulePackage", modulePackage);
+            dataModel.put("enableJvmMetrics", Utils.isJvmMetricsEnabled(project.getProject()));
+            
+            StringWriter writer = new StringWriter();
+            template.process(dataModel, writer);
+            
+            ByteArrayInputStream content = new ByteArrayInputStream(
+                writer.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)
+            );
+            
+            if (!moduleInfoFile.exists()) {
+                moduleInfoFile.create(content, false, null);
+            } else {
+                moduleInfoFile.setContents(content, true, false, null);
+            }
+            
+            WinVMJConsole.println("[MonitoringAspect] Generated module-info.java");
+        } catch (CoreException | IOException | TemplateException e) {
+            e.printStackTrace();
+        }
+    }
 }
