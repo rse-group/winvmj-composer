@@ -43,7 +43,6 @@ dependencies {
     <#if enableJvmMetrics>
     implementation 'io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry-java8:2.4.0-alpha'
     </#if>
-    implementation 'org.aspectj:aspectjrt:1.9.22'
     implementation 'org.aspectj:aspectjweaver:1.9.22'
     </#if>
 
