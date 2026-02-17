@@ -379,15 +379,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			
 			IFile monitoringConfigFile = project.getProject().getFile(MONITORING_CONFIG_FILENAME);
 			if (!monitoringConfigFile.exists()) {
-				// Create default monitoring config with example features
-				JsonObject defaultMonitoringConfig = new JsonObject();
-				
-				// Add Base feature as example
-				JsonObject baseFeatureConfig = new JsonObject();
-				baseFeatureConfig.addProperty("enabled", true);
-				defaultMonitoringConfig.add("Base", baseFeatureConfig);
-				
-				String monitoringContent = defaultMonitoringConfig.toString();
+				String monitoringContent = Utils.createDefaultMonitoringConfigContent();
 				InputStream monitoringStream = new ByteArrayInputStream(monitoringContent.getBytes());
 				monitoringConfigFile.create(monitoringStream, false, null);
 				monitoringStream.close();

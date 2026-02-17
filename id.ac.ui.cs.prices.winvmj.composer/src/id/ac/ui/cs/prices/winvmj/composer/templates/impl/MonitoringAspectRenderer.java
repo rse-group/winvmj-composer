@@ -78,7 +78,12 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         List<String> monitoredModules = getMonitoredModules();
         dataModel.put("monitoredModules", monitoredModules);
         
+        // Check if JVM metrics are enabled (global option)
+        boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
+        dataModel.put("enableJvmMetrics", enableJvmMetrics);
+        
         WinVMJConsole.println("[MonitoringAspect] Generating aspect for modules: " + monitoredModules);
+        WinVMJConsole.println("[MonitoringAspect] JVM metrics enabled: " + enableJvmMetrics);
 
         return dataModel;
     }
@@ -128,51 +133,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         return monitoringFolder.getFile("MonitoringAspect.java");
     }
 
-    /**
-     * Generate module-info.java for the MonitoringAspect module.
-     */
-    public void generateModuleInfo(WinVMJProduct product) {
-        String modulePackage = getModulePackage(product);
-        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
-        
-        if (!moduleFolder.exists()) {
-            try {
-                moduleFolder.create(false, true, null);
-            } catch (CoreException e) {
-                e.printStackTrace();
-                return;
-            }
-        }
-        
-        IFile moduleInfoFile = moduleFolder.getFile("module-info.java");
-        
-        try {
-            Configuration cfg = new Configuration(Configuration.VERSION_2_3_31);
-            cfg.setClassForTemplateLoading(this.getClass(), "/templates");
-            Template template = cfg.getTemplate("MonitoringAspectModuleInfo.ftl");
-            
-            Map<String, Object> dataModel = new HashMap<>();
-            dataModel.put("modulePackage", modulePackage);
-            
-            StringWriter writer = new StringWriter();
-            template.process(dataModel, writer);
-            
-            ByteArrayInputStream content = new ByteArrayInputStream(
-                writer.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)
-            );
-            
-            if (!moduleInfoFile.exists()) {
-                moduleInfoFile.create(content, false, null);
-            } else {
-                moduleInfoFile.setContents(content, true, false, null);
-            }
-            
-            WinVMJConsole.println("[MonitoringAspect] Generated module-info.java for " + modulePackage);
-        } catch (CoreException | IOException | TemplateException e) {
-            e.printStackTrace();
-        }
-    }
-
     private List<String> getMonitoredModules() {
         List<String> monitoredModules = new ArrayList<>();
         
@@ -198,7 +158,10 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
     }
 
     public boolean shouldRender() {
-        return !getMonitoredModules().isEmpty();
+        // Render if any feature has monitoring enabled OR JVM metrics enabled
+        boolean hasMonitoredModules = !getMonitoredModules().isEmpty();
+        boolean jvmMetricsEnabled = Utils.isJvmMetricsEnabled(project.getProject());
+        return hasMonitoredModules || jvmMetricsEnabled;
     }
 
     /**

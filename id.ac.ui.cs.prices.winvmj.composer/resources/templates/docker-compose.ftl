@@ -36,7 +36,7 @@ services:
     ports:
       # HOST_PORT:CONTAINER_PORT (container port fixed at 7776)
       - "${"$"}{HOST_PORT_BE:-7776}:7776"
-<#if hasMonitoringAspect>
+<#if shouldHaveMonitoring>
       - "${"$"}{HOST_PORT_MONITORING:-9464}:9464"
 </#if>
     networks:

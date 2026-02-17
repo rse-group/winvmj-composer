@@ -32,10 +32,10 @@ COPY --from=builder /app/build/classes/java/main/ ./classes/
 # Move product JARs to jars folder for unified classpath
 RUN mv ${productPackage}/*.jar ./jars/ 2>/dev/null || true
 
-<#if hasMonitoringAspect>
+<#if shouldHaveMonitoring>
 # Copy aop.xml to classpath root for AspectJ load-time weaving
 RUN mkdir -p META-INF && \
-    cp ${monitoringAspectPackage}/META-INF/aop.xml META-INF/aop.xml 2>/dev/null || true
+    cp ${monitoringPackage}/META-INF/aop.xml META-INF/aop.xml 2>/dev/null || true
 </#if>
 
 # Fix Windows CRLF line endings and set permissions
@@ -50,13 +50,13 @@ ENV AMANAH_HOST_BE=0.0.0.0
 ENV AMANAH_DB_URL=jdbc:postgresql://postgres:5432/${productName?lower_case}
 ENV AMANAH_DB_USERNAME=postgres
 ENV AMANAH_DB_PASSWORD=postgres123
-<#if hasMonitoringAspect>
+<#if shouldHaveMonitoring>
 ENV AMANAH_MONITORING_PORT=9464
 </#if>
 
 # Expose internal ports
 EXPOSE 7776
-<#if hasMonitoringAspect>
+<#if shouldHaveMonitoring>
 EXPOSE 9464
 </#if>
 

@@ -14,6 +14,7 @@ import de.ovgu.featureide.core.IFeatureProject;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
+import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
@@ -42,13 +43,22 @@ public class DockerRenderer extends TemplateRenderer {
         dataModel.put("productName", product.getProductName());
         dataModel.put("productPackage", product.getProductQualifiedName());
         
-        // Check if monitoring aspect exists
+        // Monitoring package name for aop.xml path
         String[] parts = product.getProductQualifiedName().split("\\.");
         String prefix = parts.length >= 1 ? parts[0] : "monitoring";
-        String monitoringModuleName = prefix + ".monitoring.aspect";
-        boolean hasMonitoringAspect = project.getBuildFolder().getFolder(monitoringModuleName).exists();
-        dataModel.put("hasMonitoringAspect", hasMonitoringAspect);
-        dataModel.put("monitoringPackage", monitoringModuleName);
+        String monitoringPackage = prefix + ".monitoring.aspect";
+        dataModel.put("monitoringPackage", monitoringPackage);
+        
+        // Check if JVM metrics are enabled (global option)
+        boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
+        dataModel.put("enableJvmMetrics", enableJvmMetrics);
+        
+        // Check if any feature monitoring is enabled
+        boolean hasFeatureMonitoring = Utils.hasAnyFeatureMonitoringEnabled(project.getProject());
+        
+        // Should include monitoring if either feature monitoring or JVM metrics enabled
+        boolean shouldHaveMonitoring = hasFeatureMonitoring || enableJvmMetrics;
+        dataModel.put("shouldHaveMonitoring", shouldHaveMonitoring);
         
         return dataModel;
     }

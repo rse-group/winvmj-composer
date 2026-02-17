@@ -46,7 +46,7 @@ HOST_PORT_BE=7776
 # @prices-ignore
 HOST_PORT_POSTGRES=5432
 
-<#if hasMonitoringAspect>
+<#if shouldHaveMonitoring>
 # ============================================
 # Monitoring Configuration
 # ============================================

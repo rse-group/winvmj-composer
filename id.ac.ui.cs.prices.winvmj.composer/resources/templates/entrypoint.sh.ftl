@@ -29,7 +29,7 @@ fi
 
 # Run the application
 # Classpath: jars/* (dependencies) + classes/ (compiled aspects) + . (resources)
-<#if hasMonitoringAspect>
+<#if shouldHaveMonitoring>
 exec java -javaagent:jars/aspectjweaver-1.9.22.jar -cp "jars/*:classes:." ${productPackage}.${productName}
 <#else>
 exec java -cp "jars/*:classes:." ${productPackage}.${productName}

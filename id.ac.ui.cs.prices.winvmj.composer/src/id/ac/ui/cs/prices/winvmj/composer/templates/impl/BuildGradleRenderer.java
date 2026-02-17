@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.eclipse.core.resources.IFile;
 
 import de.ovgu.featureide.core.IFeatureProject;
+import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
@@ -46,13 +47,22 @@ public class BuildGradleRenderer extends TemplateRenderer {
         dataModel.put("dbPassword", dbPassword);
         dataModel.put("SQLFolder", "sql");
         
-        // Check if monitoring aspect module exists
+        // Monitoring module name for sourceSets
         String[] parts = product.getProductQualifiedName().split("\\.");
         String prefix = parts.length >= 1 ? parts[0] : "monitoring";
-        String monitoringModuleName = prefix + ".monitoring.aspect";
-        boolean hasMonitoringAspect = project.getBuildFolder().getFolder(monitoringModuleName).exists();
-        dataModel.put("hasMonitoringAspect", hasMonitoringAspect);
-        dataModel.put("monitoringModule", monitoringModuleName);
+        String monitoringModule = prefix + ".monitoring.aspect";
+        dataModel.put("monitoringModule", monitoringModule);
+        
+        // Check if JVM metrics are enabled (global option)
+        boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
+        dataModel.put("enableJvmMetrics", enableJvmMetrics);
+        
+        // Check if any feature monitoring is enabled
+        boolean hasFeatureMonitoring = Utils.hasAnyFeatureMonitoringEnabled(project.getProject());
+        
+        // Should include monitoring if either feature monitoring or JVM metrics enabled
+        boolean shouldHaveMonitoring = hasFeatureMonitoring || enableJvmMetrics;
+        dataModel.put("shouldHaveMonitoring", shouldHaveMonitoring);
         
         return dataModel;
     }

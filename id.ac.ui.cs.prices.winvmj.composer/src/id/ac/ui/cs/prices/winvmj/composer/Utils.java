@@ -293,6 +293,62 @@ public class Utils {
 		Object enabled = featureConfig.get("enabled");
 		return enabled instanceof Boolean && (Boolean) enabled;
 	}
+	
+	/**
+	 * Check if any feature has monitoring enabled.
+	 */
+	public static boolean hasAnyFeatureMonitoringEnabled(IProject project) {
+		try {
+			Map<String, Map<String, Object>> config = getFeatureMonitoringConfig(project);
+			for (String key : config.keySet()) {
+				// Skip non-feature keys like enableJvmMetrics
+				if (key.equals("enableJvmMetrics")) continue;
+				if (isFeatureMonitoringEnabled(config, key)) {
+					return true;
+				}
+			}
+			return false;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+	
+	/**
+	 * Check if JVM metrics collection is enabled in monitoring config.
+	 * JVM metrics are global (memory, GC, threads) and apply to the entire JVM.
+	 */
+	public static boolean isJvmMetricsEnabled(IProject project) {
+		try {
+			Reader configReader = new InputStreamReader(project
+					.getFile(WinVMJComposer.MONITORING_CONFIG_FILENAME).getContents());
+			Gson gson = new Gson();
+			JsonObject config = gson.fromJson(configReader, JsonObject.class);
+			if (config != null && config.has("enableJvmMetrics")) {
+				return config.get("enableJvmMetrics").getAsBoolean();
+			}
+			return false;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+	
+	/**
+	 * Create default monitoring config JSON content.
+	 * Contains global JVM metrics option and example feature config.
+	 */
+	public static String createDefaultMonitoringConfigContent() {
+		JsonObject defaultConfig = new JsonObject();
+		
+		// Global JVM metrics option (memory, GC, threads - applies to entire JVM)
+		defaultConfig.addProperty("enableJvmMetrics", false);
+		
+		// Add Base feature as example
+		JsonObject baseFeatureConfig = new JsonObject();
+		baseFeatureConfig.addProperty("enabled", false);
+		defaultConfig.add("Base", baseFeatureConfig);
+		
+		return defaultConfig.toString();
+	}
 
 	private static String getFeatureName(String module) {
 		String[] moduleParts = module.split("\\.");

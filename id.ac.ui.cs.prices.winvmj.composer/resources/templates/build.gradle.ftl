@@ -16,9 +16,9 @@ repositories {
 sourceSets {
     main {
         java {
-            srcDirs = ['${product}'<#if hasMonitoringAspect>, '${monitoringModule}'</#if>]
+            srcDirs = ['${product}'<#if shouldHaveMonitoring>, '${monitoringModule}'</#if>]
         }
-        <#if hasMonitoringAspect>
+        <#if shouldHaveMonitoring>
         resources {
             srcDirs = ['${monitoringModule}']
         }
@@ -39,20 +39,18 @@ dependencies {
     implementation 'com.fasterxml:classmate:1.5.1'
     implementation 'org.json:json:20250517'
 
-    <#if hasMonitoringAspect>
-    // OpenTelemetry for monitoring
+    <#if shouldHaveMonitoring>
     implementation platform('io.opentelemetry:opentelemetry-bom:1.40.0')
     implementation 'io.opentelemetry:opentelemetry-api'
     implementation 'io.opentelemetry:opentelemetry-sdk'
     implementation 'io.opentelemetry:opentelemetry-sdk-metrics'
     implementation 'io.opentelemetry:opentelemetry-exporter-prometheus:1.40.0-alpha'
-    
-    // AspectJ for load-time weaving
+    <#if enableJvmMetrics>
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry-java8:2.4.0-alpha'
+    </#if>
     implementation 'org.aspectj:aspectjrt:1.9.22'
     implementation 'org.aspectj:aspectjweaver:1.9.22'
     </#if>
-
-    // Additional dependencies
 
     <#list dependencies as dependency>
     ${dependency}
@@ -64,7 +62,6 @@ def jarFile = file('${product}/${productName}.jar')
 def jf = new java.util.jar.JarFile(jarFile)
 def mainCls = jf.manifest?.mainAttributes?.getValue('Main-Class')
 
-// Task to copy Gradle dependencies for Docker
 task copyDependencies(type: Copy) {
     group = 'docker'
     description = 'Copy runtime dependencies to deps folder for Docker'
@@ -184,7 +181,7 @@ task loadSql(type: Exec) {
     }
 }
 
-<#if hasMonitoringAspect>
+<#if shouldHaveMonitoring>
 // AspectJ weaver agent path
 def aspectjWeaverJar = configurations.runtimeClasspath.find { it.name.contains('aspectjweaver') }
 </#if>
@@ -199,10 +196,8 @@ tasks.register("runWinVMJ", JavaExec) {
     classpath.from fileTree(dir: 'libs', include: ['**/*.jar'])
     classpath.from files(project.projectDir)
     classpath.from configurations.runtimeClasspath
-    <#if hasMonitoringAspect>
+    <#if shouldHaveMonitoring>
     classpath.from sourceSets.main.output
-    </#if>
-    <#if hasMonitoringAspect>
     doFirst {
         if (aspectjWeaverJar) {
             jvmArgs "-javaagent:${r"${aspectjWeaverJar}"}"
@@ -219,10 +214,8 @@ tasks.register("runWinVMJNoSQL", JavaExec) {
     classpath.from fileTree(dir: 'libs', include: ['**/*.jar'])
     classpath.from files(project.projectDir)
     classpath.from configurations.runtimeClasspath
-    <#if hasMonitoringAspect>
+    <#if shouldHaveMonitoring>
     classpath.from sourceSets.main.output
-    </#if>
-    <#if hasMonitoringAspect>
     doFirst {
         if (aspectjWeaverJar) {
             jvmArgs "-javaagent:${r"${aspectjWeaverJar}"}"

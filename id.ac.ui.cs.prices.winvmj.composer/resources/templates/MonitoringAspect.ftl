@@ -15,6 +15,13 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
 import io.opentelemetry.sdk.metrics.export.MetricReader;
+<#if enableJvmMetrics>
+import io.opentelemetry.instrumentation.runtimemetrics.java8.Classes;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.Cpu;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.GarbageCollector;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.MemoryPools;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.Threads;
+</#if>
 
 @Aspect
 public class MonitoringAspect {
@@ -42,6 +49,15 @@ public class MonitoringAspect {
             
             meter = openTelemetry.getMeter("${productPackage}");
             
+<#if enableJvmMetrics>
+            // Register JVM metrics (memory, GC, threads, CPU, classes)
+            Classes.registerObservers(openTelemetry);
+            Cpu.registerObservers(openTelemetry);
+            GarbageCollector.registerObservers(openTelemetry);
+            MemoryPools.registerObservers(openTelemetry);
+            Threads.registerObservers(openTelemetry);
+            System.out.println("== MONITORING ASPECT: JVM metrics registered (memory, GC, threads, CPU, classes) ==");
+</#if>
             System.out.println("== MONITORING ASPECT: OpenTelemetry initialized - Prometheus metrics at :" + port + "/metrics ==");
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize OpenTelemetry monitoring", e);
