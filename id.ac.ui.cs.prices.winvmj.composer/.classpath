@@ -21,5 +21,6 @@
 	<classpathentry kind="lib" path="libs/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar"/>
 	<classpathentry kind="lib" path="libs/logicng-2.2.0.jar"/>
 	<classpathentry kind="lib" path="libs/javaparser-core-3.26.3.jar"/>
+	<classpathentry kind="lib" path="libs/prices-deployment-cli-1.0.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
