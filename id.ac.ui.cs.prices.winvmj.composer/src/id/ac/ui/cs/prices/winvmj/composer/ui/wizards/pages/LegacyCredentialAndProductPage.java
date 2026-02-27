@@ -6,10 +6,10 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.*;
 
-import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentV2Handler;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.LegacyDeploymentV2Handler;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 
-public class CredentialAndProductPage extends WizardPage {
+public class LegacyCredentialAndProductPage extends WizardPage {
 
     private Text credentialFileText;
     private Text productFileText;
@@ -21,15 +21,15 @@ public class CredentialAndProductPage extends WizardPage {
     private boolean isV2 = false;
     private String defaultProductPath;
 
-    public CredentialAndProductPage(String pageName) {
+    public LegacyCredentialAndProductPage(String pageName) {
         super(pageName);
         setTitle("Select Credential, Product and Key Files");
         setDescription("Choose the credential (.json product (.zip), and key (public and private) files.");
     }
 
-    public CredentialAndProductPage() {
+    public LegacyCredentialAndProductPage() {
         super("Credential Input");
-        defaultProductPath = DeploymentV2Handler.getZipPath();
+        defaultProductPath = LegacyDeploymentV2Handler.getZipPath();
         isV2 = true;
         setTitle("Select Credential and Key Files");
         setDescription("Choose the credential (.json) and key (public and private) files.");
@@ -132,7 +132,7 @@ public class CredentialAndProductPage extends WizardPage {
 
         if (visible) {
             if (!isV2) {
-                deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentTargetPage().getSelectedDeploymentTarget();
+                deploymentTarget = ((LegacyDeploymentWizard) getWizard()).getDeploymentTargetPage().getSelectedDeploymentTarget();
                             
                 if ("provisioning".equalsIgnoreCase(deploymentTarget)) {
                     pubKeyText.setEnabled(true);

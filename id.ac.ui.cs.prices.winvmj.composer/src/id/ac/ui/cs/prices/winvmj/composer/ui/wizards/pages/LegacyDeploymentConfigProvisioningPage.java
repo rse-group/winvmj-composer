@@ -6,10 +6,10 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.*;
 
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.NFRDefinition;
 
-public class DeploymentConfigProvisioningPage extends WizardPage {
+public class LegacyDeploymentConfigProvisioningPage extends WizardPage {
 
     private Text usernameText;
     private Text machineTypeText;
@@ -22,7 +22,7 @@ public class DeploymentConfigProvisioningPage extends WizardPage {
     private Text numBackendsText;
 
 
-    public DeploymentConfigProvisioningPage(String pageName) {
+    public LegacyDeploymentConfigProvisioningPage(String pageName) {
         super(pageName);
         setTitle("Deployment Configuration");
         setDescription("Fill in the deployment configuration fields.");
@@ -107,8 +107,8 @@ public class DeploymentConfigProvisioningPage extends WizardPage {
         super.setVisible(visible);
 
         if (visible) {
-            String deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentPage().getSelectedProvider();
-            String deploymentMethod = ((DeploymentWizard) getWizard()).getDeploymentPage().getSelectedDeploymentMethod();
+            String deploymentTarget = ((LegacyDeploymentWizard) getWizard()).getDeploymentPage().getSelectedProvider();
+            String deploymentMethod = ((LegacyDeploymentWizard) getWizard()).getDeploymentPage().getSelectedDeploymentMethod();
             
             machineTypeText.setText(NFRDefinition.getInstance().get());
             machineTypeText.setEnabled(false);

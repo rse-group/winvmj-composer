@@ -2,12 +2,12 @@ package id.ac.ui.cs.prices.winvmj.composer.ui.wizards;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
-import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentToscaHandler;
+import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.LegacyDeploymentToscaHandler;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.NFRDefinition;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.CredentialToscaPage;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.DeploymentInformationPage;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.InstanceRegionPage;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.NFRDefinitionPage;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.LegacyCredentialToscaPage;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.LegacyDeploymentInformationPage;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.LegacyInstanceRegionPage;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.LegacyNFRDefinitionPage;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,17 +27,17 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.jface.wizard.Wizard;
 
-public class DeploymentToscaWizard extends Wizard {
+public class LegacyDeploymentToscaWizard extends Wizard {
     private IFeatureProject project;
-    private InstanceRegionPage instanceRegionPage;
-    private NFRDefinitionPage nfrDefinitionPage;
-    private DeploymentInformationPage deploymentInformationPage;
-    private CredentialToscaPage credentialAndProductPage;
+    private LegacyInstanceRegionPage instanceRegionPage;
+    private LegacyNFRDefinitionPage nfrDefinitionPage;
+    private LegacyDeploymentInformationPage deploymentInformationPage;
+    private LegacyCredentialToscaPage credentialAndProductPage;
     
     // TOSCA deployment method flag
     private boolean useToscaDeployment = true;
 
-    public DeploymentToscaWizard(IFeatureProject project) {
+    public LegacyDeploymentToscaWizard(IFeatureProject project) {
         setWindowTitle("Deployment Wizard V2 - TOSCA Integration");
         this.project = project;
     }
@@ -48,19 +48,19 @@ public class DeploymentToscaWizard extends Wizard {
             NFRDefinition.setDefaultRegion();
         }
 
-        instanceRegionPage = new InstanceRegionPage(project, "Instance and Region Definition");
+        instanceRegionPage = new LegacyInstanceRegionPage(project, "Instance and Region Definition");
         addPage(instanceRegionPage);
 
         if (NFRDefinition.getTransaction() != null || NFRDefinition.getTPS() != null) {
             fillDefaultValueForKNNIfNeeded();
-            nfrDefinitionPage = new NFRDefinitionPage(project, "NFR Definition");
+            nfrDefinitionPage = new LegacyNFRDefinitionPage(project, "NFR Definition");
             addPage(nfrDefinitionPage);
         }
 
-        deploymentInformationPage = new DeploymentInformationPage(project);
+        deploymentInformationPage = new LegacyDeploymentInformationPage(project);
         addPage(deploymentInformationPage);
 
-        credentialAndProductPage = new CredentialToscaPage(true, project);
+        credentialAndProductPage = new LegacyCredentialToscaPage(true, project);
         addPage(credentialAndProductPage);
     }
 
@@ -288,9 +288,9 @@ public class DeploymentToscaWizard extends Wizard {
         String region = NFRDefinition.getRegion().get();
         String certificateName = "HTTP_PLACEHOLDER";
         String nginxCertName = "HTTP_PLACEHOLDER";
-        String instanceName = DeploymentToscaHandler.getProductName();
-        String productPrefix = DeploymentToscaHandler.getProductName();
-        String productName = DeploymentToscaHandler.getProductName();
+        String instanceName = LegacyDeploymentToscaHandler.getProductName();
+        String productPrefix = LegacyDeploymentToscaHandler.getProductName();
+        String productName = LegacyDeploymentToscaHandler.getProductName();
         String pubKeyPath = credentialAndProductPage.getPubKeyFilePath();
         String privKeyPath = credentialAndProductPage.getPrivKeyFilePath();
         String numBackends = "1";

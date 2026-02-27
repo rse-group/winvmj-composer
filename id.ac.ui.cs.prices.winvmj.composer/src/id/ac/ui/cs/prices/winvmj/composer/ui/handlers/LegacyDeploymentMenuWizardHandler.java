@@ -6,10 +6,10 @@ import org.eclipse.swt.widgets.Shell;
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.ui.handlers.base.AFeatureProjectHandler;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.NFRDefinition;
 
-public class DeploymentMenuWizardHandler extends AFeatureProjectHandler {
+public class LegacyDeploymentMenuWizardHandler extends AFeatureProjectHandler {
 	@Override
     protected void singleAction(IFeatureProject project) {
 		WinVMJConsole.showConsole();
@@ -22,7 +22,7 @@ public class DeploymentMenuWizardHandler extends AFeatureProjectHandler {
         }
         
         Shell shell = getShell();
-        DeploymentWizard deploymentWizard = new DeploymentWizard();
+        LegacyDeploymentWizard deploymentWizard = new LegacyDeploymentWizard();
         deploymentWizard.setProject(project);
         WizardDialog wizardDialog = new WizardDialog(shell, deploymentWizard);
         wizardDialog.open();

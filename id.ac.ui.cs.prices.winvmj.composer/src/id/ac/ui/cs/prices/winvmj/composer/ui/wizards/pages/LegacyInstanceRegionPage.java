@@ -19,13 +19,13 @@ import com.google.gson.reflect.TypeToken;
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.CloudConfiguration;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
-import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentToscaHandler;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.LegacyDeploymentToscaHandler;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.KNNResult;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRKnn3;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.*;
 
-public class InstanceRegionPage extends WizardPage {
+public class LegacyInstanceRegionPage extends WizardPage {
     private Combo instanceCombo;
     private Combo regionCombo;
 
@@ -34,13 +34,13 @@ public class InstanceRegionPage extends WizardPage {
 
     private IFeatureProject project;
 
-    public InstanceRegionPage(String pageName) {
+    public LegacyInstanceRegionPage(String pageName) {
         super(pageName);
         setTitle("Non-Functional Requirement Definition");
         setDescription("These are the machine type recommendations based on your NFR definition");
     }
 
-    public InstanceRegionPage(IFeatureProject project, String pageName) {
+    public LegacyInstanceRegionPage(IFeatureProject project, String pageName) {
         this(pageName);
         this.project = project;
     }

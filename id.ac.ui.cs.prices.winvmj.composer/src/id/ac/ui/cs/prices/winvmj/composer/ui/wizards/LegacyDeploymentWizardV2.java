@@ -2,10 +2,10 @@ package id.ac.ui.cs.prices.winvmj.composer.ui.wizards;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
-import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentV2Handler;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.CredentialAndProductPage;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.DeploymentInformationPage;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.NFRDefinitionPage;
+import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.LegacyDeploymentV2Handler;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.LegacyCredentialAndProductPage;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.LegacyDeploymentInformationPage;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.LegacyNFRDefinitionPage;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -24,32 +24,32 @@ import org.eclipse.swt.widgets.Display;
 
 import org.eclipse.jface.wizard.Wizard;
 
-public class DeploymentWizardV2 extends Wizard {
+public class LegacyDeploymentWizardV2 extends Wizard {
     private IFeatureProject project;
-    private NFRDefinitionPage nfrDefinitionPage;
-    private DeploymentInformationPage deploymentInformationPage;
-    private CredentialAndProductPage credentialAndProductPage;
+    private LegacyNFRDefinitionPage nfrDefinitionPage;
+    private LegacyDeploymentInformationPage deploymentInformationPage;
+    private LegacyCredentialAndProductPage credentialAndProductPage;
 
-    public DeploymentWizardV2(IFeatureProject project) {
+    public LegacyDeploymentWizardV2(IFeatureProject project) {
         setWindowTitle("Deployment Wizard V2");
         this.project = project;
     }
 
     @Override
     public void addPages() {
-        if (DeploymentV2Handler.getRegion() == null) {
-            DeploymentV2Handler.setDefaultRegion();
+        if (LegacyDeploymentV2Handler.getRegion() == null) {
+            LegacyDeploymentV2Handler.setDefaultRegion();
         }
-        if (DeploymentV2Handler.getTransaction() != null || DeploymentV2Handler.getTPS() != null) {
+        if (LegacyDeploymentV2Handler.getTransaction() != null || LegacyDeploymentV2Handler.getTPS() != null) {
             fillDefaultValueForKNNIfNeeded();
-            nfrDefinitionPage = new NFRDefinitionPage(project, "NFR Definition");
+            nfrDefinitionPage = new LegacyNFRDefinitionPage(project, "NFR Definition");
             addPage(nfrDefinitionPage);
         }
 
-        deploymentInformationPage = new DeploymentInformationPage(project);
+        deploymentInformationPage = new LegacyDeploymentInformationPage(project);
         addPage(deploymentInformationPage);
 
-        credentialAndProductPage = new CredentialAndProductPage();
+        credentialAndProductPage = new LegacyCredentialAndProductPage();
         addPage(credentialAndProductPage);
     }
 
@@ -60,12 +60,12 @@ public class DeploymentWizardV2 extends Wizard {
     }
 
     private void fillDefaultValueForKNNIfNeeded() {
-        if (DeploymentV2Handler.getTPS() == null) {
-            DeploymentV2Handler.setDefaultTPS();
+        if (LegacyDeploymentV2Handler.getTPS() == null) {
+            LegacyDeploymentV2Handler.setDefaultTPS();
         }
 
-        if (DeploymentV2Handler.getTransaction() == null) {
-            DeploymentV2Handler.setDefaultTransaction();
+        if (LegacyDeploymentV2Handler.getTransaction() == null) {
+            LegacyDeploymentV2Handler.setDefaultTransaction();
         }
     }
 
@@ -75,17 +75,17 @@ public class DeploymentWizardV2 extends Wizard {
     private void handleProvisioningDeployment() {
 		String isProvisioning = "yes";
     	String deploymentMethod = "docker";
-    	String provider = DeploymentV2Handler.getProvider().get().toLowerCase();
+    	String provider = LegacyDeploymentV2Handler.getProvider().get().toLowerCase();
     	String credentialPath = credentialAndProductPage.getCredentialFilePath();
         String productZipPath = credentialAndProductPage.getProductFilePath();
         String username = "ubuntu";
-        String machineType = DeploymentV2Handler.getInstance().get();
-        String region = DeploymentV2Handler.getRegion().get();
+        String machineType = LegacyDeploymentV2Handler.getInstance().get();
+        String region = LegacyDeploymentV2Handler.getRegion().get();
         String certificateName = "HTTP_PLACEHOLDER";
         String nginxCertName = "HTTP_PLACEHOLDER";
-        String instanceName = DeploymentV2Handler.getProductName();
-        String productPrefix = DeploymentV2Handler.getProductName();
-        String productName = DeploymentV2Handler.getProductName();
+        String instanceName = LegacyDeploymentV2Handler.getProductName();
+        String productPrefix = LegacyDeploymentV2Handler.getProductName();
+        String productName = LegacyDeploymentV2Handler.getProductName();
         String pubKeyPath = credentialAndProductPage.getPubKeyFilePath();
         String privKeyPath = credentialAndProductPage.getPrivKeyFilePath();
         String numBackends = "1";

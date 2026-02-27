@@ -12,12 +12,12 @@ import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
 import id.ac.ui.cs.prices.winvmj.composer.core.impl.ProductToCompose;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
-import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentToscaHandler;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentToscaWizard;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.LegacyDeploymentToscaHandler;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentToscaWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.NFRDefinition;
 
-public class CredentialToscaPage extends WizardPage {
+public class LegacyCredentialToscaPage extends WizardPage {
 
     private Text credentialFileText;
     private Text frontendProductFileText;
@@ -59,23 +59,23 @@ public class CredentialToscaPage extends WizardPage {
     private Text gcpZoneText;
     private Text gcpSshUserText;
 
-    public CredentialToscaPage(String pageName) {
+    public LegacyCredentialToscaPage(String pageName) {
         super(pageName);
         setTitle("Select Credential, Product and Key Files");
         setDescription("Choose the credential (.json), product (.zip), and key (public and private) files.");
     }
 
-    public CredentialToscaPage() {
+    public LegacyCredentialToscaPage() {
         super("Credential Input");
-        defaultProductPath = DeploymentToscaHandler.getZipPath();
+        defaultProductPath = LegacyDeploymentToscaHandler.getZipPath();
         isV2 = true;
         setTitle("Select Credential and Key Files");
         setDescription("Choose the credential (.json) and key (public and private) files.");
     }
     
-    public CredentialToscaPage(boolean toscaMode, IFeatureProject project) {
+    public LegacyCredentialToscaPage(boolean toscaMode, IFeatureProject project) {
         super("Credential Input");
-        defaultProductPath = DeploymentToscaHandler.getZipPath();
+        defaultProductPath = LegacyDeploymentToscaHandler.getZipPath();
         this.project = project;
         isV2 = true;
         isToscaMode = toscaMode;
@@ -460,7 +460,7 @@ public class CredentialToscaPage extends WizardPage {
 
         if (visible && !isToscaMode) {
             if (!isV2) {
-                deploymentTarget = ((DeploymentWizard) getWizard()).getDeploymentTargetPage().getSelectedDeploymentTarget();
+                deploymentTarget = ((LegacyDeploymentWizard) getWizard()).getDeploymentTargetPage().getSelectedDeploymentTarget();
                             
                 if ("provisioning".equalsIgnoreCase(deploymentTarget)) {
                     pubKeyText.setEnabled(true);

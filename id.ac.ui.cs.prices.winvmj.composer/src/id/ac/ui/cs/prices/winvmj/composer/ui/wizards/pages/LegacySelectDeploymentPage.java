@@ -7,9 +7,9 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
 
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 
-public class SelectDeploymentPage extends WizardPage {
+public class LegacySelectDeploymentPage extends WizardPage {
     private String selectedProvider = "None";
     private String selectedArchitecture = "None";
     private String selectedDeploymentMethod = "None";
@@ -22,7 +22,7 @@ public class SelectDeploymentPage extends WizardPage {
     private String deploymentTarget = "";
 
 
-    public SelectDeploymentPage(String pageName) {
+    public LegacySelectDeploymentPage(String pageName) {
         super(pageName);
         setTitle("Deployment Selection");
         setDescription("Choose your cloud provider, architecture, and deployment method.");
@@ -110,7 +110,7 @@ public class SelectDeploymentPage extends WizardPage {
         super.setVisible(visible);
         
         if (visible) {
-            DeploymentTargetPage prevPage = ((DeploymentWizard) getWizard()).getDeploymentTargetPage();
+            LegacyDeploymentTargetPage prevPage = ((LegacyDeploymentWizard) getWizard()).getDeploymentTargetPage();
             deploymentTarget = prevPage.getSelectedDeploymentTarget();
 
             boolean isProvisioning = "provisioning".equalsIgnoreCase(deploymentTarget);

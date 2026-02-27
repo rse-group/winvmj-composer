@@ -6,9 +6,9 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.*;
 
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 
-public class DeploymentConfigExistingPage extends WizardPage {
+public class LegacyDeploymentConfigExistingPage extends WizardPage {
 	
 	private Text usernameText;
     private Text instanceIPText;
@@ -19,7 +19,7 @@ public class DeploymentConfigExistingPage extends WizardPage {
     private Text numBackendsText;
 
 
-    public DeploymentConfigExistingPage(String pageName) {
+    public LegacyDeploymentConfigExistingPage(String pageName) {
         super(pageName);
         setTitle("Deployment Configuration");
         setDescription("Fill in the deployment configuration fields.");
@@ -87,7 +87,7 @@ public class DeploymentConfigExistingPage extends WizardPage {
         super.setVisible(visible);
 
         if (visible) {
-            String deploymentMethod = ((DeploymentWizard) getWizard()).getDeploymentPage().getSelectedDeploymentMethod();
+            String deploymentMethod = ((LegacyDeploymentWizard) getWizard()).getDeploymentPage().getSelectedDeploymentMethod();
                           
             if ("docker".equalsIgnoreCase(deploymentMethod)) {
             	numBackendsText.setEnabled(true);

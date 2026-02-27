@@ -7,10 +7,10 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
 
-public class DeploymentTargetPage extends WizardPage {
+public class LegacyDeploymentTargetPage extends WizardPage {
     private String selectedDeploymentTarget = "None";
 
-    public DeploymentTargetPage(String pageName) {
+    public LegacyDeploymentTargetPage(String pageName) {
         super(pageName);
         setTitle("Deployment Selection");
         setDescription("Choose a deployment target: Existing VM, Provision VM, or Amanah Server.");

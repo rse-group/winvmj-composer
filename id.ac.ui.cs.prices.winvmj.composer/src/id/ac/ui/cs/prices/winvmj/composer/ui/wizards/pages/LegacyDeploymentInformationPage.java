@@ -6,17 +6,17 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.*;
 import de.ovgu.featureide.core.IFeatureProject;
-import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentToscaHandler;
+import id.ac.ui.cs.prices.winvmj.composer.ui.handlers.LegacyDeploymentToscaHandler;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.NFRDefinition;
 
-public class DeploymentInformationPage extends WizardPage {
+public class LegacyDeploymentInformationPage extends WizardPage {
     private IFeatureProject project;
 
     private Text providerText;
     private Text instanceText;
     private Text regionText;
 
-    public DeploymentInformationPage(IFeatureProject project) {
+    public LegacyDeploymentInformationPage(IFeatureProject project) {
         super("Summary");
         setTitle("Specification Summary");
         setDescription("Review the deployment specification.");

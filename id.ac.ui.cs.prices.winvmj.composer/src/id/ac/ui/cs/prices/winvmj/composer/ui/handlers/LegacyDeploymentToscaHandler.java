@@ -31,8 +31,8 @@ import de.ovgu.featureide.fm.core.job.monitor.IMonitor;
 import de.ovgu.featureide.ui.handlers.base.AFeatureProjectHandler;
 import id.ac.ui.cs.prices.winvmj.composer.compile.SourceCompiler;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentToscaWizard;
-import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentToscaWizard;
+import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.LegacyDeploymentWizard;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.FeatureWizard;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.*;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.utils.NFRDefinitionUtil;
@@ -40,7 +40,7 @@ import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.models.NFRDefinition.utils.
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.swt.widgets.Shell;
 
-public class DeploymentToscaHandler extends AFeatureProjectHandler {
+public class LegacyDeploymentToscaHandler extends AFeatureProjectHandler {
     private static String zipPath;
     private static String productName = "";
 
@@ -146,7 +146,7 @@ public class DeploymentToscaHandler extends AFeatureProjectHandler {
 
     private void openDeploymentV2Wizard(IFeatureProject project) {
         Shell shell = getShell();
-        DeploymentToscaWizard deploymentWizard = new DeploymentToscaWizard(project);
+        LegacyDeploymentToscaWizard deploymentWizard = new LegacyDeploymentToscaWizard(project);
         WizardDialog wizardDialog = new WizardDialog(shell, deploymentWizard);
         wizardDialog.open();
     }

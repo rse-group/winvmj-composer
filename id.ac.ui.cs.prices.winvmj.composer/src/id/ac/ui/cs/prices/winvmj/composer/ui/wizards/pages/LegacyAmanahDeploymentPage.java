@@ -6,7 +6,7 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.*;
 
-public class AmanahDeploymentPage extends WizardPage {
+public class LegacyAmanahDeploymentPage extends WizardPage {
 
     private Text tunnelPortText;
     private Text privateKeyText;
@@ -16,7 +16,7 @@ public class AmanahDeploymentPage extends WizardPage {
     private Text productFileText;
     private Text numBackendsText;
 
-    public AmanahDeploymentPage(String pageName) {
+    public LegacyAmanahDeploymentPage(String pageName) {
         super(pageName);
         setTitle("Amanah SSH Configuration");
         setDescription("Enter SSH tunnel port, private key file, username, product name and product file dir for Amanah deployment.");
