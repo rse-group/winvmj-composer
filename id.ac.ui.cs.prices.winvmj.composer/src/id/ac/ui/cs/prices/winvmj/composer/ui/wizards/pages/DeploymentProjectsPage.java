@@ -218,6 +218,22 @@ public class DeploymentProjectsPage extends WizardPage {
         dialog.open();
     }
     
+    /**
+     * Opens the project detail dialog for the currently selected project.
+     * Can be called from other pages.
+     */
+    public void openSelectedProjectDetail() {
+        String slug = wizard.getSelectedProjectSlug();
+        if (slug == null) return;
+        
+        for (ProjectInfo project : projects) {
+            if (slug.equals(project.slug)) {
+                openProjectDetailDialog(project);
+                return;
+            }
+        }
+    }
+    
     private void parseProjects(CliResult result) {
         String arrayJson = result.getDataFieldAsString("_array");
         if (arrayJson == null || arrayJson.isEmpty()) {
@@ -279,16 +295,19 @@ public class DeploymentProjectsPage extends WizardPage {
         CreateProjectDialog dialog = new CreateProjectDialog(getShell(), wizard.getFeatureProject().getProjectName());
         if (dialog.open() == org.eclipse.jface.window.Window.OK) {
             createProject(dialog.getProjectName(), dialog.getDescription(), 
-                         dialog.getCustomFrontendUrl(), dialog.getCustomBackendUrl());
+                         dialog.getCustomFrontendUrl(), dialog.getCustomBackendUrl(),
+                         dialog.getFrontendListeningPort(), dialog.getBackendListeningPort());
         }
     }
     
-    private void createProject(String name, String description, String customFrontendUrl, String customBackendUrl) {
+    private void createProject(String name, String description, String customFrontendUrl, String customBackendUrl,
+                               Integer frontendListeningPort, Integer backendListeningPort) {
         statusLabel.setText("Creating project '" + name + "'...");
         
         new Thread(() -> {
             WinVMJConsole.println("[PROJECTS] Creating project: " + name);
-            CliResult result = cliRunner.createProjectJson(name, description, customFrontendUrl, customBackendUrl);
+            CliResult result = cliRunner.createProjectJson(name, description, customFrontendUrl, customBackendUrl,
+                                                            frontendListeningPort, backendListeningPort);
             
             Display.getDefault().asyncExec(() -> {
                 if (result.isSuccess()) {
@@ -310,11 +329,15 @@ public class DeploymentProjectsPage extends WizardPage {
         private Text descriptionText;
         private Text customFrontendText;
         private Text customBackendText;
+        private Text frontendPortText;
+        private Text backendPortText;
         
         private String projectName;
         private String description;
         private String customFrontendUrl;
         private String customBackendUrl;
+        private Integer frontendListeningPort;
+        private Integer backendListeningPort;
         private String defaultName;
         
         public CreateProjectDialog(Shell parentShell, String defaultName) {
@@ -376,12 +399,39 @@ public class DeploymentProjectsPage extends WizardPage {
             customBackendText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
             customBackendText.setMessage("e.g., api.example.com");
             
+            // Separator for ports
+            Label portSep = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
+            GridData portSepGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+            portSepGd.horizontalSpan = 2;
+            portSep.setLayoutData(portSepGd);
+            
+            // Internal Listening Ports section label
+            Label portLabel = new Label(container, SWT.NONE);
+            portLabel.setText("Internal Listening Ports (optional):");
+            GridData portLabelGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+            portLabelGd.horizontalSpan = 2;
+            portLabel.setLayoutData(portLabelGd);
+            
+            // Frontend listening port
+            Label fePortLabel = new Label(container, SWT.NONE);
+            fePortLabel.setText("Frontend Port:");
+            frontendPortText = new Text(container, SWT.BORDER);
+            frontendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            frontendPortText.setMessage("default: 3000");
+            
+            // Backend listening port
+            Label bePortLabel = new Label(container, SWT.NONE);
+            bePortLabel.setText("Backend Port:");
+            backendPortText = new Text(container, SWT.BORDER);
+            backendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            backendPortText.setMessage("default: 7776");
+            
             return container;
         }
         
         @Override
         protected Point getInitialSize() {
-            return new Point(500, 350);
+            return new Point(500, 450);
         }
         
         @Override
@@ -397,6 +447,12 @@ public class DeploymentProjectsPage extends WizardPage {
             customFrontendUrl = customFrontendText.getText().trim();
             customBackendUrl = customBackendText.getText().trim();
             
+            // Parse ports
+            String fePortStr = frontendPortText.getText().trim();
+            String bePortStr = backendPortText.getText().trim();
+            frontendListeningPort = fePortStr.isEmpty() ? null : parsePort(fePortStr);
+            backendListeningPort = bePortStr.isEmpty() ? null : parsePort(bePortStr);
+            
             if (projectName.isEmpty()) {
                 nameText.setFocus();
                 return;
@@ -404,10 +460,20 @@ public class DeploymentProjectsPage extends WizardPage {
             super.okPressed();
         }
         
+        private Integer parsePort(String portStr) {
+            try {
+                return Integer.parseInt(portStr);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        
         public String getProjectName() { return projectName; }
         public String getDescription() { return description; }
         public String getCustomFrontendUrl() { return customFrontendUrl; }
         public String getCustomBackendUrl() { return customBackendUrl; }
+        public Integer getFrontendListeningPort() { return frontendListeningPort; }
+        public Integer getBackendListeningPort() { return backendListeningPort; }
     }
     
     private void updatePageComplete() {
@@ -430,6 +496,8 @@ public class DeploymentProjectsPage extends WizardPage {
         String status;
         String frontendUrls;
         String backendUrls;
+        Integer frontendListeningPort;
+        Integer backendListeningPort;
     }
     
     /**
@@ -475,6 +543,11 @@ public class DeploymentProjectsPage extends WizardPage {
             TabItem envVarsTab = new TabItem(tabFolder, SWT.NONE);
             envVarsTab.setText("Env Variables");
             envVarsTab.setControl(createEnvVarsTab(tabFolder));
+            
+            // Logs tab
+            TabItem logsTab = new TabItem(tabFolder, SWT.NONE);
+            logsTab.setText("Logs");
+            logsTab.setControl(createLogsTab(tabFolder));
             
             return container;
         }
@@ -899,6 +972,123 @@ public class DeploymentProjectsPage extends WizardPage {
             return comp;
         }
         
+        private Composite createLogsTab(TabFolder parent) {
+            Composite comp = new Composite(parent, SWT.NONE);
+            comp.setLayout(new GridLayout(1, false));
+            
+            // Info label
+            Label infoLabel = new Label(comp, SWT.NONE);
+            infoLabel.setText("Project Logs");
+            infoLabel.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+            
+            // Log viewer (read-only text area)
+            Text logViewer = new Text(comp, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL | SWT.READ_ONLY);
+            logViewer.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+            logViewer.setFont(new org.eclipse.swt.graphics.Font(Display.getDefault(), "Consolas", 9, SWT.NORMAL));
+            
+            // Button bar
+            Composite buttonBar = new Composite(comp, SWT.NONE);
+            buttonBar.setLayout(new GridLayout(3, false));
+            buttonBar.setLayoutData(new GridData(SWT.RIGHT, SWT.TOP, false, false));
+            
+            Button refreshButton = new Button(buttonBar, SWT.PUSH);
+            refreshButton.setText("Refresh");
+            
+            Button followButton = new Button(buttonBar, SWT.TOGGLE);
+            followButton.setText("Follow");
+            
+            Button clearButton = new Button(buttonBar, SWT.PUSH);
+            clearButton.setText("Clear");
+            
+            // Streaming state
+            final Process[] streamProcess = {null};
+            
+            // Load logs async
+            Runnable loadLogs = () -> {
+                infoLabel.setText("Loading logs...");
+                logViewer.setText("");
+                
+                new Thread(() -> {
+                    String logs = cliRunner.getProjectLogs(project.slug, 200);
+                    Display.getDefault().asyncExec(() -> {
+                        if (logViewer.isDisposed()) return;
+                        
+                        if (logs != null && !logs.trim().isEmpty()) {
+                            logViewer.setText(logs);
+                            infoLabel.setText("Logs for " + project.slug + " (last 200 lines)");
+                            // Scroll to bottom
+                            logViewer.setSelection(logViewer.getText().length());
+                        } else {
+                            logViewer.setText("No logs available.");
+                            infoLabel.setText("Logs for " + project.slug);
+                        }
+                    });
+                }).start();
+            };
+            
+            // Stop streaming
+            Runnable stopStreaming = () -> {
+                if (streamProcess[0] != null) {
+                    streamProcess[0].destroyForcibly();
+                    streamProcess[0] = null;
+                }
+            };
+            
+            // Initial load
+            loadLogs.run();
+            
+            // Refresh button
+            refreshButton.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    stopStreaming.run();
+                    followButton.setSelection(false);
+                    loadLogs.run();
+                }
+            });
+            
+            // Follow toggle button
+            followButton.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    if (followButton.getSelection()) {
+                        // Start streaming
+                        infoLabel.setText("Streaming logs... (click Follow again to stop)");
+                        refreshButton.setEnabled(false);
+                        
+                        streamProcess[0] = cliRunner.streamProjectLogs(project.slug, line -> {
+                            Display.getDefault().asyncExec(() -> {
+                                if (logViewer.isDisposed()) {
+                                    stopStreaming.run();
+                                    return;
+                                }
+                                logViewer.append(line + "\n");
+                                logViewer.setSelection(logViewer.getText().length());
+                            });
+                        });
+                    } else {
+                        // Stop streaming
+                        stopStreaming.run();
+                        infoLabel.setText("Streaming stopped");
+                        refreshButton.setEnabled(true);
+                    }
+                }
+            });
+            
+            // Clear button
+            clearButton.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    logViewer.setText("");
+                }
+            });
+            
+            // Stop streaming when dialog closes
+            comp.addDisposeListener(e -> stopStreaming.run());
+            
+            return comp;
+        }
+        
         @Override
         protected Point getInitialSize() {
             return new Point(700, 550);
@@ -921,6 +1111,8 @@ public class DeploymentProjectsPage extends WizardPage {
         private Text descText;
         private Text frontendUrlText;
         private Text backendUrlText;
+        private Text frontendPortText;
+        private Text backendPortText;
         private Label statusLabel;
         
         public EditProjectDialog(Shell parentShell, ProjectInfo project, PricesDeploymentCliRunner cliRunner) {
@@ -968,6 +1160,37 @@ public class DeploymentProjectsPage extends WizardPage {
             backendUrlText = new Text(container, SWT.BORDER);
             backendUrlText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
             
+            // Separator for ports
+            Label portSep = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
+            GridData portSepGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+            portSepGd.horizontalSpan = 2;
+            portSep.setLayoutData(portSepGd);
+            
+            // Internal Listening Ports section label
+            Label portSectionLabel = new Label(container, SWT.NONE);
+            portSectionLabel.setText("Internal Listening Ports:");
+            GridData portSectionGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+            portSectionGd.horizontalSpan = 2;
+            portSectionLabel.setLayoutData(portSectionGd);
+            
+            // Frontend listening port
+            new Label(container, SWT.NONE).setText("Frontend Port:");
+            frontendPortText = new Text(container, SWT.BORDER);
+            frontendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            frontendPortText.setMessage("default: 3000");
+            if (project.frontendListeningPort != null) {
+                frontendPortText.setText(String.valueOf(project.frontendListeningPort));
+            }
+            
+            // Backend listening port
+            new Label(container, SWT.NONE).setText("Backend Port:");
+            backendPortText = new Text(container, SWT.BORDER);
+            backendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            backendPortText.setMessage("default: 7776");
+            if (project.backendListeningPort != null) {
+                backendPortText.setText(String.valueOf(project.backendListeningPort));
+            }
+            
             // Status label
             statusLabel = new Label(container, SWT.NONE);
             statusLabel.setText("");
@@ -978,12 +1201,22 @@ public class DeploymentProjectsPage extends WizardPage {
             return container;
         }
         
+        private Integer parsePort(String portStr) {
+            try {
+                return portStr.isEmpty() ? null : Integer.parseInt(portStr);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        
         @Override
         protected void okPressed() {
             String name = nameText.getText().trim();
             String desc = descText.getText().trim();
             String feUrl = frontendUrlText.getText().trim();
             String beUrl = backendUrlText.getText().trim();
+            Integer fePort = parsePort(frontendPortText.getText().trim());
+            Integer bePort = parsePort(backendPortText.getText().trim());
             
             statusLabel.setText("Saving...");
             getButton(IDialogConstants.OK_ID).setEnabled(false);
@@ -993,7 +1226,8 @@ public class DeploymentProjectsPage extends WizardPage {
                     name.isEmpty() ? null : name,
                     desc.isEmpty() ? null : desc,
                     feUrl.isEmpty() ? null : feUrl,
-                    beUrl.isEmpty() ? null : beUrl);
+                    beUrl.isEmpty() ? null : beUrl,
+                    fePort, bePort);
                 
                 Display.getDefault().asyncExec(() -> {
                     if (statusLabel.isDisposed()) return;
@@ -1003,6 +1237,8 @@ public class DeploymentProjectsPage extends WizardPage {
                         // Update local project info
                         if (!name.isEmpty()) project.name = name;
                         if (!desc.isEmpty()) project.description = desc;
+                        if (fePort != null) project.frontendListeningPort = fePort;
+                        if (bePort != null) project.backendListeningPort = bePort;
                         super.okPressed();
                     } else {
                         statusLabel.setText("Failed: " + result.getMessage());
@@ -1014,7 +1250,7 @@ public class DeploymentProjectsPage extends WizardPage {
         
         @Override
         protected Point getInitialSize() {
-            return new Point(450, 300);
+            return new Point(450, 400);
         }
     }
 }

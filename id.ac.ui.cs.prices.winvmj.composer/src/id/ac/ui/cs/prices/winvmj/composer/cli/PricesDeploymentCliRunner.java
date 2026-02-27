@@ -269,6 +269,16 @@ public class PricesDeploymentCliRunner {
      * Create a new project with JSON output.
      */
     public CliResult createProjectJson(String name, String description, String customFrontendUrl, String customBackendUrl) {
+        return createProjectJson(name, description, customFrontendUrl, customBackendUrl, null, null);
+    }
+    
+    /**
+     * Create a new project with JSON output including listening ports.
+     * @param frontendListeningPort internal port the frontend listens on (null for default 3000)
+     * @param backendListeningPort internal port the backend listens on (null for default 7776)
+     */
+    public CliResult createProjectJson(String name, String description, String customFrontendUrl, String customBackendUrl,
+                                        Integer frontendListeningPort, Integer backendListeningPort) {
         java.util.List<String> args = new java.util.ArrayList<>();
         args.add("create");
         args.add("--name");
@@ -285,31 +295,36 @@ public class PricesDeploymentCliRunner {
             args.add("--backend-url");
             args.add(customBackendUrl);
         }
+        if (frontendListeningPort != null) {
+            args.add("--frontend-port");
+            args.add(String.valueOf(frontendListeningPort));
+        }
+        if (backendListeningPort != null) {
+            args.add("--backend-port");
+            args.add(String.valueOf(backendListeningPort));
+        }
         return runJsonCommand(args.toArray(new String[0]));
     }
     
     /**
-     * Deploy a project.
+     * Deploy a folder to a project. CLI handles validation and archiving.
      */
-    public int deploy(String projectSlug, Path archivePath) {
-        return runCommand("deploy", "--project", projectSlug, "--path", archivePath.toString());
+    public int deploy(String projectSlug, String folderPath) {
+        return runCommand("deploy", folderPath, "--project", projectSlug, "-y");
     }
     
     /**
-     * Deploy a project with version.
+     * Deploy a folder to a project with custom output consumer for streaming logs.
      */
-    public int deploy(String projectSlug, Path archivePath, String version) {
-        return runCommand("deploy", 
-            "--project", projectSlug, 
-            "--path", archivePath.toString(),
-            "--version", version);
+    public int deploy(Consumer<String> outputConsumer, String projectSlug, String folderPath) {
+        return runCommand(outputConsumer, "deploy", folderPath, "--project", projectSlug, "-y");
     }
     
     /**
-     * Deploy a project (interactive mode - will prompt for project selection).
+     * Deploy a folder (interactive mode - will prompt for project selection).
      */
-    public int deployInteractive(Path archivePath) {
-        return runCommand("deploy", "--path", archivePath.toString());
+    public int deployInteractive(String folderPath) {
+        return runCommand("deploy", folderPath);
     }
     
     /**
@@ -345,6 +360,53 @@ public class PricesDeploymentCliRunner {
      */
     public int logs(String projectSlug, int lines) {
         return runCommand("logs", "--project", projectSlug, "--lines", String.valueOf(lines));
+    }
+    
+    /**
+     * Get project logs and return as string.
+     */
+    public String getProjectLogs(String projectSlug, int lines) {
+        StringBuilder output = new StringBuilder();
+        runCommand(line -> {
+            if (!line.startsWith("[PRICES CLI]")) {
+                output.append(line).append("\n");
+            }
+        }, "logs", projectSlug, "-n", String.valueOf(lines));
+        return output.toString();
+    }
+    
+    /**
+     * Stream project logs with follow mode. Returns the Process so it can be cancelled.
+     */
+    public Process streamProjectLogs(String projectSlug, Consumer<String> lineConsumer) {
+        try {
+            List<String> cmd = buildBaseCommand();
+            cmd.add("logs");
+            cmd.add(projectSlug);
+            cmd.add("-f");
+            
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            
+            // Start reader thread
+            new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        lineConsumer.accept(line);
+                    }
+                } catch (Exception e) {
+                    // Process was killed or stream closed
+                }
+            }).start();
+            
+            return process;
+        } catch (Exception e) {
+            lineConsumer.accept("[ERROR] Failed to start log streaming: " + e.getMessage());
+            return null;
+        }
     }
     
     /**
@@ -407,6 +469,22 @@ public class PricesDeploymentCliRunner {
      */
     public CliResult updateProjectJson(String projectSlug, String name, String description, 
                                         String frontendUrl, String backendUrl) {
+        return updateProjectJson(projectSlug, name, description, frontendUrl, backendUrl, null, null);
+    }
+    
+    /**
+     * Update project settings (JSON output) including listening ports.
+     * @param projectSlug project slug
+     * @param name new name (null to skip)
+     * @param description new description (null to skip)
+     * @param frontendUrl custom frontend URL (null to skip)
+     * @param backendUrl custom backend URL (null to skip)
+     * @param frontendListeningPort internal port the frontend listens on (null to skip)
+     * @param backendListeningPort internal port the backend listens on (null to skip)
+     */
+    public CliResult updateProjectJson(String projectSlug, String name, String description, 
+                                        String frontendUrl, String backendUrl,
+                                        Integer frontendListeningPort, Integer backendListeningPort) {
         List<String> args = new ArrayList<>();
         args.add("update");
         args.add(projectSlug);
@@ -425,6 +503,14 @@ public class PricesDeploymentCliRunner {
         if (backendUrl != null && !backendUrl.isEmpty()) {
             args.add("--backend-url");
             args.add(backendUrl);
+        }
+        if (frontendListeningPort != null) {
+            args.add("--frontend-port");
+            args.add(String.valueOf(frontendListeningPort));
+        }
+        if (backendListeningPort != null) {
+            args.add("--backend-port");
+            args.add(String.valueOf(backendListeningPort));
         }
         return runJsonCommand(args.toArray(new String[0]));
     }

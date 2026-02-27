@@ -1,39 +1,46 @@
 package id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.DirectoryDialog;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.ProgressBar;
 import org.eclipse.swt.widgets.Text;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner;
-import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
 
 public class DeploymentExecutePage extends WizardPage {
     
+    private static final int STATE_IDLE = 0;
+    private static final int STATE_DEPLOYING = 1;
+    private static final int STATE_DONE = 2;
+    
     private DeploymentWizard wizard;
     private PricesDeploymentCliRunner cliRunner;
     
-    private Label summaryLabel;
     private Label projectNameLabel;
     private Label targetProjectLabel;
-    private Text versionText;
+    private Text folderPathText;
+    private Button browseButton;
+    private Button deployButton;
     private ProgressBar progressBar;
+    private Text logText;
+    
+    private int deployState = STATE_IDLE;
     
     public DeploymentExecutePage(DeploymentWizard wizard) {
         super("Deploy");
         setTitle("Deploy to Prices");
-        setDescription("Review and confirm deployment settings.");
+        setDescription("Configure and deploy your project.");
         this.wizard = wizard;
         this.cliRunner = wizard.getCliRunner();
     }
@@ -55,31 +62,94 @@ public class DeploymentExecutePage extends WizardPage {
         targetProjectLabel = new Label(container, SWT.NONE);
         targetProjectLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         
-        // Version
-        Label versionLabel = new Label(container, SWT.NONE);
-        versionLabel.setText("Version (optional):");
-        versionText = new Text(container, SWT.BORDER);
-        versionText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-        versionText.setMessage("e.g., 1.0.0 (leave empty for auto)");
+        // Folder to deploy
+        Label folderLabel = new Label(container, SWT.NONE);
+        folderLabel.setText("Folder to Deploy:");
         
-        // Spacer
-        Label spacer = new Label(container, SWT.NONE);
-        GridData spacerGd = new GridData(SWT.FILL, SWT.FILL, true, true);
-        spacerGd.horizontalSpan = 2;
-        spacer.setLayoutData(spacerGd);
+        Composite folderComp = new Composite(container, SWT.NONE);
+        GridLayout folderLayout = new GridLayout(2, false);
+        folderLayout.marginWidth = 0;
+        folderLayout.marginHeight = 0;
+        folderComp.setLayout(folderLayout);
+        folderComp.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         
-        // Summary
-        summaryLabel = new Label(container, SWT.WRAP);
-        GridData summaryGd = new GridData(SWT.FILL, SWT.TOP, true, false);
-        summaryGd.horizontalSpan = 2;
-        summaryLabel.setLayoutData(summaryGd);
+        folderPathText = new Text(folderComp, SWT.BORDER);
+        folderPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        folderPathText.setMessage("Select folder to zip and deploy");
+        
+        browseButton = new Button(folderComp, SWT.PUSH);
+        browseButton.setText("Browse...");
+        browseButton.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                DirectoryDialog dialog = new DirectoryDialog(getShell());
+                dialog.setText("Select Folder to Deploy");
+                dialog.setMessage("Choose the folder containing files to deploy");
+                
+                IFeatureProject proj = wizard.getFeatureProject();
+                if (proj != null) {
+                    String projectPath = proj.getProject().getLocation().toOSString();
+                    dialog.setFilterPath(projectPath);
+                }
+                
+                String selected = dialog.open();
+                if (selected != null) {
+                    folderPathText.setText(selected);
+                }
+            }
+        });
+        
+        // View Project Detail button
+        Button projectDetailBtn = new Button(container, SWT.PUSH);
+        projectDetailBtn.setText("View Project Detail");
+        GridData detailBtnGd = new GridData(SWT.LEFT, SWT.CENTER, false, false);
+        detailBtnGd.horizontalSpan = 2;
+        projectDetailBtn.setLayoutData(detailBtnGd);
+        projectDetailBtn.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                wizard.getProjectsPage().openSelectedProjectDetail();
+            }
+        });
+        
+        // Deploy button row
+        Composite buttonComp = new Composite(container, SWT.NONE);
+        GridData buttonGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+        buttonGd.horizontalSpan = 2;
+        buttonComp.setLayoutData(buttonGd);
+        buttonComp.setLayout(new GridLayout(2, false));
+        
+        deployButton = new Button(buttonComp, SWT.PUSH);
+        deployButton.setText("Deploy");
+        GridData deployBtnGd = new GridData(SWT.LEFT, SWT.CENTER, false, false);
+        deployBtnGd.widthHint = 100;
+        deployButton.setLayoutData(deployBtnGd);
+        deployButton.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                startDeployment();
+            }
+        });
         
         // Progress bar (hidden initially)
-        progressBar = new ProgressBar(container, SWT.INDETERMINATE);
-        GridData progressGd = new GridData(SWT.FILL, SWT.BOTTOM, true, false);
-        progressGd.horizontalSpan = 2;
+        progressBar = new ProgressBar(buttonComp, SWT.INDETERMINATE);
+        GridData progressGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
         progressBar.setLayoutData(progressGd);
         progressBar.setVisible(false);
+        
+        // Log output area
+        Label logLabel = new Label(container, SWT.NONE);
+        logLabel.setText("Deployment Log:");
+        GridData logLabelGd = new GridData(SWT.LEFT, SWT.CENTER, false, false);
+        logLabelGd.horizontalSpan = 2;
+        logLabel.setLayoutData(logLabelGd);
+        
+        logText = new Text(container, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL | SWT.READ_ONLY);
+        GridData logGd = new GridData(SWT.FILL, SWT.FILL, true, true);
+        logGd.horizontalSpan = 2;
+        logGd.heightHint = 200;
+        logText.setLayoutData(logGd);
+        logText.setBackground(Display.getDefault().getSystemColor(SWT.COLOR_WHITE));
         
         setControl(container);
         setPageComplete(true);
@@ -89,11 +159,11 @@ public class DeploymentExecutePage extends WizardPage {
     public void setVisible(boolean visible) {
         super.setVisible(visible);
         if (visible) {
-            updateSummary();
+            updateLabels();
         }
     }
     
-    private void updateSummary() {
+    private void updateLabels() {
         IFeatureProject project = wizard.getFeatureProject();
         String slug = wizard.getSelectedProjectSlug();
         
@@ -104,82 +174,94 @@ public class DeploymentExecutePage extends WizardPage {
         if (slug != null) {
             targetProjectLabel.setText(slug);
         }
-        
-        summaryLabel.setText("Click 'Finish' to deploy your project to Prices platform.");
     }
     
-    public void runDeployment() {
-        IFeatureProject project = wizard.getFeatureProject();
+    private void startDeployment() {
         String slug = wizard.getSelectedProjectSlug();
-        String version = versionText != null ? versionText.getText().trim() : "";
+        String folderPath = folderPathText.getText().trim();
         
-        if (project == null || slug == null) {
-            WinVMJConsole.println("[DEPLOY] Error: Missing project or target slug.");
+        if (slug == null) {
+            appendLog("[ERROR] No target project selected.");
             return;
         }
         
-        try {
-            // Find the compiled JAR or create archive from src-gen
-            Path srcGenPath = Paths.get(project.getProject().getLocation().toOSString(), "src-gen");
+        // Change state to deploying
+        deployState = STATE_DEPLOYING;
+        updateUIState();
+        
+        appendLog("=== Starting Deployment ===");
+        appendLog("Target: " + slug);
+        appendLog("Folder: " + (folderPath.isEmpty() ? "(current directory)" : folderPath));
+        appendLog("");
+        
+        Display display = Display.getDefault();
+        
+        // Run deployment in background thread
+        new Thread(() -> {
+            int exitCode = cliRunner.deploy(line -> {
+                // Stream each line to the log area
+                display.asyncExec(() -> {
+                    if (!logText.isDisposed()) {
+                        appendLog(line);
+                    }
+                });
+            }, slug, folderPath);
             
-            if (!Files.exists(srcGenPath)) {
-                WinVMJConsole.println("[DEPLOY] Error: src-gen folder not found. Please compile the project first.");
-                return;
-            }
-            
-            // Create a temporary zip archive of src-gen
-            Path tempZip = Files.createTempFile("deploy-", ".zip");
-            WinVMJConsole.println("[DEPLOY] Creating deployment archive...");
-            
-            createZipArchive(srcGenPath, tempZip);
-            
-            WinVMJConsole.println("[DEPLOY] Archive created: " + tempZip);
-            WinVMJConsole.println("[DEPLOY] Deploying to project: " + slug);
-            
-            int exitCode;
-            if (version != null && !version.isEmpty()) {
-                exitCode = cliRunner.deploy(slug, tempZip, version);
-            } else {
-                exitCode = cliRunner.deploy(slug, tempZip);
-            }
-            
-            if (exitCode == 0) {
-                WinVMJConsole.println("[DEPLOY] Deployment completed successfully!");
-            } else {
-                WinVMJConsole.println("[DEPLOY] Deployment failed with exit code: " + exitCode);
-            }
-            
-            // Cleanup temp file
-            Files.deleteIfExists(tempZip);
-            
-        } catch (Exception e) {
-            WinVMJConsole.println("[DEPLOY] Error during deployment: " + e.getMessage());
-            e.printStackTrace();
+            // Update state on completion
+            display.asyncExec(() -> {
+                deployState = STATE_DONE;
+                updateUIState();
+                
+                appendLog("");
+                if (exitCode == 0) {
+                    appendLog("=== Deployment Completed Successfully ===");
+                    appendLog("Click 'View Project Detail' to check deployment status and logs.");
+                } else {
+                    appendLog("=== Deployment Failed (exit code: " + exitCode + ") ===");
+                    appendLog("Check 'View Project Detail' for more information.");
+                }
+            });
+        }).start();
+    }
+    
+    private void appendLog(String line) {
+        if (logText != null && !logText.isDisposed()) {
+            logText.append(line + "\n");
+            // Auto-scroll to bottom
+            logText.setTopIndex(logText.getLineCount() - 1);
         }
     }
     
-    private void createZipArchive(Path sourceDir, Path targetZip) throws Exception {
-        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(
-                Files.newOutputStream(targetZip))) {
-            
-            Files.walk(sourceDir)
-                .filter(path -> !Files.isDirectory(path))
-                .forEach(path -> {
-                    try {
-                        String entryName = sourceDir.relativize(path).toString().replace("\\", "/");
-                        java.util.zip.ZipEntry entry = new java.util.zip.ZipEntry(entryName);
-                        zos.putNextEntry(entry);
-                        Files.copy(path, zos);
-                        zos.closeEntry();
-                    } catch (Exception e) {
-                        WinVMJConsole.println("[DEPLOY] Error adding file to archive: " + e.getMessage());
-                    }
-                });
+    private void updateUIState() {
+        if (deployButton == null || deployButton.isDisposed()) return;
+        
+        boolean deploying = (deployState == STATE_DEPLOYING);
+        
+        deployButton.setEnabled(!deploying);
+        browseButton.setEnabled(!deploying);
+        folderPathText.setEnabled(!deploying);
+        progressBar.setVisible(deploying);
+        
+        if (deployState == STATE_DONE) {
+            deployButton.setText("Deploy Again");
         }
+        
+        // Update wizard buttons
+        getContainer().updateButtons();
     }
     
     @Override
     public boolean isPageComplete() {
         return wizard.getSelectedProjectSlug() != null;
+    }
+    
+    @Override
+    public boolean canFlipToNextPage() {
+        // Disable Next button
+        return false;
+    }
+    
+    public boolean isDeploying() {
+        return deployState == STATE_DEPLOYING;
     }
 }

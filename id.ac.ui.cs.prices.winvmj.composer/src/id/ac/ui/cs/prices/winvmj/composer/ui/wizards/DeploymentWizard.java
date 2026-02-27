@@ -5,7 +5,6 @@ import org.eclipse.jface.wizard.Wizard;
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner;
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner.CliResult;
-import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.DeploymentAuthPage;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.DeploymentProjectsPage;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages.DeploymentExecutePage;
@@ -42,25 +41,17 @@ public class DeploymentWizard extends Wizard {
     
     @Override
     public boolean performFinish() {
-        WinVMJConsole.showConsole();
-        WinVMJConsole.println("\n=== Prices Deployment ===");
-        WinVMJConsole.println("Project: " + project.getProjectName());
-        WinVMJConsole.println("Target: " + selectedProjectSlug);
-        
-        // Execute deployment in background thread
-        new Thread(() -> {
-            try {
-                executePage.runDeployment();
-            } catch (Exception e) {
-                WinVMJConsole.println("[ERROR] Deployment failed: " + e.getMessage());
-            }
-        }).start();
-        
+        // Deployment is handled by the Deploy button on the execute page
+        // This just closes the wizard
         return true;
     }
     
     @Override
     public boolean canFinish() {
+        // Allow closing unless deployment is in progress
+        if (executePage != null && executePage.isDeploying()) {
+            return false;
+        }
         return executePage != null && executePage.isPageComplete();
     }
     
