@@ -2,8 +2,11 @@ package id.ac.ui.cs.prices.winvmj.composer.cli;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -120,6 +123,119 @@ public class PricesDeploymentCliRunner {
      */
     public CompletableFuture<Integer> runCommandAsync(Consumer<String> outputConsumer, String... args) {
         return CompletableFuture.supplyAsync(() -> runCommand(outputConsumer, args));
+    }
+    
+    /**
+     * Holds a running interactive process that can receive input.
+     */
+    public static class InteractiveProcess {
+        private final Process process;
+        private final OutputStream stdin;
+        private volatile boolean running = true;
+        
+        public InteractiveProcess(Process process) {
+            this.process = process;
+            this.stdin = process.getOutputStream();
+        }
+        
+        /**
+         * Send input to the process (e.g., password response).
+         */
+        public void sendInput(String input) throws IOException {
+            if (running && stdin != null) {
+                stdin.write((input + "\n").getBytes(StandardCharsets.UTF_8));
+                stdin.flush();
+            }
+        }
+        
+        /**
+         * Check if the process is still running.
+         */
+        public boolean isRunning() {
+            return running && process.isAlive();
+        }
+        
+        /**
+         * Wait for the process to complete and return exit code.
+         */
+        public int waitFor() throws InterruptedException {
+            int exitCode = process.waitFor();
+            running = false;
+            return exitCode;
+        }
+        
+        /**
+         * Forcibly terminate the process.
+         */
+        public void destroy() {
+            running = false;
+            process.destroyForcibly();
+        }
+    }
+    
+    /**
+     * Start an interactive CLI command that can receive input.
+     * Returns immediately with an InteractiveProcess handle.
+     * Output is streamed to the outputConsumer.
+     * Call sendInput() on the returned handle to respond to prompts.
+     * 
+     * @param outputConsumer receives output lines
+     * @param completionCallback called with exit code when process finishes
+     * @param args command arguments
+     * @return InteractiveProcess handle for sending input
+     */
+    public InteractiveProcess startInteractiveCommand(
+            Consumer<String> outputConsumer,
+            Consumer<Integer> completionCallback,
+            String... args) {
+        try {
+            List<String> cmd = buildBaseCommand();
+            for (String arg : args) {
+                cmd.add(arg);
+            }
+            
+            outputConsumer.accept("[PRICES CLI] Running: " + String.join(" ", cmd));
+            
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            
+            InteractiveProcess interactive = new InteractiveProcess(process);
+            
+            // Start output reader thread
+            Thread readerThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        outputConsumer.accept(line);
+                    }
+                } catch (IOException e) {
+                    // Process ended
+                }
+                
+                try {
+                    int exitCode = process.waitFor();
+                    outputConsumer.accept("[PRICES CLI] Exit code: " + exitCode);
+                    if (completionCallback != null) {
+                        completionCallback.accept(exitCode);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            readerThread.setDaemon(true);
+            readerThread.start();
+            
+            return interactive;
+            
+        } catch (Exception e) {
+            outputConsumer.accept("[PRICES CLI ERROR] " + e.getMessage());
+            if (completionCallback != null) {
+                completionCallback.accept(-1);
+            }
+            return null;
+        }
     }
     
     /**
@@ -519,7 +635,9 @@ public class PricesDeploymentCliRunner {
     // ==================== SSH Deploy Methods ====================
     
     /**
-     * Deploy via SSH - uploads artifact and executes remote deploy script.
+     * Start interactive SSH deployment - supports password/passphrase prompts.
+     * Returns immediately with an InteractiveProcess handle.
+     * 
      * @param projectPath local project directory path
      * @param sshHost SSH host from ~/.ssh/config
      * @param projectName project name for deployment
@@ -528,12 +646,14 @@ public class PricesDeploymentCliRunner {
      * @param frontendPort frontend listening port
      * @param backendPort backend listening port
      * @param outputConsumer consumer for output lines
-     * @return exit code
+     * @param completionCallback called with exit code when process finishes
+     * @return InteractiveProcess handle for sending input (password, etc.)
      */
-    public int deploySsh(Path projectPath, String sshHost, String projectName,
-                         String frontendUrl, String backendUrl,
-                         int frontendPort, int backendPort,
-                         Consumer<String> outputConsumer) {
+    public InteractiveProcess startSshDeploy(Path projectPath, String sshHost, String projectName,
+                                              String frontendUrl, String backendUrl,
+                                              int frontendPort, int backendPort,
+                                              Consumer<String> outputConsumer,
+                                              Consumer<Integer> completionCallback) {
         List<String> args = new ArrayList<>();
         args.add("deploy-ssh");
         args.add(projectPath.toAbsolutePath().toString());
@@ -554,49 +674,7 @@ public class PricesDeploymentCliRunner {
         args.add("--backend-port");
         args.add(String.valueOf(backendPort));
         
-        return runCommand(outputConsumer, args.toArray(new String[0]));
-    }
-    
-    /**
-     * Deploy via SSH with default output consumer.
-     */
-    public int deploySsh(Path projectPath, String sshHost, String projectName,
-                         String frontendUrl, String backendUrl,
-                         int frontendPort, int backendPort) {
-        return deploySsh(projectPath, sshHost, projectName, frontendUrl, backendUrl,
-                        frontendPort, backendPort, WinVMJConsole::println);
-    }
-    
-    /**
-     * Deploy via SSH with dry run option.
-     * @param dryRun if true, only shows what would be done
-     */
-    public int deploySshDryRun(Path projectPath, String sshHost, String projectName,
-                               String frontendUrl, String backendUrl,
-                               int frontendPort, int backendPort,
-                               Consumer<String> outputConsumer) {
-        List<String> args = new ArrayList<>();
-        args.add("deploy-ssh");
-        args.add(projectPath.toAbsolutePath().toString());
-        args.add("--ssh-host");
-        args.add(sshHost);
-        args.add("--project-name");
-        args.add(projectName);
-        if (frontendUrl != null && !frontendUrl.isEmpty()) {
-            args.add("--frontend-url");
-            args.add(frontendUrl);
-        }
-        if (backendUrl != null && !backendUrl.isEmpty()) {
-            args.add("--backend-url");
-            args.add(backendUrl);
-        }
-        args.add("--frontend-port");
-        args.add(String.valueOf(frontendPort));
-        args.add("--backend-port");
-        args.add(String.valueOf(backendPort));
-        args.add("--dry-run");
-        
-        return runCommand(outputConsumer, args.toArray(new String[0]));
+        return startInteractiveCommand(outputConsumer, completionCallback, args.toArray(new String[0]));
     }
     
     /**
@@ -693,6 +771,85 @@ public class PricesDeploymentCliRunner {
             } catch (Exception e) {
                 return new CliResult(false, "Failed to parse JSON: " + e.getMessage(), exitCode, null);
             }
+        }
+    }
+    
+    /**
+     * Launch SSH deploy in external terminal (cross-platform).
+     * Opens a terminal window where user can interact with SSH passphrase prompts.
+     */
+    public void launchSshDeployInTerminal(
+            String projectPath,
+            String sshHost,
+            String projectName,
+            String frontendUrl,
+            String backendUrl,
+            int frontendPort,
+            int backendPort) throws Exception {
+        
+        String jarPath = locateCliJar();
+        
+        // Build the CLI command
+        StringBuilder cmd = new StringBuilder();
+        cmd.append("java -jar \"").append(jarPath).append("\" deploy-ssh");
+        cmd.append(" \"").append(projectPath).append("\"");
+        cmd.append(" --ssh-host ").append(sshHost);
+        cmd.append(" --project-name ").append(projectName);
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            cmd.append(" --frontend-url ").append(frontendUrl);
+        }
+        if (backendUrl != null && !backendUrl.isEmpty()) {
+            cmd.append(" --backend-url ").append(backendUrl);
+        }
+        cmd.append(" --frontend-port ").append(frontendPort);
+        cmd.append(" --backend-port ").append(backendPort);
+        
+        String[] terminalCmd;
+        String os = System.getProperty("os.name").toLowerCase();
+        
+        if (os.contains("win")) {
+            // Windows: use cmd.exe
+            terminalCmd = new String[]{"cmd", "/c", "start", "cmd", "/k", cmd.toString()};
+        } else if (os.contains("mac")) {
+            // macOS: use Terminal.app via osascript
+            // Need to escape backslashes first, then double quotes
+            String escapedCmd = cmd.toString()
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+            String script = """
+                tell application "Terminal" to activate
+                tell application "Terminal" to do script "%s"
+                """.formatted(escapedCmd);
+            terminalCmd = new String[]{"osascript", "-e", script};
+        } else {
+            // Linux: try common terminal emulators
+            String bashCmd = cmd.toString();
+            if (isCommandAvailable("gnome-terminal")) {
+                terminalCmd = new String[]{"gnome-terminal", "--", "bash", "-c", bashCmd + "; exec bash"};
+            } else if (isCommandAvailable("konsole")) {
+                terminalCmd = new String[]{"konsole", "-e", "bash", "-c", bashCmd + "; exec bash"};
+            } else if (isCommandAvailable("xterm")) {
+                terminalCmd = new String[]{"xterm", "-hold", "-e", bashCmd};
+            } else {
+                // Fallback: just run the command directly
+                terminalCmd = new String[]{"bash", "-c", bashCmd};
+            }
+        }
+        
+        ProcessBuilder pb = new ProcessBuilder(terminalCmd);
+        pb.start();
+    }
+    
+    /**
+     * Check if a command is available on the system.
+     */
+    private boolean isCommandAvailable(String command) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("which", command);
+            Process p = pb.start();
+            return p.waitFor() == 0;
+        } catch (Exception e) {
+            return false;
         }
     }
 }

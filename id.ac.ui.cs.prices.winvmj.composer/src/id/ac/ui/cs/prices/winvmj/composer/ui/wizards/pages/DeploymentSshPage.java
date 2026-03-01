@@ -12,14 +12,12 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.DirectoryDialog;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner;
-import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentSshWizard;
 
 /**
@@ -137,16 +135,16 @@ public class DeploymentSshPage extends WizardPage {
         
         // Ports group
         Group portGroup = new Group(container, SWT.NONE);
-        portGroup.setText("Listening Ports");
-        portGroup.setLayout(new GridLayout(4, false));
+        portGroup.setText("Internal Listening Ports");
+        portGroup.setLayout(new GridLayout(2, false));
         portGroup.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
         
-        new Label(portGroup, SWT.NONE).setText("Frontend Port:");
+        new Label(portGroup, SWT.NONE).setText("Frontend Internal Port:");
         frontendPortText = new Text(portGroup, SWT.BORDER);
         frontendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         frontendPortText.setText("80");
         
-        new Label(portGroup, SWT.NONE).setText("Backend Port:");
+        new Label(portGroup, SWT.NONE).setText("Backend Internal Port:");
         backendPortText = new Text(portGroup, SWT.BORDER);
         backendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         backendPortText.setText("7776");
@@ -175,11 +173,12 @@ public class DeploymentSshPage extends WizardPage {
         outputGroup.setLayout(new GridLayout(1, false));
         outputGroup.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         
-        outputText = new Text(outputGroup, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL | SWT.READ_ONLY);
+        // Terminal-style output with keyboard input support
+        outputText = new Text(outputGroup, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
         GridData outputGd = new GridData(SWT.FILL, SWT.FILL, true, true);
         outputGd.heightHint = 200;
         outputText.setLayoutData(outputGd);
-        outputText.setBackground(Display.getDefault().getSystemColor(SWT.COLOR_WHITE));
+        outputText.setEditable(false);
         
         setControl(container);
         updatePageComplete();
@@ -236,29 +235,31 @@ public class DeploymentSshPage extends WizardPage {
         final int fePort = frontendPort;
         final int bePort = backendPort;
         
-        new Thread(() -> {
-            WinVMJConsole.println("[SSH] Starting deployment...");
-            
-            int exitCode = cliRunner.deploySsh(selectedProjectPath, sshHost, projectName,
+        try {
+            // Launch deployment in external terminal window
+            cliRunner.launchSshDeployInTerminal(
+                selectedProjectPath.toString(),
+                sshHost,
+                projectName,
                 frontendUrl.isEmpty() ? null : frontendUrl,
                 backendUrl.isEmpty() ? null : backendUrl,
-                fePort, bePort,
-                line -> Display.getDefault().asyncExec(() -> appendOutput(line + "\n"))
+                fePort,
+                bePort
             );
             
-            Display.getDefault().asyncExec(() -> {
-                isDeploying = false;
-                updatePageComplete();
-                
-                if (exitCode == 0) {
-                    statusLabel.setText("Deployment completed successfully!");
-                    appendOutput("\n✓ Deployment completed successfully!\n");
-                } else {
-                    statusLabel.setText("Deployment failed (exit code: " + exitCode + ")");
-                    appendOutput("\n✗ Deployment failed with exit code: " + exitCode + "\n");
-                }
-            });
-        }).start();
+            appendOutput("\n✓ Deployment launched in external terminal!\n");
+            appendOutput("A Command Prompt window has been opened.\n");
+            appendOutput("Please complete the SSH passphrase prompts there.\n");
+            statusLabel.setText("Deployment launched in external terminal");
+            isDeploying = false;
+            updatePageComplete();
+            
+        } catch (Exception e) {
+            appendOutput("\n✗ Failed to launch deployment: " + e.getMessage() + "\n");
+            statusLabel.setText("Failed to launch deployment");
+            isDeploying = false;
+            updatePageComplete();
+        }
     }
     
     private void appendOutput(String text) {
@@ -271,4 +272,5 @@ public class DeploymentSshPage extends WizardPage {
     public boolean isDeploying() {
         return isDeploying;
     }
+    
 }
