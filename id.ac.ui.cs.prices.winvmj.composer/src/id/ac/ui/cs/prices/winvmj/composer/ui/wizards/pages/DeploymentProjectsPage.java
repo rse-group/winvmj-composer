@@ -31,6 +31,9 @@ import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Cursor;
+import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.TextTransfer;
+import org.eclipse.swt.dnd.Transfer;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -96,6 +99,10 @@ public class DeploymentProjectsPage extends WizardPage {
         statusCol.setText("Status");
         statusCol.setWidth(80);
         
+        TableColumn typeCol = new TableColumn(projectsTable, SWT.NONE);
+        typeCol.setText("Type");
+        typeCol.setWidth(70);
+        
         TableColumn frontendCol = new TableColumn(projectsTable, SWT.NONE);
         frontendCol.setText("Frontend URLs");
         frontendCol.setWidth(180);
@@ -111,11 +118,12 @@ public class DeploymentProjectsPage extends WizardPage {
                 int totalWidth = projectsTable.getClientArea().width;
                 if (totalWidth > 0) {
                     nameCol.setWidth((int)(totalWidth * 0.12));
-                    slugCol.setWidth((int)(totalWidth * 0.15));
-                    descCol.setWidth((int)(totalWidth * 0.15));
+                    slugCol.setWidth((int)(totalWidth * 0.13));
+                    descCol.setWidth((int)(totalWidth * 0.13));
                     statusCol.setWidth((int)(totalWidth * 0.08));
-                    frontendCol.setWidth((int)(totalWidth * 0.25));
-                    backendCol.setWidth((int)(totalWidth * 0.25));
+                    typeCol.setWidth((int)(totalWidth * 0.08));
+                    frontendCol.setWidth((int)(totalWidth * 0.23));
+                    backendCol.setWidth((int)(totalWidth * 0.23));
                 }
             }
         });
@@ -252,6 +260,8 @@ public class DeploymentProjectsPage extends WizardPage {
                 info.description = obj.has("description") && !obj.get("description").isJsonNull() 
                     ? obj.get("description").getAsString() : "";
                 info.status = obj.has("status") ? obj.get("status").getAsString() : "unknown";
+                info.projectType = obj.has("projectType") && !obj.get("projectType").isJsonNull() 
+                    ? obj.get("projectType").getAsString() : "regular";
                 
                 // Build frontend URLs - custom first, then default
                 List<String> frontendUrls = new ArrayList<>();
@@ -281,10 +291,26 @@ public class DeploymentProjectsPage extends WizardPage {
                 }
                 info.backendUrls = String.join(", ", backendUrls);
                 
+                // Store custom URLs for editing
+                if (obj.has("customFrontendUrl") && !obj.get("customFrontendUrl").isJsonNull()) {
+                    info.customFrontendUrl = obj.get("customFrontendUrl").getAsString();
+                }
+                if (obj.has("customBackendUrl") && !obj.get("customBackendUrl").isJsonNull()) {
+                    info.customBackendUrl = obj.get("customBackendUrl").getAsString();
+                }
+                
+                // Parse listening ports
+                if (obj.has("frontendListeningPort") && !obj.get("frontendListeningPort").isJsonNull()) {
+                    info.frontendListeningPort = obj.get("frontendListeningPort").getAsInt();
+                }
+                if (obj.has("backendListeningPort") && !obj.get("backendListeningPort").isJsonNull()) {
+                    info.backendListeningPort = obj.get("backendListeningPort").getAsInt();
+                }
+                
                 projects.add(info);
                 
                 TableItem item = new TableItem(projectsTable, SWT.NONE);
-                item.setText(new String[] { info.name, info.slug, info.description, info.status, info.frontendUrls, info.backendUrls });
+                item.setText(new String[] { info.name, info.slug, info.description, info.status, info.projectType, info.frontendUrls, info.backendUrls });
             }
         } catch (Exception e) {
             WinVMJConsole.println("[PROJECTS] Failed to parse projects: " + e.getMessage());
@@ -417,7 +443,7 @@ public class DeploymentProjectsPage extends WizardPage {
             fePortLabel.setText("Frontend Port:");
             frontendPortText = new Text(container, SWT.BORDER);
             frontendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-            frontendPortText.setMessage("default: 3000");
+            frontendPortText.setMessage("default: 80");
             
             // Backend listening port
             Label bePortLabel = new Label(container, SWT.NONE);
@@ -494,8 +520,11 @@ public class DeploymentProjectsPage extends WizardPage {
         String slug;
         String description;
         String status;
+        String projectType;
         String frontendUrls;
         String backendUrls;
+        String customFrontendUrl;
+        String customBackendUrl;
         Integer frontendListeningPort;
         Integer backendListeningPort;
     }
@@ -634,6 +663,23 @@ public class DeploymentProjectsPage extends WizardPage {
                                 createUrlRow(infoComp, "  Custom:", custBe, custBeActive);
                             }
                             
+                            // Internal Listening Ports section
+                            Label sep2 = new Label(infoComp, SWT.SEPARATOR | SWT.HORIZONTAL);
+                            GridData sep2Gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+                            sep2Gd.horizontalSpan = 2;
+                            sep2.setLayoutData(sep2Gd);
+                            
+                            Label portHeader = new Label(infoComp, SWT.NONE);
+                            portHeader.setText("Internal Listening Ports:");
+                            GridData portHGd = new GridData(SWT.FILL, SWT.TOP, true, false);
+                            portHGd.horizontalSpan = 2;
+                            portHeader.setLayoutData(portHGd);
+                            
+                            String fePort = getStr(data, "frontendListeningPort");
+                            String bePort = getStr(data, "backendListeningPort");
+                            createLabelPair(infoComp, "  Frontend:", (fePort == null || "-".equals(fePort)) ? "80 (default)" : fePort);
+                            createLabelPair(infoComp, "  Backend:", (bePort == null || "-".equals(bePort)) ? "7776 (default)" : bePort);
+                            
                             infoComp.layout(true, true);
                             infoComp.getParent().layout(true, true);
                         } else {
@@ -694,12 +740,31 @@ public class DeploymentProjectsPage extends WizardPage {
             l.setText(label);
             l.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false));
             
-            Label v = new Label(parent, SWT.NONE);
+            // Create composite for URL + copy button
+            Composite urlComp = new Composite(parent, SWT.NONE);
+            GridLayout urlLayout = new GridLayout(2, false);
+            urlLayout.marginWidth = 0;
+            urlLayout.marginHeight = 0;
+            urlComp.setLayout(urlLayout);
+            urlComp.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            
+            Label v = new Label(urlComp, SWT.NONE);
             String status = active ? " [ACTIVE]" : " [INACTIVE]";
             v.setText(url + status);
             GridData gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            gd.widthHint = 350;
+            gd.widthHint = 300;
             v.setLayoutData(gd);
+            
+            Button copyBtn = new Button(urlComp, SWT.PUSH);
+            copyBtn.setText("Copy");
+            copyBtn.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    Clipboard clipboard = new Clipboard(parent.getDisplay());
+                    clipboard.setContents(new Object[] { url }, new Transfer[] { TextTransfer.getInstance() });
+                    clipboard.dispose();
+                }
+            });
         }
         
         private void createLabelPair(Composite parent, String label, String value) {
@@ -1154,11 +1219,17 @@ public class DeploymentProjectsPage extends WizardPage {
             new Label(container, SWT.NONE).setText("Custom Frontend URL:");
             frontendUrlText = new Text(container, SWT.BORDER);
             frontendUrlText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            if (project.customFrontendUrl != null) {
+                frontendUrlText.setText(project.customFrontendUrl);
+            }
             
             // Custom Backend URL
             new Label(container, SWT.NONE).setText("Custom Backend URL:");
             backendUrlText = new Text(container, SWT.BORDER);
             backendUrlText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            if (project.customBackendUrl != null) {
+                backendUrlText.setText(project.customBackendUrl);
+            }
             
             // Separator for ports
             Label portSep = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
@@ -1177,7 +1248,7 @@ public class DeploymentProjectsPage extends WizardPage {
             new Label(container, SWT.NONE).setText("Frontend Port:");
             frontendPortText = new Text(container, SWT.BORDER);
             frontendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-            frontendPortText.setMessage("default: 3000");
+            frontendPortText.setMessage("default: 80");
             if (project.frontendListeningPort != null) {
                 frontendPortText.setText(String.valueOf(project.frontendListeningPort));
             }

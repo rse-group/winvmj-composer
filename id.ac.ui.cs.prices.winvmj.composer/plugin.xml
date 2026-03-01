@@ -103,7 +103,14 @@
                   commandId="de.ovgu.featureide.core.winvmj.deploymenthandler"
                   icon="resources/icons/FeatureIconSmall.ico"
                   id="de.ovgu.featureide.core.winvmj.deploymenthandler"
-                  label="Deploy"
+                  label="Deploy with PaaS"
+                  style="push">
+            </command>
+            <command
+                  commandId="de.ovgu.featureide.core.winvmj.deploymentsshhandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.deploymentsshhandler"
+                  label="Deploy with SSH"
                   style="push">
             </command>
             <command
@@ -155,6 +162,10 @@
       <handler
             class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentHandler"
             commandId="de.ovgu.featureide.core.winvmj.deploymenthandler">
+      </handler>
+      <handler
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentSshHandler"
+            commandId="de.ovgu.featureide.core.winvmj.deploymentsshhandler">
       </handler>
       <handler
             class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.MicroservicesComposeHandler"

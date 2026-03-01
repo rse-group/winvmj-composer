@@ -2,6 +2,7 @@ package id.ac.ui.cs.prices.winvmj.composer.ui.wizards.pages;
 
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
@@ -76,6 +77,7 @@ public class DeploymentExecutePage extends WizardPage {
         folderPathText = new Text(folderComp, SWT.BORDER);
         folderPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         folderPathText.setMessage("Select folder to zip and deploy");
+        folderPathText.addModifyListener(e -> updateDeployButtonState());
         
         browseButton = new Button(folderComp, SWT.PUSH);
         browseButton.setText("Browse...");
@@ -160,6 +162,15 @@ public class DeploymentExecutePage extends WizardPage {
         super.setVisible(visible);
         if (visible) {
             updateLabels();
+            // Clear log and reset state when returning to this page
+            if (logText != null && !logText.isDisposed()) {
+                logText.setText("");
+            }
+            deployState = STATE_IDLE;
+            if (deployButton != null && !deployButton.isDisposed()) {
+                deployButton.setText("Deploy");
+            }
+            updateDeployButtonState();
         }
     }
     
@@ -174,6 +185,16 @@ public class DeploymentExecutePage extends WizardPage {
         if (slug != null) {
             targetProjectLabel.setText(slug);
         }
+    }
+    
+    private void updateDeployButtonState() {
+        if (deployButton == null || deployButton.isDisposed()) return;
+        
+        String folderPath = folderPathText.getText().trim();
+        boolean hasPath = !folderPath.isEmpty();
+        boolean notDeploying = (deployState != STATE_DEPLOYING);
+        
+        deployButton.setEnabled(hasPath && notDeploying);
     }
     
     private void startDeployment() {

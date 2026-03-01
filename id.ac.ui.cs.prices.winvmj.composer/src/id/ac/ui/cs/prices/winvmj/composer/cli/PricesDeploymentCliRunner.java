@@ -126,7 +126,6 @@ public class PricesDeploymentCliRunner {
      * Run a CLI command with --json flag and parse the result.
      */
     public CliResult runJsonCommand(String... args) {
-        WinVMJConsole.println("[DEBUG] runJsonCommand START");
         StringBuilder output = new StringBuilder();
         
         // Build args with --json flag
@@ -134,17 +133,12 @@ public class PricesDeploymentCliRunner {
         System.arraycopy(args, 0, jsonArgs, 0, args.length);
         jsonArgs[args.length] = "--json";
         
-        WinVMJConsole.println("[DEBUG] About to run CLI command...");
         int exitCode = runCommand(line -> {
             // Filter out our own logging lines
             if (!line.startsWith("[PRICES CLI]")) {
                 output.append(line).append("\n");
             }
-            WinVMJConsole.println("[DEBUG CLI OUTPUT] " + line);
         }, jsonArgs);
-        
-        WinVMJConsole.println("[DEBUG] CLI finished with exitCode=" + exitCode);
-        WinVMJConsole.println("[DEBUG] Raw output: " + output.toString());
         
         return CliResult.parse(output.toString().trim(), exitCode);
     }
@@ -274,7 +268,7 @@ public class PricesDeploymentCliRunner {
     
     /**
      * Create a new project with JSON output including listening ports.
-     * @param frontendListeningPort internal port the frontend listens on (null for default 3000)
+     * @param frontendListeningPort internal port the frontend listens on (null for default 80)
      * @param backendListeningPort internal port the backend listens on (null for default 7776)
      */
     public CliResult createProjectJson(String name, String description, String customFrontendUrl, String customBackendUrl,
@@ -520,6 +514,89 @@ public class PricesDeploymentCliRunner {
      */
     public int deleteProject(String slug) {
         return runCommand("delete", "-y", slug);
+    }
+    
+    // ==================== SSH Deploy Methods ====================
+    
+    /**
+     * Deploy via SSH - uploads artifact and executes remote deploy script.
+     * @param projectPath local project directory path
+     * @param sshHost SSH host from ~/.ssh/config
+     * @param projectName project name for deployment
+     * @param frontendUrl optional custom frontend URL
+     * @param backendUrl optional custom backend URL
+     * @param frontendPort frontend listening port
+     * @param backendPort backend listening port
+     * @param outputConsumer consumer for output lines
+     * @return exit code
+     */
+    public int deploySsh(Path projectPath, String sshHost, String projectName,
+                         String frontendUrl, String backendUrl,
+                         int frontendPort, int backendPort,
+                         Consumer<String> outputConsumer) {
+        List<String> args = new ArrayList<>();
+        args.add("deploy-ssh");
+        args.add(projectPath.toAbsolutePath().toString());
+        args.add("--ssh-host");
+        args.add(sshHost);
+        args.add("--project-name");
+        args.add(projectName);
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            args.add("--frontend-url");
+            args.add(frontendUrl);
+        }
+        if (backendUrl != null && !backendUrl.isEmpty()) {
+            args.add("--backend-url");
+            args.add(backendUrl);
+        }
+        args.add("--frontend-port");
+        args.add(String.valueOf(frontendPort));
+        args.add("--backend-port");
+        args.add(String.valueOf(backendPort));
+        
+        return runCommand(outputConsumer, args.toArray(new String[0]));
+    }
+    
+    /**
+     * Deploy via SSH with default output consumer.
+     */
+    public int deploySsh(Path projectPath, String sshHost, String projectName,
+                         String frontendUrl, String backendUrl,
+                         int frontendPort, int backendPort) {
+        return deploySsh(projectPath, sshHost, projectName, frontendUrl, backendUrl,
+                        frontendPort, backendPort, WinVMJConsole::println);
+    }
+    
+    /**
+     * Deploy via SSH with dry run option.
+     * @param dryRun if true, only shows what would be done
+     */
+    public int deploySshDryRun(Path projectPath, String sshHost, String projectName,
+                               String frontendUrl, String backendUrl,
+                               int frontendPort, int backendPort,
+                               Consumer<String> outputConsumer) {
+        List<String> args = new ArrayList<>();
+        args.add("deploy-ssh");
+        args.add(projectPath.toAbsolutePath().toString());
+        args.add("--ssh-host");
+        args.add(sshHost);
+        args.add("--project-name");
+        args.add(projectName);
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            args.add("--frontend-url");
+            args.add(frontendUrl);
+        }
+        if (backendUrl != null && !backendUrl.isEmpty()) {
+            args.add("--backend-url");
+            args.add(backendUrl);
+        }
+        args.add("--frontend-port");
+        args.add(String.valueOf(frontendPort));
+        args.add("--backend-port");
+        args.add(String.valueOf(backendPort));
+        args.add("--dry-run");
+        
+        return runCommand(outputConsumer, args.toArray(new String[0]));
     }
     
     /**

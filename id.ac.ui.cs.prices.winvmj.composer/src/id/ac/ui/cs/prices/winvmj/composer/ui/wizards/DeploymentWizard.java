@@ -22,7 +22,7 @@ public class DeploymentWizard extends Wizard {
     private CliResult userInfo;
     
     public DeploymentWizard(IFeatureProject project) {
-        setWindowTitle("Prices Deployment");
+        setWindowTitle("Prices PaaS Deployment");
         setNeedsProgressMonitor(true);
         this.project = project;
         this.cliRunner = new PricesDeploymentCliRunner();
@@ -34,9 +34,9 @@ public class DeploymentWizard extends Wizard {
         projectsPage = new DeploymentProjectsPage(this);
         executePage = new DeploymentExecutePage(this);
         
-        addPage(authPage);
-        addPage(projectsPage);
-        addPage(executePage);
+        addPage(authPage);      // 1. Authentication
+        addPage(projectsPage);  // 2. Select project
+        addPage(executePage);   // 3. Execute deployment
     }
     
     @Override
