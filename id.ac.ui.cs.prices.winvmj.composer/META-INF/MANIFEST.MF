@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: %Bundle-Name
 Bundle-SymbolicName: id.ac.ui.cs.prices.winvmj.composer;singleton:=true
 Bundle-Vendor: RSE Lab Fasilkom UI
-Bundle-Version: 3.6.0.qualifier
+Bundle-Version: 3.7.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Automatic-Module-Name: de.ovgu.featureide.core.winvmj
 Export-Package: id.ac.ui.cs.prices.winvmj.composer
