@@ -232,6 +232,16 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             dataModel.put("monitoringModuleName", monitoringModuleName);
             dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(selectedFeatures));
             
+            // Check if any feature has tracing enabled
+            boolean anyTracingEnabled = false;
+            for (String featureName : MonitoringUtils.getMonitoredFeatures(selectedFeatures)) {
+                if (MonitoringUtils.isTracingEnabled(selectedFeatures, featureName)) {
+                    anyTracingEnabled = true;
+                    break;
+                }
+            }
+            dataModel.put("anyTracingEnabled", anyTracingEnabled);
+            
             StringWriter writer = new StringWriter();
             template.process(dataModel, writer);
             
