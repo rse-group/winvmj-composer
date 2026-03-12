@@ -38,6 +38,7 @@ import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.fm.core.base.IFeature;
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.WinVMJComposer;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.MonitoringUtils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
 import id.ac.ui.cs.prices.winvmj.composer.core.impl.ComposedMicroserviceProduct;
 import id.ac.ui.cs.prices.winvmj.composer.core.impl.ComposedProduct;
@@ -403,7 +404,7 @@ public class SourceCompiler {
 		compileProductJar(project, compiledProductDir, productModule, product.getProductName());
 		
 		// Compile MonitoringAspect module to JAR if it exists (same as other modules)
-		String monitoringModuleName = Utils.getMonitoringModuleName(productModule);
+		String monitoringModuleName = MonitoringUtils.getMonitoringModuleName(productModule);
 		IFolder monitoringModuleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
 		if (monitoringModuleFolder.exists()) {
 			importExternalLibrariesByModuleInfo(project, externalLibraries, compiledProductDir, product, monitoringModuleFolder);

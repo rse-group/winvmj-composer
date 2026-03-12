@@ -63,7 +63,7 @@ public class DockerMonolithRenderer extends TemplateRenderer {
     }
 
     /**
-     * Render all Docker files: Dockerfile, docker-compose.yml, .env.example
+     * Render all Docker files: Dockerfile, docker-compose.yml, .env.example, otelCollectorConfig.yaml
      */
     public void renderAll(WinVMJProduct product) {
         // Render Dockerfile
@@ -77,6 +77,14 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         // Render .env.example
         renderEnvExample(product);
         WinVMJConsole.println("[DockerMonolith] Generated .env.example");
+        
+        // Render otelCollectorConfig.yaml (only if monitoring enabled)
+        Map<String, Object> dataModel = extractDataModel(product);
+        boolean shouldHaveMonitoring = (boolean) dataModel.get("shouldHaveMonitoring");
+        if (shouldHaveMonitoring) {
+            renderOtelCollectorConfig(product);
+            WinVMJConsole.println("[DockerMonolith] Generated otelCollectorConfig.yaml");
+        }
     }
     
     /**
@@ -99,6 +107,17 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         IFile outputFile = outputFolder.getFile(".env.example");
         
         renderTemplate("env.exampleMonolith.ftl", outputFile, extractDataModel(product));
+    }
+
+    /**
+     * Generate otelCollectorConfig.yaml file
+     */
+    private void renderOtelCollectorConfig(WinVMJProduct product) {
+        IFolder outputFolder = project.getProject().getFolder("src-gen")
+                .getFolder(product.getProductName());
+        IFile outputFile = outputFolder.getFile("otelCollectorConfig.yaml");
+        
+        renderTemplate("OtelCollectorConfig.ftl", outputFile, extractDataModel(product));
     }
 
     /**

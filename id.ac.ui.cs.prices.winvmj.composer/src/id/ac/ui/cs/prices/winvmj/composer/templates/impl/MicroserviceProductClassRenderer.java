@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.eclipse.core.runtime.CoreException;
 
@@ -18,7 +19,7 @@ public class MicroserviceProductClassRenderer extends ProductClassRenderer {
 	public MicroserviceProductClassRenderer(IFeatureProject project,
 			List<String> routingFeatures) {
 		super(project);
-		this.selectedFeature = routingFeatures;
+		this.selectedFeatures = new HashSet<>(routingFeatures);
 	}
 	
 	@Override
@@ -26,7 +27,7 @@ public class MicroserviceProductClassRenderer extends ProductClassRenderer {
 		Map<String, List<String>> featureToModuleNameMap = Utils.getFeatureToModuleMap(project.getProject());
 		List<String> selectedFeatureModulesName = new ArrayList<String>();
 		
-		for (String feature : selectedFeature) {
+		for (String feature : selectedFeatures) {
     		List<String> featureModulesName = featureToModuleNameMap.getOrDefault(feature, null);
     		if (featureModulesName != null) {
     			for (String moduleName : featureModulesName) {

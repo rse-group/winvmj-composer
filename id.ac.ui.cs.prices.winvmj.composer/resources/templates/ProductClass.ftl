@@ -11,11 +11,21 @@ import java.util.Properties;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import id.ac.ui.cs.prices.winvmj.core.VMJCors;
 import id.ac.ui.cs.prices.winvmj.core.VMJServer;
 import id.ac.ui.cs.prices.winvmj.core.Router;
 import id.ac.ui.cs.prices.winvmj.hibernate.HibernateUtil;
 import org.hibernate.cfg.Configuration;
+
+<#if dbMetricsEnabled!false>
+import org.hibernate.SessionFactory;
+import org.hibernate.internal.SessionFactoryImpl;
+import org.hibernate.event.service.spi.EventListenerRegistry;
+import org.hibernate.event.spi.EventType;
+</#if>
 
 <#if defaultAuthModel>
 import id.ac.ui.cs.prices.winvmj.auth.model.UserResourceFactory;
@@ -29,16 +39,22 @@ import ${import};
 </#list>
 
 public class ${productName} {
+
+	private static final Logger logger;
+	
+	static {
+		logger = LoggerFactory.getLogger(${productName}.class);
+	}
     
 	public static void main(String[] args) {
 
 		<#if monitoringEnabled>
-		// Initialize monitoring aspect early (before Hibernate) to start Prometheus server
+		// Initialize monitoring aspect early (before Hibernate) to start OTEL
 		try {
-			Class.forName("${productPackage?split('.')[0]}.monitoring.aspect.monitoring.MonitoringAspect");
-			System.out.println("[Monitoring] MonitoringAspect initialized - Prometheus server starting");
+			Class.forName("${productPackage?split('.')[0]}.monitoring.aspect.MonitoringAspect");
+			logger.info("[${productName}] MonitoringAspect initialized - OTEL metrics/tracing starting");
 		} catch (ClassNotFoundException e) {
-			System.out.println("[Monitoring] MonitoringAspect not found - monitoring disabled");
+			logger.info("[${productName}] MonitoringAspect not found - monitoring disabled");
 		}
 		</#if>
 
@@ -63,18 +79,16 @@ public class ${productName} {
         setDBProperties("AMANAH_DB_PASSWORD","password", configuration);
 
 		<#if defaultAuthModel>
-		configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.Role.class);
+		configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserComponent.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserDecorator.class);
+        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserImpl.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.RoleComponent.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.RoleDecorator.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.RoleImpl.class);
-        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserRole.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserRoleComponent.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserRoleDecorator.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserRoleImpl.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.User.class);
-        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserComponent.class);
-        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserDecorator.class);
-        configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.core.model.UserImpl.class);
         configuration.addAnnotatedClass(id.ac.ui.cs.prices.winvmj.auth.model.passworded.model.UserImpl.class);
 
 		</#if>
@@ -94,11 +108,32 @@ public class ${productName} {
 		// Try to initialize Hibernate - graceful failure if DB not available
 		try {
 			HibernateUtil.buildSessionFactory(configuration);
+
+			<#if dbMetricsEnabled!false>
+			// Register Hibernate Event Listeners for DB Metrics
+			try {
+				SessionFactory sessionFactory = HibernateUtil.getSessionFactory();
+				EventListenerRegistry registry = ((SessionFactoryImpl) sessionFactory)
+					.getServiceRegistry()
+					.getService(EventListenerRegistry.class);
+				
+				${productPackage?split('.')[0]}.monitoring.aspect.MonitoringAspect.DbMetricsEventListener dbListener = 
+					${productPackage?split('.')[0]}.monitoring.aspect.MonitoringAspect.getDbMetricsEventListener();
+				
+				registry.appendListeners(EventType.PRE_INSERT, dbListener);
+				registry.appendListeners(EventType.PRE_UPDATE, dbListener);
+				registry.appendListeners(EventType.PRE_DELETE, dbListener);
+				registry.appendListeners(EventType.POST_LOAD, dbListener);
+				logger.info("[${productName}] DB Metrics Hibernate Event Listeners registered");
+			} catch (Exception e) {
+				logger.warn("[${productName}] Failed to register DB Metrics listeners: {}", e.getMessage());
+			}
+			</#if>
+
 			createObjectsAndBindEndPoints();
 		} catch (Exception e) {
-			System.out.println("== WARNING: Database connection failed ==");
-			System.out.println("Server running but database features disabled.");
-			System.out.println("Error: " + e.getMessage());
+			logger.warn("[${productName}] Database connection failed - server running but database features disabled");
+			logger.debug("[${productName}] Database error: {}", e.getMessage());
 		}
 	}
 
@@ -113,7 +148,7 @@ public class ${productName} {
 	}
 
 	public static void createObjectsAndBindEndPoints() {
-		System.out.println("== CREATING OBJECTS AND BINDING ENDPOINTS ==");
+		logger.info("[${productName}] Creating objects and binding endpoints");
 		<#if defaultAuthModel>
 		UserResource userResource = UserResourceFactory
             .createUserResource("id.ac.ui.cs.prices.winvmj.auth.model.core.resource.UserResourceImpl"
@@ -133,7 +168,7 @@ public class ${productName} {
             <#list moduleRoutings as routeSpec>
                 <#if routeSpec['componentType'] == "service">
         ${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
-            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
+            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}" 
             	<#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Service</#if>);		
                 </#if>
             </#list>
@@ -141,7 +176,7 @@ public class ${productName} {
             <#list moduleRoutings as routeSpec>
                 <#if routeSpec['componentType'] == "resource">
         ${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
-            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}"
+            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}" 
                 <#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Resource</#if>);
                 </#if>
             </#list>
@@ -150,13 +185,13 @@ public class ${productName} {
 
 		<#list routings?reverse as listRouteSpec>
 		<#list listRouteSpec as routeSpec>
-		System.out.println("${routeSpec['variableName']} endpoints binding");
+		logger.info("[${productName}] Binding endpoints for ${routeSpec['variableName']}");
 		Router.route(${routeSpec['variableName']});
 		
 		</#list>
 		</#list>
 		<#if defaultAuthModel>
-		System.out.println("authResource endpoints binding");
+		logger.info("[${productName}] Binding auth endpoints");
 		Router.route(userPasswordedResource);
 		Router.route(roleResource);
 		Router.route(userResource);
@@ -232,9 +267,7 @@ public class ${productName} {
 		} else {
 			String hibernatePropertyVal = configuration.getProperty(propertyName);
 			if (hibernatePropertyVal == null) {
-				String error_message = String.format("Please check '%s' in your local environment variable or "
-                	+ "'hibernate.connection.%s' in your 'hibernate.properties' file!", varname, typeProp);
-            	System.out.println(error_message);
+				logger.warn("[${productName}] Please check '{}' in your local environment variable or 'hibernate.connection.{}' in your 'hibernate.properties' file!", varname, typeProp);
 			}
 		}
 	}
@@ -264,12 +297,10 @@ public class ${productName} {
             propertyValue = properties.getProperty("allowedOrigin");
             VMJCors.setAllowedOrigin(propertyValue);
             
-        } catch (IOException e) {
+        		} catch (IOException e) {
 			VMJCors.setAllowedMethod("GET, POST, PUT, PATCH, DELETE");
 			VMJCors.setAllowedOrigin("*");
-			System.out.println("Buat file cors.properties terlebih dahulu pada src-gen/(namaProduk) dengan contoh sebagai berikut:");
-			System.out.println("allowedMethod = GET, POST");
-			System.out.println("allowedOrigin = http://example.com");
+			logger.info("[${productName}] cors.properties not found, using defaults (allowedMethod=GET,POST,PUT,PATCH,DELETE, allowedOrigin=*)");
         }
     }
 

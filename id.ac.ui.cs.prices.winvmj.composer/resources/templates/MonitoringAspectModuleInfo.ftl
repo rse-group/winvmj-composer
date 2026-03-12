@@ -1,5 +1,5 @@
-module ${modulePackage} {
-    exports ${modulePackage}.monitoring;
+module ${monitoringModuleName} {
+    exports ${monitoringModuleName};
     
     requires java.logging;
     requires io.opentelemetry.api;
@@ -10,5 +10,5 @@ module ${modulePackage} {
     requires io.opentelemetry.instrumentation.runtime_telemetry_java8;
 </#if>
     
-    opens ${modulePackage}.monitoring to org.aspectj.weaver;
+    opens ${monitoringModuleName} to org.aspectj.weaver;
 }

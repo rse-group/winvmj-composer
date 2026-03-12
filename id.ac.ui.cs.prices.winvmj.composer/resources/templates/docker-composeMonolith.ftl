@@ -23,27 +23,46 @@ services:
       timeout: 5s
       retries: 5
 
+<#if shouldHaveMonitoring>
+  # OpenTelemetry Collector - verbose logging for testing
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: ${productName?lower_case}-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4318:4318"
+    networks:
+      - ${productName?lower_case}-network
+    restart: unless-stopped
+
+</#if>
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: ${productName?lower_case}-backend
     environment:
-      # Internal ports are fixed (7776, 9464) - configured in Dockerfile
       AMANAH_DB_URL: ${"$"}{AMANAH_DB_URL:-jdbc:postgresql://postgres:5432/${productName?lower_case}}
       AMANAH_DB_USERNAME: ${"$"}{AMANAH_DB_USERNAME:-postgres}
       AMANAH_DB_PASSWORD: ${"$"}{AMANAH_DB_PASSWORD:-postgres123}
-    ports:
-      # HOST_PORT:CONTAINER_PORT (container port fixed at 7776)
-      - "${"$"}{HOST_PORT_BE:-7776}:7776"
 <#if shouldHaveMonitoring>
-      - "${"$"}{HOST_PORT_MONITORING:-9464}:9464"
+      # OTLP endpoint points to collector
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: ${productName?lower_case}
 </#if>
+    ports:
+      - "${"$"}{HOST_PORT_BE:-7776}:7776"
     networks:
       - ${productName?lower_case}-network
     depends_on:
       postgres:
         condition: service_healthy
+<#if shouldHaveMonitoring>
+      otel-collector:
+        condition: service_started
+</#if>
     restart: unless-stopped
 
 networks:

@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -264,113 +266,83 @@ public class Utils {
 	}
 	
 	public static Map<String, List<String>> getFeatureToModuleMap(IProject project) throws CoreException{
-		Reader mapReader = new InputStreamReader(project
-				.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME).getContents());
-		Gson gson = new Gson();
-		Map<String, List<String>> splMappings = gson.fromJson(mapReader,
-				new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
-		return splMappings;
-	}
-	
-	public static JsonObject getFeatureMonitoringConfig(IProject project) throws CoreException {
 		try {
-			Reader configReader = new InputStreamReader(project
-					.getFile(WinVMJComposer.MONITORING_CONFIG_FILENAME).getContents());
+			IFile mapFile = project.getFile(WinVMJComposer.FEATURE_MODULE_MAPPER_FILENAME);
+			if (!mapFile.exists()) {
+				return new HashMap<>();
+			}
+			Reader mapReader = new InputStreamReader(mapFile.getContents());
 			Gson gson = new Gson();
-			JsonObject config = gson.fromJson(configReader, JsonObject.class);
-			return config != null ? config : new JsonObject();
+			Map<String, List<String>> splMappings = gson.fromJson(mapReader,
+					new TypeToken<LinkedHashMap<String, List<String>>>() {}.getType());
+			return splMappings != null ? splMappings : new HashMap<>();
 		} catch (Exception e) {
-			return new JsonObject();
+			return new HashMap<>();
 		}
-	}
-	
-	public static boolean isFeatureMonitoringEnabled(JsonObject monitoringConfig, String featureName) {
-		if (monitoringConfig == null || !monitoringConfig.has(featureName)) {
-			return false;
-		}
-		try {
-			JsonObject featureConfig = monitoringConfig.getAsJsonObject(featureName);
-			if (featureConfig != null && featureConfig.has("enabled")) {
-				return featureConfig.get("enabled").getAsBoolean();
-			}
-			return false;
-		} catch (Exception e) {
-			// Not a JsonObject (e.g., enableJvmMetrics is boolean)
-			return false;
-		}
-	}
-	
-	/**
-	 * Check if any feature has monitoring enabled.
-	 */
-	public static boolean hasAnyFeatureMonitoringEnabled(IProject project) {
-		try {
-			JsonObject config = getFeatureMonitoringConfig(project);
-			for (String key : config.keySet()) {
-				// Skip non-feature keys like enableJvmMetrics
-				if (key.equals("enableJvmMetrics")) continue;
-				if (isFeatureMonitoringEnabled(config, key)) {
-					return true;
-				}
-			}
-			return false;
-		} catch (Exception e) {
-			return false;
-		}
-	}
-	
-	/**
-	 * Check if JVM metrics collection is enabled in monitoring config.
-	 * JVM metrics are global (memory, GC, threads) and apply to the entire JVM.
-	 */
-	public static boolean isJvmMetricsEnabled(IProject project) {
-		try {
-			Reader configReader = new InputStreamReader(project
-					.getFile(WinVMJComposer.MONITORING_CONFIG_FILENAME).getContents());
-			Gson gson = new Gson();
-			JsonObject config = gson.fromJson(configReader, JsonObject.class);
-			if (config != null && config.has("enableJvmMetrics")) {
-				return config.get("enableJvmMetrics").getAsBoolean();
-			}
-			return false;
-		} catch (Exception e) {
-			return false;
-		}
-	}
-	
-	/**
-	 * Create default monitoring config JSON content.
-	 * Contains global JVM metrics option and example feature config.
-	 */
-	public static String createDefaultMonitoringConfigContent() {
-		JsonObject defaultConfig = new JsonObject();
-		
-		// Global JVM metrics option (memory, GC, threads - applies to entire JVM)
-		defaultConfig.addProperty("enableJvmMetrics", false);
-		
-		// Add Base feature as example
-		JsonObject baseFeatureConfig = new JsonObject();
-		baseFeatureConfig.addProperty("enabled", false);
-		defaultConfig.add("Base", baseFeatureConfig);
-		
-		return defaultConfig.toString();
 	}
 
 	private static String getFeatureName(String module) {
 		String[] moduleParts = module.split("\\.");
 		return moduleParts[1];
 	}
-	
+
+	private static final Pattern TABLE_NAME_PATTERN = 
+		Pattern.compile("@Table\\s*\\(\\s*name\\s*=\\s*\"([^\"]+)\"");
+
 	/**
-	 * Get the monitoring aspect module name for a product.
-	 * Format: {spl}.monitoring.aspect (e.g., bankaccount.monitoring.aspect)
-	 * Note: Does NOT use .product. to avoid being treated as a product module.
+	 * Resolve @Table(name="...") annotations from model classes in modules and map them to feature names.
+	 * 
+	 * For each feature in featureToModuleMap, scans the model/ folder of each module,
+	 * reads Java source files, extracts @Table(name="...") value, and builds a map:
+	 *   tableName -> featureName
+	 * 
+	 * Example result:
+	 *   "account_overdraft" -> "Overdraft"
+	 *   "account_dailylimit" -> "DailyLimit"
+	 *   "account_impl" -> "BankAccount"
 	 */
-	public static String getMonitoringModuleName(String productQualifiedName) {
-		String[] parts = productQualifiedName.split("\\.");
-		if (parts.length >= 1) {
-			return parts[0] + ".monitoring.aspect";
+	public static Map<String, String> resolveTableToFeatureMap(
+			IFeatureProject project,
+			Map<String, List<String>> featureToModuleMap) {
+		Map<String, String> tableToFeature = new HashMap<>();
+		
+		for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
+			String featureName = entry.getKey();
+			List<String> modules = entry.getValue();
+			
+			for (String module : modules) {
+				IFolder modelFolder = getModuleSubFolder(project, module, "model");
+				if (modelFolder == null || !modelFolder.exists()) {
+					continue;
+				}
+				
+				try {
+					for (IResource resource : modelFolder.members()) {
+						if (resource instanceof IFile && resource.getName().endsWith(".java")) {
+							IFile javaFile = (IFile) resource;
+							String content = new String(javaFile.getContents().readAllBytes());
+							Matcher matcher = TABLE_NAME_PATTERN.matcher(content);
+							while (matcher.find()) {
+								String tableName = matcher.group(1);
+								tableToFeature.put(tableName, featureName);
+							}
+						}
+					}
+				} catch (Exception e) {
+					WinVMJConsole.println("[Monitoring] Warning: could not scan model folder for module " + module + ": " + e.getMessage());
+				}
+			}
 		}
-		return "monitoring.aspect";
+		
+		return tableToFeature;
+	}
+
+	private static IFolder getModuleSubFolder(IFeatureProject project, String module, String subFolder) {
+		IFolder moduleFolder = project.getBuildFolder().getFolder(module);
+		for (String part : module.split("\\.")) {
+			moduleFolder = moduleFolder.getFolder(part);
+		}
+		moduleFolder = moduleFolder.getFolder(subFolder);
+		return moduleFolder;
 	}
 }

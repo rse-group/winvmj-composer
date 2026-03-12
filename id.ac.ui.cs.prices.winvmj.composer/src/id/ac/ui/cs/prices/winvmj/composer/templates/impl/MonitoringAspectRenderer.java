@@ -18,65 +18,75 @@ import java.io.StringWriter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-import com.google.gson.JsonObject;
-
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.MonitoringUtils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 
 public class MonitoringAspectRenderer extends TemplateRenderer {
 
-    private JsonObject monitoringConfig;
+    protected Set<String> selectedFeatures;
     private Map<String, List<String>> featureToModuleMap;
-    protected List<String> selectedFeature;
 
     public MonitoringAspectRenderer(IFeatureProject project) {
         super(project);
+        loadSelectedFeatures(project);
         try {
-            monitoringConfig = Utils.getFeatureMonitoringConfig(project.getProject());
             featureToModuleMap = Utils.getFeatureToModuleMap(project.getProject());
         } catch (CoreException e) {
             e.printStackTrace();
-            monitoringConfig = new JsonObject();
             featureToModuleMap = new HashMap<>();
         }
-        getSelectedFeature(project);
     }
 
-    private void getSelectedFeature(IFeatureProject winVmjProject) {
+    private void loadSelectedFeatures(IFeatureProject winVmjProject) {
         Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
-        features = features.stream()
+        selectedFeatures = features.stream()
             .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
             .collect(Collectors.toSet());
-        selectedFeature = new ArrayList<>(features);
     }
 
 
-    private String getModulePackage(WinVMJProduct product) {
-        return Utils.getMonitoringModuleName(product.getProductQualifiedName());
+    private String getMonitoringModuleName(WinVMJProduct product) {
+        return MonitoringUtils.getMonitoringModuleName(product.getProductQualifiedName());
     }
 
     @Override
     protected Map<String, Object> extractDataModel(WinVMJProduct product) {
         Map<String, Object> dataModel = new HashMap<>();
 
-        String modulePackage = getModulePackage(product);
-        dataModel.put("productPackage", modulePackage + ".monitoring");
-        dataModel.put("modulePackage", modulePackage);
+        String monitoringModuleName = getMonitoringModuleName(product);
+        dataModel.put("monitoringPackage", monitoringModuleName);
         dataModel.put("productName", product.getProductName());
         
-        // Get list of monitored modules (packages to intercept)
-        List<String> monitoredModules = getMonitoredModules();
-        dataModel.put("monitoredModules", monitoredModules);
+        // Get all monitoring info in one call
+        Map<String, Object> monitoringInfos = MonitoringUtils.getMonitoringInfos(selectedFeatures);
         
-        // Check if JVM metrics are enabled (global option)
-        boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
+        // Extract values from monitoring infos
+        boolean enableJvmMetrics = (Boolean) monitoringInfos.get(MonitoringUtils.INFO_JVM_METRICS_ENABLED);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> featureConfigs = (List<Map<String, Object>>) monitoringInfos.get(MonitoringUtils.INFO_FEATURE_CONFIGS);
+        
+        // Enrich feature configs with module packages from feature_to_module.json
+        for (Map<String, Object> config : featureConfigs) {
+            String featureName = (String) config.get(MonitoringUtils.CONFIG_FEATURE_NAME);
+            List<String> modulePackages = featureToModuleMap.get(featureName);
+            config.put("modulePackages", modulePackages != null ? modulePackages : new ArrayList<>());
+        }
+        
         dataModel.put("enableJvmMetrics", enableJvmMetrics);
+        dataModel.put("featureMonitoringConfigs", featureConfigs);
         
-        WinVMJConsole.println("[MonitoringAspect] Generating aspect for modules: " + monitoredModules);
-        WinVMJConsole.println("[MonitoringAspect] JVM metrics enabled: " + enableJvmMetrics);
+        // Resolve @Table(name) -> featureName mapping from model source files
+        Map<String, String> tableToFeatureMap = Utils.resolveTableToFeatureMap(project, featureToModuleMap);
+        dataModel.put("tableToFeatureMap", tableToFeatureMap);
+        
+        WinVMJConsole.println("[MonitoringAspect] Generating aspect for package: " + monitoringModuleName);
+        WinVMJConsole.println("[MonitoringAspect] Global JVM Metrics: " + enableJvmMetrics);
+        WinVMJConsole.println("[MonitoringAspect] Feature configs count: " + featureConfigs.size());
+        WinVMJConsole.println("[MonitoringAspect] Table-to-feature mappings: " + tableToFeatureMap.size());
 
         return dataModel;
     }
@@ -88,10 +98,11 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
 
     @Override
     protected IFile getOutputFile(WinVMJProduct product) {
-        String modulePackage = getModulePackage(product);
+        String monitoringModuleName = getMonitoringModuleName(product);
         
         // Create separate module folder for MonitoringAspect
-        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
+        // e.g., build/accountpl.monitoring.aspect/
+        IFolder moduleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
         if (!moduleFolder.exists()) {
             try {
                 moduleFolder.create(false, true, null);
@@ -101,8 +112,9 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         }
         
         // Create package structure inside module folder
+        // e.g., build/accountpl.monitoring.aspect/accountpl/monitoring/aspect/
         IFolder packageFolder = moduleFolder;
-        for (String part : modulePackage.split("\\.")) {
+        for (String part : monitoringModuleName.split("\\.")) {
             packageFolder = packageFolder.getFolder(part);
             if (!packageFolder.exists()) {
                 try {
@@ -113,56 +125,20 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             }
         }
         
-        // Create monitoring subfolder
-        IFolder monitoringFolder = packageFolder.getFolder("monitoring");
-        if (!monitoringFolder.exists()) {
-            try {
-                monitoringFolder.create(false, true, null);
-            } catch (CoreException e) {
-                e.printStackTrace();
-            }
-        }
-        
-        return monitoringFolder.getFile("MonitoringAspect.java");
-    }
-
-    private List<String> getMonitoredModules() {
-        List<String> monitoredModules = new ArrayList<>();
-        
-        if (monitoringConfig == null || monitoringConfig.size() == 0 || featureToModuleMap == null) {
-            return monitoredModules;
-        }
-
-        for (String feature : selectedFeature) {
-            if (Utils.isFeatureMonitoringEnabled(monitoringConfig, feature)) {
-                // Get modules for this feature
-                List<String> modules = featureToModuleMap.get(feature);
-                if (modules != null) {
-                    for (String module : modules) {
-                        if (!monitoredModules.contains(module)) {
-                            monitoredModules.add(module);
-                        }
-                    }
-                }
-            }
-        }
-
-        return monitoredModules;
+        return packageFolder.getFile("MonitoringAspect.java");
     }
 
     public boolean shouldRender() {
-        // Render if any feature has monitoring enabled OR JVM metrics enabled
-        boolean hasMonitoredModules = !getMonitoredModules().isEmpty();
-        boolean jvmMetricsEnabled = Utils.isJvmMetricsEnabled(project.getProject());
-        return hasMonitoredModules || jvmMetricsEnabled;
+        // Render if Monitoring feature is selected
+        return MonitoringUtils.isMonitoringEnabled(selectedFeatures);
     }
 
     /**
      * Generate META-INF/aop.xml for AspectJ load-time weaving configuration.
      */
     public void generateAopXml(WinVMJProduct product) {
-        String modulePackage = getModulePackage(product);
-        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
+        String monitoringModuleName = getMonitoringModuleName(product);
+        IFolder moduleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
         
         if (!moduleFolder.exists()) {
             try {
@@ -192,10 +168,21 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             Template template = cfg.getTemplate("aop.xml.ftl");
             
             Map<String, Object> dataModel = new HashMap<>();
-            dataModel.put("aspectPackage", modulePackage + ".monitoring");
+            dataModel.put("aspectPackage", monitoringModuleName);
             
-            // Get monitored packages for weaving
-            List<String> monitoredPackages = getMonitoredModules();
+            // Get module packages for weaving from featureToModuleMap
+            List<String> monitoredPackages = new ArrayList<>();
+            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+            for (String feature : monitoredFeatures) {
+                List<String> modules = featureToModuleMap.get(feature);
+                if (modules != null) {
+                    for (String module : modules) {
+                        if (!monitoredPackages.contains(module)) {
+                            monitoredPackages.add(module);
+                        }
+                    }
+                }
+            }
             dataModel.put("monitoredPackages", monitoredPackages);
             
             StringWriter writer = new StringWriter();
@@ -222,8 +209,8 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
      * This is required for SourceCompiler to compile the monitoring module into a JAR.
      */
     public void generateModuleInfo(WinVMJProduct product) {
-        String modulePackage = getModulePackage(product);
-        IFolder moduleFolder = project.getBuildFolder().getFolder(modulePackage);
+        String monitoringModuleName = getMonitoringModuleName(product);
+        IFolder moduleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
         
         if (!moduleFolder.exists()) {
             try {
@@ -242,8 +229,8 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             Template template = cfg.getTemplate("MonitoringAspectModuleInfo.ftl");
             
             Map<String, Object> dataModel = new HashMap<>();
-            dataModel.put("modulePackage", modulePackage);
-            dataModel.put("enableJvmMetrics", Utils.isJvmMetricsEnabled(project.getProject()));
+            dataModel.put("monitoringModuleName", monitoringModuleName);
+            dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(selectedFeatures));
             
             StringWriter writer = new StringWriter();
             template.process(dataModel, writer);

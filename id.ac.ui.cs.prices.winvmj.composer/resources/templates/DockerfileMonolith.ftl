@@ -37,9 +37,6 @@ USER winvmj
 
 # Expose internal ports
 EXPOSE 7776
-<#if shouldHaveMonitoring>
-EXPOSE 9464
-</#if>
 
 # Run the application
 <#if shouldHaveMonitoring>
