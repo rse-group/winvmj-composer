@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -14,8 +16,8 @@ import de.ovgu.featureide.core.IFeatureProject;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
-import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.MonitoringUtils;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 
@@ -24,8 +26,18 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
  */
 public class DockerMonolithRenderer extends TemplateRenderer {
 
+    private Set<String> selectedFeatures;
+
     public DockerMonolithRenderer(IFeatureProject project) {
         super(project);
+        loadSelectedFeatures();
+    }
+
+    private void loadSelectedFeatures() {
+        Set<String> features = project.loadCurrentConfiguration().getSelectedFeatureNames();
+        selectedFeatures = features.stream()
+            .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
+            .collect(Collectors.toSet());
     }
 
     @Override
@@ -43,16 +55,16 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         dataModel.put("productName", product.getProductName());
         dataModel.put("productPackage", product.getProductQualifiedName());
         
-        // Check if JVM metrics are enabled (global option)
-        boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
-        dataModel.put("enableJvmMetrics", enableJvmMetrics);
+        // Monitoring flags from selected features
+        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
+        boolean enableJvmMetrics = MonitoringUtils.isJvmMetricsEnabled(selectedFeatures);
         
-        // Check if any feature monitoring is enabled
-        boolean hasFeatureMonitoring = Utils.hasAnyFeatureMonitoringEnabled(project.getProject());
+        // Per-feature monitoring checks
+        Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
         
-        // Should include monitoring if either feature monitoring or JVM metrics enabled
-        boolean shouldHaveMonitoring = hasFeatureMonitoring || enableJvmMetrics;
+        boolean shouldHaveMonitoring = monitoringEnabled && (enableJvmMetrics || !monitoredFeatures.isEmpty());
         dataModel.put("shouldHaveMonitoring", shouldHaveMonitoring);
+        dataModel.put("enableJvmMetrics", enableJvmMetrics);
         
         return dataModel;
     }

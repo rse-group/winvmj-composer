@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,19 +15,28 @@ import java.util.stream.Collectors;
 import org.eclipse.core.resources.IFile;
 
 import de.ovgu.featureide.core.IFeatureProject;
-import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.MonitoringUtils;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 
 public class BuildGradleRenderer extends TemplateRenderer {
     private String dbUsername;
     private String dbPassword;
+    private Set<String> selectedFeatures;
 
     public BuildGradleRenderer(IFeatureProject project, String dbUsername, String dbPassword) {
         super(project);
         this.dbUsername = dbUsername;
         this.dbPassword = dbPassword;
+        loadSelectedFeatures();
+    }
+
+    private void loadSelectedFeatures() {
+        Set<String> features = project.loadCurrentConfiguration().getSelectedFeatureNames();
+        selectedFeatures = features.stream()
+            .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
+            .collect(Collectors.toSet());
     }
 
     protected IFile getOutputFile(WinVMJProduct product) {
@@ -47,16 +57,30 @@ public class BuildGradleRenderer extends TemplateRenderer {
         dataModel.put("dbPassword", dbPassword);
         dataModel.put("SQLFolder", "sql");
         
-        // Check if JVM metrics are enabled (global option)
-        boolean enableJvmMetrics = Utils.isJvmMetricsEnabled(project.getProject());
-        dataModel.put("enableJvmMetrics", enableJvmMetrics);
+        // Monitoring flags from selected features
+        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
+        boolean enableJvmMetrics = MonitoringUtils.isJvmMetricsEnabled(selectedFeatures);
         
-        // Check if any feature monitoring is enabled
-        boolean hasFeatureMonitoring = Utils.hasAnyFeatureMonitoringEnabled(project.getProject());
+        // Per-feature monitoring checks
+        Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+        boolean anyTracingEnabled = false;
+        boolean anyHttpMetricsEnabled = false;
+        boolean anyDbMetricsEnabled = false;
+        boolean anyMethodMetricsEnabled = false;
+        for (String featureName : monitoredFeatures) {
+            if (MonitoringUtils.isTracingEnabled(selectedFeatures, featureName)) anyTracingEnabled = true;
+            if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) anyHttpMetricsEnabled = true;
+            if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) anyDbMetricsEnabled = true;
+            if (MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName)) anyMethodMetricsEnabled = true;
+        }
         
-        // Should include monitoring if either feature monitoring or JVM metrics enabled
-        boolean shouldHaveMonitoring = hasFeatureMonitoring || enableJvmMetrics;
+        boolean shouldHaveMonitoring = monitoringEnabled && (enableJvmMetrics || !monitoredFeatures.isEmpty());
         dataModel.put("shouldHaveMonitoring", shouldHaveMonitoring);
+        dataModel.put("enableJvmMetrics", enableJvmMetrics);
+        dataModel.put("anyTracingEnabled", anyTracingEnabled);
+        dataModel.put("anyHttpMetricsEnabled", anyHttpMetricsEnabled);
+        dataModel.put("anyDbMetricsEnabled", anyDbMetricsEnabled);
+        dataModel.put("anyMethodMetricsEnabled", anyMethodMetricsEnabled);
         
         return dataModel;
     }

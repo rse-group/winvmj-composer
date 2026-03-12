@@ -61,7 +61,6 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.impl.ProductClassRenderer;
 public class WinVMJComposer extends ComposerExtensionClass {
 	
 	public static String FEATURE_MODULE_MAPPER_FILENAME = "feature_to_module.json";
-	public static String MONITORING_CONFIG_FILENAME = "feature_monitoring.json";
 	public static String INTER_SPL_PRODUCT_MAPPER_FILENAME = "inter_spl_product.json";
 	public static String DB_CONFIG_FILENAME = "db.properties";
 	public static String LIB_FOLDER = "libs";
@@ -376,14 +375,6 @@ public class WinVMJComposer extends ComposerExtensionClass {
 				String buildGradleContent = "dependencies {\n    // Add dependencies here\n}";
 				InputStream buildGradleStream = new ByteArrayInputStream(buildGradleContent.getBytes());
 				buildGradleFile.create(buildGradleStream, true, null);
-			}
-			
-			IFile monitoringConfigFile = project.getProject().getFile(MONITORING_CONFIG_FILENAME);
-			if (!monitoringConfigFile.exists()) {
-				String monitoringContent = Utils.createDefaultMonitoringConfigContent();
-				InputStream monitoringStream = new ByteArrayInputStream(monitoringContent.getBytes());
-				monitoringConfigFile.create(monitoringStream, false, null);
-				monitoringStream.close();
 			}
 			
 		} catch (CoreException | IOException e) {
