@@ -6,6 +6,9 @@
    <feature url="features/id.ac.ui.cs.prices.winvmj.composer.feature_3.6.0.202512151502.jar" id="id.ac.ui.cs.prices.winvmj.composer.feature" version="3.6.0.202512151502">
       <category name="WinVMJ Composer"/>
    </feature>
+   <feature url="features/id.ac.ui.cs.prices.winvmj.composer.feature_3.7.0.202603101733.jar" id="id.ac.ui.cs.prices.winvmj.composer.feature" version="3.7.0.202603101733">
+      <category name="WinVMJ Composer"/>
+   </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
    <category-def name="WinVMJ Composer Dependencies" label="WinVMJ Composer Dependencies"/>
 </site>
