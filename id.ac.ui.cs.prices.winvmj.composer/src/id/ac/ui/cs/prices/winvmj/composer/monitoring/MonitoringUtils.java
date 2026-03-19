@@ -25,16 +25,6 @@ public class MonitoringUtils {
 	public static final String MON_TRACING = "Tracing";
 	public static final String MON_LOGGING = "Logging";
 	
-	// Log level suffixes
-	public static final String LOG_NONE = "LogNone";
-	public static final String LOG_INFO = "LogInfo";
-	public static final String LOG_VERBOSE = "LogVerbose";
-	
-	// Log level values
-	public static final String LEVEL_NONE = "NONE";
-	public static final String LEVEL_INFO = "INFO";
-	public static final String LEVEL_VERBOSE = "VERBOSE";
-	
 	// Feature monitoring config keys
 	public static final String CONFIG_FEATURE_NAME = "featureName";
 	public static final String CONFIG_FEATURE_NAME_LOWER = "featureNameLower";
@@ -42,7 +32,7 @@ public class MonitoringUtils {
 	public static final String CONFIG_ENABLE_DB_METRICS = "enableDbMetrics";
 	public static final String CONFIG_ENABLE_METHOD_METRICS = "enableMethodMetrics";
 	public static final String CONFIG_ENABLE_TRACING = "enableTracing";
-	public static final String CONFIG_LOGGING_LEVEL = "loggingLevel";
+	public static final String CONFIG_ENABLE_LOGGING = "enableLogging";
 	public static final String CONFIG_MONITORING_TYPES = "monitoringTypes";
 	
 	// MonitoringInfos config keys
@@ -117,19 +107,11 @@ public class MonitoringUtils {
 	}
 	
 	/**
-	 * Get the logging level for a specific feature.
-	 * Returns "NONE", "INFO", or "VERBOSE" based on which Mon_Feature_Log* is selected.
+	 * Check if a specific feature has Logging enabled.
 	 * @param featureName The functional feature name (e.g., "Overdraft")
 	 */
-	public static String getLoggingLevel(Set<String> selectedFeatures, String featureName) {
-		if (selectedFeatures.contains(MON_PREFIX + featureName + "_" + LOG_VERBOSE)) {
-			return LEVEL_VERBOSE;
-		} else if (selectedFeatures.contains(MON_PREFIX + featureName + "_" + LOG_INFO)) {
-			return LEVEL_INFO;
-		} else if (selectedFeatures.contains(MON_PREFIX + featureName + "_" + LOG_NONE)) {
-			return LEVEL_NONE;
-		}
-		return LEVEL_NONE;
+	public static boolean isLoggingEnabled(Set<String> selectedFeatures, String featureName) {
+		return selectedFeatures.contains(MON_PREFIX + featureName + "_" + MON_LOGGING);
 	}
 	
 	/**
@@ -169,11 +151,9 @@ public class MonitoringUtils {
 				if (monType.equals(MON_HTTP_METRICS) || 
 					monType.equals(MON_DB_METRICS) || 
 					monType.equals(MON_METHOD_METRICS) || 
-					monType.equals(MON_TRACING)) {
+					monType.equals(MON_TRACING) ||
+					monType.equals(MON_LOGGING)) {
 					monitoringTypes.add(monType);
-				} else if (monType.startsWith("Log")) {
-					// Add Logging as type (not LogNone/LogInfo/LogVerbose)
-					monitoringTypes.add(MON_LOGGING);
 				}
 			}
 		}
@@ -193,7 +173,7 @@ public class MonitoringUtils {
 		config.put(CONFIG_ENABLE_DB_METRICS, isDbMetricsEnabled(selectedFeatures, featureName));
 		config.put(CONFIG_ENABLE_METHOD_METRICS, isMethodMetricsEnabled(selectedFeatures, featureName));
 		config.put(CONFIG_ENABLE_TRACING, isTracingEnabled(selectedFeatures, featureName));
-		config.put(CONFIG_LOGGING_LEVEL, getLoggingLevel(selectedFeatures, featureName));
+		config.put(CONFIG_ENABLE_LOGGING, isLoggingEnabled(selectedFeatures, featureName));
 		config.put(CONFIG_MONITORING_TYPES, getMonitoringTypesForFeature(selectedFeatures, featureName));
 		return config;
 	}

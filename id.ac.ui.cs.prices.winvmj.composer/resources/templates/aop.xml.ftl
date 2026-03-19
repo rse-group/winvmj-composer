@@ -12,6 +12,10 @@
         <#list monitoredPackages as pkg>
         <include within="${pkg}..*"/>
         </#list>
+<#if anyDbMetricsEnabled>
+        <!-- Include Hibernate JDBC internals for DB metrics -->
+        <include within="org.hibernate.engine.jdbc.internal..*"/>
+</#if>
         
         <!-- Exclude AspectJ and OpenTelemetry internals -->
         <exclude within="org.aspectj..*"/>

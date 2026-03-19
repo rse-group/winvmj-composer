@@ -67,11 +67,13 @@ public class BuildGradleRenderer extends TemplateRenderer {
         boolean anyHttpMetricsEnabled = false;
         boolean anyDbMetricsEnabled = false;
         boolean anyMethodMetricsEnabled = false;
+        boolean anyLoggingEnabled = false;
         for (String featureName : monitoredFeatures) {
             if (MonitoringUtils.isTracingEnabled(selectedFeatures, featureName)) anyTracingEnabled = true;
             if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) anyHttpMetricsEnabled = true;
             if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) anyDbMetricsEnabled = true;
             if (MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName)) anyMethodMetricsEnabled = true;
+            if (MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName)) anyLoggingEnabled = true;
         }
         
         boolean shouldHaveMonitoring = monitoringEnabled && (enableJvmMetrics || !monitoredFeatures.isEmpty());
@@ -81,6 +83,7 @@ public class BuildGradleRenderer extends TemplateRenderer {
         dataModel.put("anyHttpMetricsEnabled", anyHttpMetricsEnabled);
         dataModel.put("anyDbMetricsEnabled", anyDbMetricsEnabled);
         dataModel.put("anyMethodMetricsEnabled", anyMethodMetricsEnabled);
+        dataModel.put("anyLoggingEnabled", anyLoggingEnabled);
         
         return dataModel;
     }

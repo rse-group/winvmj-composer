@@ -38,7 +38,8 @@ dependencies {
     implementation 'com.fasterxml:classmate:1.5.1'
     implementation 'org.json:json:20250517'
     implementation 'org.slf4j:slf4j-api:2.0.13'
-    implementation 'org.slf4j:slf4j-simple:2.0.13'
+    implementation 'ch.qos.logback:logback-classic:1.5.6'
+    implementation 'ch.qos.logback:logback-core:1.5.6'
 
     <#if shouldHaveMonitoring>
     // OpenTelemetry core
@@ -48,18 +49,19 @@ dependencies {
     implementation 'io.opentelemetry:opentelemetry-sdk-metrics:1.40.0'
     implementation 'io.opentelemetry:opentelemetry-sdk-logs:1.40.0'
     // OTLP HTTP exporter (metrics + logs)
-    implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.40.0'
-    implementation 'io.opentelemetry:opentelemetry-exporter-otlp-common:1.40.0'
-    implementation 'io.opentelemetry:opentelemetry-exporter-common:1.40.0'
+    implementation('io.opentelemetry:opentelemetry-exporter-otlp:1.40.0') {
+        exclude group: 'com.squareup.okio', module: 'okio'
+    }
     <#if anyTracingEnabled>
     // Tracing SDK
     implementation 'io.opentelemetry:opentelemetry-sdk-trace:1.40.0'
     </#if>
     <#if enableJvmMetrics>
-    // JVM runtime metrics (memory, GC, threads, CPU, classes)
     implementation 'io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry-java8:2.4.0-alpha'
     </#if>
-    // AspectJ load-time weaving
+    <#if anyLoggingEnabled>
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.4.0-alpha'
+    </#if>
     implementation 'org.aspectj:aspectjweaver:1.9.22'
     </#if>
 

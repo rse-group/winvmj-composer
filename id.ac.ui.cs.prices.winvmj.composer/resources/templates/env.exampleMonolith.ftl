@@ -25,6 +25,5 @@ HOST_PORT_POSTGRES=5432
 # Monitoring Configuration (OpenTelemetry)
 # ============================================
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-OTEL_SERVICE_NAME=${productName}
-AMANAH_LOGGING_LEVEL=VERBOSE
+OTEL_SERVICE_NAME=${productName?lower_case}
 </#if>

@@ -95,7 +95,7 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         boolean shouldHaveMonitoring = (boolean) dataModel.get("shouldHaveMonitoring");
         if (shouldHaveMonitoring) {
             renderOtelCollectorConfig(product);
-            WinVMJConsole.println("[DockerMonolith] Generated otelCollectorConfig.yaml");
+            WinVMJConsole.println("[DockerMonolith] Generated otel collector config");
         }
     }
     
@@ -127,7 +127,7 @@ public class DockerMonolithRenderer extends TemplateRenderer {
     private void renderOtelCollectorConfig(WinVMJProduct product) {
         IFolder outputFolder = project.getProject().getFolder("src-gen")
                 .getFolder(product.getProductName());
-        IFile outputFile = outputFolder.getFile("otelCollectorConfig.yaml");
+        IFile outputFile = outputFolder.getFile("otel-collector-config.yaml");
         
         renderTemplate("OtelCollectorConfig.ftl", outputFile, extractDataModel(product));
     }

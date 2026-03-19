@@ -44,16 +44,18 @@ services:
       dockerfile: Dockerfile
     container_name: ${productName?lower_case}-backend
     environment:
+      AMANAH_HOST_BE: ${"$"}{AMANAH_HOST_BE:-0.0.0.0}
+      AMANAH_PORT_BE: ${"$"}{AMANAH_PORT_BE:-7776}
       AMANAH_DB_URL: ${"$"}{AMANAH_DB_URL:-jdbc:postgresql://postgres:5432/${productName?lower_case}}
       AMANAH_DB_USERNAME: ${"$"}{AMANAH_DB_USERNAME:-postgres}
       AMANAH_DB_PASSWORD: ${"$"}{AMANAH_DB_PASSWORD:-postgres123}
 <#if shouldHaveMonitoring>
-      # OTLP endpoint points to collector
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_SERVICE_NAME: ${productName?lower_case}
+      # OpenTelemetry monitoring
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${"$"}{OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_SERVICE_NAME: ${"$"}{OTEL_SERVICE_NAME:-${productName?lower_case}}
 </#if>
     ports:
-      - "${"$"}{HOST_PORT_BE:-7776}:7776"
+      - "${"$"}{HOST_PORT_BE:-7776}:${"$"}{AMANAH_PORT_BE:-7776}"
     networks:
       - ${productName?lower_case}-network
     depends_on:

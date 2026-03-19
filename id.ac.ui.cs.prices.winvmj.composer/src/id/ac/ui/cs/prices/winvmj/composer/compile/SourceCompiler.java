@@ -684,6 +684,10 @@ public class SourceCompiler {
 		    return;
 		}
 
+		// Copy non-Java resource directories (e.g. META-INF/) from source module to binFolder
+		// so they are included in the JAR (javac only outputs .class files)
+		copyModuleResources(module, binFolder);
+
 		List<String> jarCommand = constructJARCommand(binFolder, compiledFolder, module.getName());
 
 		System.out.println(String.join(" ", jarCommand));
@@ -721,6 +725,7 @@ public class SourceCompiler {
 
 		List<String> compileCommand = new ArrayList<>();
 		compileCommand.add("javac");
+		compileCommand.add("-g");
 		compileCommand.add("-d");
 		compileCommand.add(quoteString(binFolder.getLocation().toOSString()));
 		compileCommand.add("--module-path");
@@ -805,6 +810,43 @@ public class SourceCompiler {
 			copiedFile.create(file.getContents(), false, null);
 		else
 			copiedFile.setContents(file.getContents(), 1, null);
+	}
+
+	/**
+	 * Copy non-Java resource directories (e.g. META-INF/) from source module to binFolder.
+	 * This ensures resource files like aop.xml are included in the JAR,
+	 * since javac only outputs .class files to binFolder.
+	 */
+	private static void copyModuleResources(IFolder sourceModule, IFolder binFolder) {
+		try {
+			for (IResource resource : sourceModule.members()) {
+				if (resource instanceof IFolder) {
+					String folderName = resource.getName();
+					// Only copy known resource directories, skip Java package directories
+					if (folderName.equals("META-INF")) {
+						copyResourceFolder((IFolder) resource, binFolder.getFolder(folderName));
+					}
+				}
+			}
+		} catch (CoreException e) {
+			WinVMJConsole.println("[SourceCompiler] Warning: Could not copy module resources: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * Recursively copy a resource folder and its contents to a destination folder.
+	 */
+	private static void copyResourceFolder(IFolder source, IFolder dest) throws CoreException {
+		if (!dest.exists()) {
+			dest.create(false, true, null);
+		}
+		for (IResource resource : source.members()) {
+			if (resource instanceof IFile) {
+				copyFile((IFile) resource, dest);
+			} else if (resource instanceof IFolder) {
+				copyResourceFolder((IFolder) resource, dest.getFolder(resource.getName()));
+			}
+		}
 	}
 
 	private static boolean isWindows() {
