@@ -305,8 +305,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			monitoringAspectRenderer.render(product);
 			monitoringAspectRenderer.generateModuleInfo(product);
 			monitoringAspectRenderer.generateAopXml(product);
-			monitoringAspectRenderer.generateLogbackXml(product);
-			WinVMJConsole.println("[Monitoring] Generated MonitoringAspect module with module-info.java, aop.xml, and logback.xml");
+			WinVMJConsole.println("[Monitoring] Generated MonitoringAspect module with module-info.java and aop.xml");
 		}
 	}
 	

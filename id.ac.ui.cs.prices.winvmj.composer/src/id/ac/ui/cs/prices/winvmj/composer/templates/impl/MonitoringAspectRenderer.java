@@ -48,7 +48,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             .collect(Collectors.toSet());
     }
 
-
     private String getMonitoringModuleName(WinVMJProduct product) {
         return MonitoringUtils.getMonitoringModuleName(product.getProductQualifiedName());
     }
@@ -61,15 +60,12 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         dataModel.put("monitoringPackage", monitoringModuleName);
         dataModel.put("productName", product.getProductName());
         
-        // Get all monitoring info in one call
         Map<String, Object> monitoringInfos = MonitoringUtils.getMonitoringInfos(selectedFeatures);
         
-        // Extract values from monitoring infos
         boolean enableJvmMetrics = (Boolean) monitoringInfos.get(MonitoringUtils.INFO_JVM_METRICS_ENABLED);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> featureConfigs = (List<Map<String, Object>>) monitoringInfos.get(MonitoringUtils.INFO_FEATURE_CONFIGS);
         
-        // Enrich feature configs with module packages from feature_to_module.json
         for (Map<String, Object> config : featureConfigs) {
             String featureName = (String) config.get(MonitoringUtils.CONFIG_FEATURE_NAME);
             List<String> modulePackages = featureToModuleMap.get(featureName);
@@ -79,7 +75,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         dataModel.put("enableJvmMetrics", enableJvmMetrics);
         dataModel.put("featureMonitoringConfigs", featureConfigs);
         
-        // Filter featureToModuleMap to only include features with DB metrics enabled
         Map<String, List<String>> dbMetricsFeatureToModuleMap = new HashMap<>();
         for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
             String featureName = entry.getKey();
@@ -88,7 +83,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             }
         }
         
-        // Resolve @Table(name) -> featureName mapping from model source files (DB metrics enabled only)
         Map<String, String> tableToFeatureMap = Utils.resolveTableToFeatureMap(project, dbMetricsFeatureToModuleMap);
         dataModel.put("tableToFeatureMap", tableToFeatureMap);
         
@@ -109,8 +103,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
     protected IFile getOutputFile(WinVMJProduct product) {
         String monitoringModuleName = getMonitoringModuleName(product);
         
-        // Create separate module folder for MonitoringAspect
-        // e.g., build/accountpl.monitoring.aspect/
         IFolder moduleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
         if (!moduleFolder.exists()) {
             try {
@@ -120,8 +112,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             }
         }
         
-        // Create package structure inside module folder
-        // e.g., build/accountpl.monitoring.aspect/accountpl/monitoring/aspect/
         IFolder packageFolder = moduleFolder;
         for (String part : monitoringModuleName.split("\\.")) {
             packageFolder = packageFolder.getFolder(part);
@@ -138,13 +128,9 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
     }
 
     public boolean shouldRender() {
-        // Render if Monitoring feature is selected
         return MonitoringUtils.isMonitoringEnabled(selectedFeatures);
     }
 
-    /**
-     * Generate META-INF/aop.xml for AspectJ load-time weaving configuration.
-     */
     public void generateAopXml(WinVMJProduct product) {
         String monitoringModuleName = getMonitoringModuleName(product);
         IFolder moduleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
@@ -158,7 +144,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             }
         }
         
-        // Create META-INF folder
         IFolder metaInfFolder = moduleFolder.getFolder("META-INF");
         if (!metaInfFolder.exists()) {
             try {
@@ -179,7 +164,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             Map<String, Object> dataModel = new HashMap<>();
             dataModel.put("aspectPackage", monitoringModuleName);
             
-            // Get module packages for weaving from featureToModuleMap
             List<String> monitoredPackages = new ArrayList<>();
             Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
             for (String feature : monitoredFeatures) {
@@ -194,7 +178,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             }
             dataModel.put("monitoredPackages", monitoredPackages);
             
-            // Check if any feature has DB metrics enabled
             boolean anyDbMetricsEnabled = false;
             Set<String> monFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
             for (String f : monFeatures) {
@@ -224,10 +207,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         }
     }
 
-    /**
-     * Generate module-info.java for JPMS compatibility.
-     * This is required for SourceCompiler to compile the monitoring module into a JAR.
-     */
     public void generateModuleInfo(WinVMJProduct product) {
         String monitoringModuleName = getMonitoringModuleName(product);
         IFolder moduleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
@@ -275,58 +254,6 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             }
             
             WinVMJConsole.println("[MonitoringAspect] Generated module-info.java");
-        } catch (CoreException | IOException | TemplateException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Generate logback.xml for SLF4J/Logback configuration with optional OTel appender.
-     */
-    public void generateLogbackXml(WinVMJProduct product) {
-        String monitoringModuleName = getMonitoringModuleName(product);
-        IFolder moduleFolder = project.getBuildFolder().getFolder(monitoringModuleName);
-        
-        if (!moduleFolder.exists()) {
-            try {
-                moduleFolder.create(false, true, null);
-            } catch (CoreException e) {
-                e.printStackTrace();
-                return;
-            }
-        }
-        
-        IFile logbackFile = moduleFolder.getFile("logback.xml");
-        
-        try {
-            Configuration cfg = new Configuration(Configuration.VERSION_2_3_31);
-            cfg.setClassForTemplateLoading(this.getClass(), "/templates");
-            Template template = cfg.getTemplate("logback.xml.ftl");
-            
-            Map<String, Object> dataModel = new HashMap<>();
-            boolean anyLoggingEnabled = false;
-            for (String featureName : MonitoringUtils.getMonitoredFeatures(selectedFeatures)) {
-                if (MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName)) {
-                    anyLoggingEnabled = true;
-                    break;
-                }
-            }
-            dataModel.put("anyLoggingEnabled", anyLoggingEnabled);
-            
-            StringWriter writer = new StringWriter();
-            template.process(dataModel, writer);
-            
-            ByteArrayInputStream content = new ByteArrayInputStream(
-                writer.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)
-            );
-            
-            if (!logbackFile.exists()) {
-                logbackFile.create(content, false, null);
-            } else {
-                logbackFile.setContents(content, true, false, null);
-            }
-            
-            WinVMJConsole.println("[MonitoringAspect] Generated logback.xml");
         } catch (CoreException | IOException | TemplateException e) {
             e.printStackTrace();
         }

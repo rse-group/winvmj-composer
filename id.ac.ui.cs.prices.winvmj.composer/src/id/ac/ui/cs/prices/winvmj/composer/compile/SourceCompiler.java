@@ -50,6 +50,7 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.impl.CorsPropertiesRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.DockerMonolithRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.EndpointsConfigRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.HibernatePropertiesRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.LogbackXmlRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.SettingsGradleRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixDeploymentScriptRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixRunAllScriptRenderer;
@@ -338,6 +339,7 @@ public class SourceCompiler {
 		new UnixDeploymentScriptRenderer(project).render(product);
 		new UnixRunAllScriptRenderer(project, dbUsername, dbPassword).render(product);
 		new EndpointsConfigRenderer(project).render(product);
+		new LogbackXmlRenderer(project).render(product);
 		
 		// Generate Docker files for non-microservice (monolith) only
 		// Microservice Docker files are handled by deployment scripts
@@ -686,6 +688,7 @@ public class SourceCompiler {
 
 		// Copy non-Java resource directories (e.g. META-INF/) from source module to binFolder
 		// so they are included in the JAR (javac only outputs .class files)
+		binFolder.refreshLocal(IFolder.DEPTH_INFINITE, null);
 		copyModuleResources(module, binFolder);
 
 		List<String> jarCommand = constructJARCommand(binFolder, compiledFolder, module.getName());

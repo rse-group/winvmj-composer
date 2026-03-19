@@ -16,7 +16,7 @@ module ${monitoringModuleName} {
     requires io.opentelemetry.sdk.logs;
     requires ch.qos.logback.classic;
     requires ch.qos.logback.core;
-    requires io.opentelemetry.instrumentation.logback.appender.v1_0;
+    requires io.opentelemetry.instrumentation.logback_appender_1_0;
 </#if>
 <#if enableJvmMetrics>
     requires io.opentelemetry.instrumentation.runtime_telemetry_java8;
