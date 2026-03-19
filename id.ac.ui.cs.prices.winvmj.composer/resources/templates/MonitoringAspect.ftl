@@ -373,7 +373,7 @@ public class MonitoringAspect {
 
     // ==================== FEATURE: ${config.featureName} ====================
     
-<#if config.enableMethodMetrics || config.enableTracing>
+<#if config.enableMethodMetrics || config.enableTracing || config.enableLogging>
     @Pointcut("<#list config.modulePackages as mp>execution(* ${mp}..*.*(..))<#if mp?has_next> || </#if></#list>")
     public void ${config.featureNameLower}AllMethods() {}
     
