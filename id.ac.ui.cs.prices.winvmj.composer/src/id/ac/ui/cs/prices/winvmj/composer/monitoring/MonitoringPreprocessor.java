@@ -40,15 +40,14 @@ public class MonitoringPreprocessor {
                 Set<IFolder> moduleDirs = resolveModuleDirs(featureToModuleMap, buildFolder, featureName);
                 if (moduleDirs.isEmpty()) continue;
 
-                // Method metrics first (inner layer), then HTTP metrics (outer layer)
+                if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) {
+                    moduleDirs.forEach(dir -> DbMetricsInjector.inject(dir, featureName));
+                }
                 if (MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName)) {
                     moduleDirs.forEach(dir -> MethodMetricsInjector.inject(dir, featureName));
                 }
                 if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) {
                     moduleDirs.forEach(dir -> HttpMetricsInjector.inject(dir, featureName));
-                }
-                if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) {
-                    moduleDirs.forEach(dir -> DbMetricsInjector.inject(dir, featureName));
                 }
                 // TODO: TracingInjector, LoggingInjector
             }
