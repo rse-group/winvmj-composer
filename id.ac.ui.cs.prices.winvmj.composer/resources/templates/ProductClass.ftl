@@ -27,6 +27,35 @@ import org.hibernate.event.service.spi.EventListenerRegistry;
 import org.hibernate.event.spi.EventType;
 </#if>
 
+<#if monitoringEnabled && monitoringMode == "DOP">
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+<#if anyTracingEnabled!false>
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+</#if>
+<#if anyLoggingEnabled!false>
+import io.opentelemetry.sdk.logs.SdkLoggerProvider;
+import io.opentelemetry.sdk.logs.export.BatchLogRecordProcessor;
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
+import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender;
+</#if>
+<#if enableJvmMetrics!false>
+import io.opentelemetry.instrumentation.runtimemetrics.java8.Classes;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.Cpu;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.GarbageCollector;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.MemoryPools;
+import io.opentelemetry.instrumentation.runtimemetrics.java8.Threads;
+</#if>
+</#if>
+
 <#if defaultAuthModel>
 import id.ac.ui.cs.prices.winvmj.auth.model.UserResourceFactory;
 import id.ac.ui.cs.prices.winvmj.auth.model.RoleResourceFactory;
@@ -49,13 +78,89 @@ public class ${productName} {
 	public static void main(String[] args) {
 
 		<#if monitoringEnabled>
-		// Initialize monitoring aspect early (before Hibernate) to start OTEL
+		<#if monitoringMode == "AOP">
 		try {
-			Class.forName("${productPackage?split('.')[0]}.monitoring.aspect.MonitoringAspect");
+			Class.forName("${monitoringPackage}.MonitoringAspect");
 			logger.info("[${productName}] MonitoringAspect initialized - OTEL metrics/tracing starting");
 		} catch (ClassNotFoundException e) {
 			logger.info("[${productName}] MonitoringAspect not found - monitoring disabled");
 		}
+		<#elseif monitoringMode == "DOP">
+		try {
+			String otlpEndpoint = System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT");
+			if (otlpEndpoint == null) otlpEndpoint = "http://localhost:4318";
+			
+			String serviceName = System.getenv("OTEL_SERVICE_NAME");
+			if (serviceName == null) serviceName = "${productName}";
+			
+			Resource otelResource = Resource.getDefault()
+				.merge(Resource.create(Attributes.of(
+					AttributeKey.stringKey("service.name"), serviceName
+				)));
+			
+			OtlpHttpMetricExporter metricExporter = OtlpHttpMetricExporter.builder()
+				.setEndpoint(otlpEndpoint + "/v1/metrics")
+				.build();
+			
+			SdkMeterProvider meterProvider = SdkMeterProvider.builder()
+				.setResource(otelResource)
+				.registerMetricReader(PeriodicMetricReader.builder(metricExporter)
+					.setInterval(java.time.Duration.ofSeconds(30))
+					.build())
+				.build();
+			
+			<#if anyTracingEnabled!false>
+			OtlpHttpSpanExporter spanExporter = OtlpHttpSpanExporter.builder()
+				.setEndpoint(otlpEndpoint + "/v1/traces")
+				.build();
+			
+			SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+				.addSpanProcessor(BatchSpanProcessor.builder(spanExporter).build())
+				.setResource(otelResource)
+				.build();
+			</#if>
+			
+			<#if anyLoggingEnabled!false>
+			OtlpHttpLogRecordExporter logExporter = OtlpHttpLogRecordExporter.builder()
+				.setEndpoint(otlpEndpoint + "/v1/logs")
+				.build();
+			
+			SdkLoggerProvider loggerProvider = SdkLoggerProvider.builder()
+				.addLogRecordProcessor(BatchLogRecordProcessor.builder(logExporter).build())
+				.setResource(otelResource)
+				.build();
+			</#if>
+			
+			OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
+				.setMeterProvider(meterProvider)
+				<#if anyTracingEnabled!false>
+				.setTracerProvider(tracerProvider)
+				</#if>
+				<#if anyLoggingEnabled!false>
+				.setLoggerProvider(loggerProvider)
+				</#if>
+				.build();
+			
+			GlobalOpenTelemetry.set(sdk);
+			
+			<#if anyLoggingEnabled!false>
+			OpenTelemetryAppender.install(sdk);
+			</#if>
+			
+			<#if enableJvmMetrics!false>
+			Classes.registerObservers(sdk);
+			Cpu.registerObservers(sdk);
+			GarbageCollector.registerObservers(sdk);
+			MemoryPools.registerObservers(sdk);
+			Threads.registerObservers(sdk);
+			logger.info("[${productName}] JVM metrics registered");
+			</#if>
+			
+			logger.info("[${productName}] OpenTelemetry SDK initialized (DOP mode) - endpoint: " + otlpEndpoint);
+		} catch (Exception e) {
+			logger.warn("[${productName}] Failed to initialize OpenTelemetry: " + e.getMessage());
+		}
+		</#if>
 		</#if>
 
 

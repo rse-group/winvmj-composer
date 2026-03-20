@@ -57,6 +57,8 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.impl.MicroserviceProductClas
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.ModuleInfoRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.MonitoringAspectRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.ProductClassRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.MonitoringPreprocessor;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.MonitoringUtils;
 
 public class WinVMJComposer extends ComposerExtensionClass {
 	
@@ -295,17 +297,20 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		TemplateRenderer moduleInfoRenderer = new ModuleInfoRenderer(
 			featureProject, multiLevelDeltaMappings);
 		TemplateRenderer productClassRenderer = new ProductClassRenderer(featureProject);
-		MonitoringAspectRenderer monitoringAspectRenderer = new MonitoringAspectRenderer(featureProject);
 		
 		moduleInfoRenderer.render(product);
 		productClassRenderer.render(product);
-		
-		// Generate monitoring aspect module if any feature has monitoring enabled
-		if (monitoringAspectRenderer.shouldRender()) {
-			monitoringAspectRenderer.render(product);
-			monitoringAspectRenderer.generateModuleInfo(product);
-			monitoringAspectRenderer.generateAopXml(product);
-			WinVMJConsole.println("[Monitoring] Generated MonitoringAspect module with module-info.java and aop.xml");
+
+		// Monitoring: switch between AOP (AspectJ weaving) and DOP (source modification)
+		if (MonitoringUtils.MONITORING_MODE == MonitoringUtils.MonitoringMode.AOP) {
+			MonitoringAspectRenderer monitoringAspectRenderer = new MonitoringAspectRenderer(featureProject);
+			if (monitoringAspectRenderer.shouldRender()) {
+				monitoringAspectRenderer.render(product);
+				monitoringAspectRenderer.generateModuleInfo(product);
+				monitoringAspectRenderer.generateAopXml(product);
+			}
+		} else {
+			MonitoringPreprocessor.process(featureProject);
 		}
 	}
 	

@@ -73,7 +73,23 @@ public class ProductClassRenderer extends TemplateRenderer {
         // Add monitoring configuration from selected features
         boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
         dataModel.put("monitoringEnabled", monitoringEnabled);
+        dataModel.put("monitoringMode", MonitoringUtils.MONITORING_MODE.name());
         dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(selectedFeatures));
+        
+        if (monitoringEnabled) {
+            String monitoringPackage = MonitoringUtils.getMonitoringModuleName(
+                product.getProductQualifiedName());
+            dataModel.put("monitoringPackage", monitoringPackage);
+            
+            // Compute anyTracingEnabled / anyLoggingEnabled from selected features
+            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+            boolean anyTracingEnabled = monitoredFeatures.stream()
+                .anyMatch(f -> MonitoringUtils.isTracingEnabled(selectedFeatures, f));
+            boolean anyLoggingEnabled = monitoredFeatures.stream()
+                .anyMatch(f -> MonitoringUtils.isLoggingEnabled(selectedFeatures, f));
+            dataModel.put("anyTracingEnabled", anyTracingEnabled);
+            dataModel.put("anyLoggingEnabled", anyLoggingEnabled);
+        }
 
         try {
             dataModel.put("imports", getImports(product));

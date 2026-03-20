@@ -13,6 +13,10 @@ import java.util.Set;
  */
 public class MonitoringUtils {
 	
+	// Programming mode: switch between AOP (AspectJ) and DOP (source modification)
+	public enum MonitoringMode { AOP, DOP }
+	public static final MonitoringMode MONITORING_MODE = MonitoringMode.DOP;
+	
 	// Monitoring feature constants
 	public static final String MON_PREFIX = "Mon_";
 	public static final String FEATURE_MONITORING = "Monitoring";
