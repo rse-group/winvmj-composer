@@ -465,7 +465,7 @@ public class MonitoringAspect {
 </#if>
 
 <#if config.enableHttpMetrics>
-    @Pointcut("<#list config.modulePackages as mp>execution(* ${mp}.*Resource*.*(..))<#if mp?has_next> || </#if></#list>")
+    @Pointcut("(<#list config.modulePackages as mp>execution(* ${mp}.*Resource*.*(..))<#if mp?has_next> || </#if></#list>) && @annotation(id.ac.ui.cs.prices.winvmj.core.Route)")
     public void ${config.featureNameLower}HttpEndpoints() {}
     
     @Around("${config.featureNameLower}HttpEndpoints()")

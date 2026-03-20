@@ -61,8 +61,11 @@ public class MethodMetricsInjector {
 
     private static void findAndProcess(IFolder folder, String featureName) throws CoreException {
         for (IResource resource : folder.members()) {
-            if (resource instanceof IFile file && file.getName().endsWith("Impl.java")) {
-                processFile(file, featureName);
+            if (resource instanceof IFile file) {
+                String name = file.getName();
+                if (name.endsWith("ResourceImpl.java") || name.endsWith("ServiceImpl.java")) {
+                    processFile(file, featureName);
+                }
             } else if (resource instanceof IFolder subFolder) {
                 findAndProcess(subFolder, featureName);
             }
