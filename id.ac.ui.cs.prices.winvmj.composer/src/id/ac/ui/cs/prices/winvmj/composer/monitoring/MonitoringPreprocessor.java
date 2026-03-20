@@ -2,6 +2,7 @@ package id.ac.ui.cs.prices.winvmj.composer.monitoring;
 
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.HttpMetricsInjector;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.MethodMetricsInjector;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 
 import de.ovgu.featureide.core.IFeatureProject;
@@ -38,6 +39,10 @@ public class MonitoringPreprocessor {
                 Set<IFolder> moduleDirs = resolveModuleDirs(featureToModuleMap, buildFolder, featureName);
                 if (moduleDirs.isEmpty()) continue;
 
+                // Method metrics first (inner layer), then HTTP metrics (outer layer)
+                if (MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName)) {
+                    moduleDirs.forEach(dir -> MethodMetricsInjector.inject(dir, featureName));
+                }
                 if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) {
                     moduleDirs.forEach(dir -> HttpMetricsInjector.inject(dir, featureName));
                 }

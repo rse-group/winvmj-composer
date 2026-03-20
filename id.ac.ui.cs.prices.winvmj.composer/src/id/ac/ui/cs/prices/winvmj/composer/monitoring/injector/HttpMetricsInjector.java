@@ -135,35 +135,35 @@ public class HttpMetricsInjector {
         newBody.addStatement(StaticJavaParser.parseStatement(
             "String _httpMethod = " + vmjParam + ".getHttpMethod();"));
         newBody.addStatement(StaticJavaParser.parseStatement(
-            "long _startTime = System.currentTimeMillis();"));
+            "long _httpStartTime = System.currentTimeMillis();"));
         newBody.addStatement(StaticJavaParser.parseStatement(
-            "boolean _success = true;"));
+            "boolean _httpSuccess = true;"));
 
         // try { originalBody }
         BlockStmt tryBlock = new BlockStmt();
         originalStmts.forEach(tryBlock::addStatement);
 
-        // catch (Throwable _t) { _success = false; throw _t; }
+        // catch (Throwable _httpT) { _httpSuccess = false; throw _httpT; }
         BlockStmt catchBlock = new BlockStmt();
-        catchBlock.addStatement(StaticJavaParser.parseStatement("_success = false;"));
-        catchBlock.addStatement(StaticJavaParser.parseStatement("throw _t;"));
+        catchBlock.addStatement(StaticJavaParser.parseStatement("_httpSuccess = false;"));
+        catchBlock.addStatement(StaticJavaParser.parseStatement("throw _httpT;"));
         CatchClause catchClause = new CatchClause(
-            new Parameter(StaticJavaParser.parseType("Throwable"), "_t"), catchBlock);
+            new Parameter(StaticJavaParser.parseType("Throwable"), "_httpT"), catchBlock);
 
         // finally { record metrics }
         BlockStmt finallyBlock = new BlockStmt();
         finallyBlock.addStatement(StaticJavaParser.parseStatement(
-            "long _duration = System.currentTimeMillis() - _startTime;"));
+            "long _httpDuration = System.currentTimeMillis() - _httpStartTime;"));
         finallyBlock.addStatement(StaticJavaParser.parseStatement(
             "Attributes _httpAttrs = Attributes.of("
                 + "AttributeKey.stringKey(\"feature\"), \"" + featureName + "\", "
                 + "AttributeKey.stringKey(\"http.method\"), _httpMethod, "
                 + "AttributeKey.stringKey(\"http.route\"), \"/" + routeUrl + "\", "
-                + "AttributeKey.booleanKey(\"success\"), _success);"));
+                + "AttributeKey.booleanKey(\"success\"), _httpSuccess);"));
         finallyBlock.addStatement(StaticJavaParser.parseStatement(
             "_httpRequestCounter.add(1, _httpAttrs);"));
         finallyBlock.addStatement(StaticJavaParser.parseStatement(
-            "_httpRequestDurationHistogram.record(_duration, _httpAttrs);"));
+            "_httpRequestDurationHistogram.record(_httpDuration, _httpAttrs);"));
 
         newBody.addStatement(new TryStmt(tryBlock, new NodeList<>(catchClause), finallyBlock));
         method.setBody(newBody);
