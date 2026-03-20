@@ -22,10 +22,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Injects DB metrics via MonitoringRepositoryUtil decorator.
+ * Injects DB metrics via generated RepositoryImpl proxy.
  * 1. Scans model/ for @Table(name=...) to resolve table name
- * 2. Generates MonitoringRepositoryUtil.java in the module's package
- * 3. Modifies ServiceImpl/ResourceImpl constructor to replace Repository with monitoring wrapper
+ * 2. Generates {Entity}RepositoryImpl.java in the module's repository/ folder
+ * 3. Modifies ServiceImpl/ResourceImpl constructor to replace Repository with instrumented proxy
  */
 public class DbMetricsInjector {
 
@@ -58,8 +58,14 @@ public class DbMetricsInjector {
                 return;
             }
 
-            generateMonitoringRepositoryUtil(moduleDir, packageName);
-            injectConstructorReplacement(moduleDir, featureName, tableName, componentClassFQN, repoFieldName);
+            // Resolve entity name from Component class: "accountpl.account.core.AccountComponent" → "Account"
+            String simpleClassName = componentClassFQN.contains(".")
+                ? componentClassFQN.substring(componentClassFQN.lastIndexOf('.') + 1)
+                : componentClassFQN;
+            String entityName = simpleClassName.replace("Component", "");
+
+            generateRepositoryImpl(moduleDir, packageName, featureName, tableName, entityName);
+            injectConstructorReplacement(moduleDir, componentClassFQN, repoFieldName, entityName);
         } catch (CoreException e) {
             WinVMJConsole.println("[DbMetricsInjector] Error: " + e.getMessage());
         }
@@ -166,7 +172,8 @@ public class DbMetricsInjector {
     // ========== Package Name Resolution ==========
 
     /**
-     * Resolve package name from the first ServiceImpl or ResourceImpl found in the module.
+     * Resolve the package name from ServiceImpl/ResourceImpl.
+     * All files in a module share the same package (folder structure ≠ package).
      */
     private static String resolveImplPackageName(IFolder moduleDir) throws CoreException {
         for (IFile file : AstUtils.findImplFiles(moduleDir)) {
@@ -180,31 +187,43 @@ public class DbMetricsInjector {
         return null;
     }
 
-    // ========== MonitoringRepositoryUtil Generation ==========
+    // ========== RepositoryImpl Generation ==========
 
-    private static void generateMonitoringRepositoryUtil(IFolder moduleDir, String packageName) throws CoreException {
-        IFolder targetFolder = AstUtils.findImplFolder(moduleDir);
-        if (targetFolder == null) {
+    private static void generateRepositoryImpl(IFolder moduleDir, String packageName,
+            String featureName, String tableName, String entityName) throws CoreException {
+        // Find the feature-level folder (e.g. .../accountpl/account/overdraft/)
+        // by going to parent of any impl folder (service/ or resource/)
+        IFolder implFolder = AstUtils.findImplFolder(moduleDir);
+        if (implFolder == null) {
             WinVMJConsole.println("[DbMetricsInjector] Could not find impl folder for " + packageName);
             return;
         }
+        IFolder featureFolder = (IFolder) implFolder.getParent();
 
-        IFile targetFile = targetFolder.getFile("MonitoringRepositoryUtil.java");
+        // Place in repository/ subfolder
+        IFolder targetFolder = featureFolder.getFolder("repository");
+        if (!targetFolder.exists()) {
+            targetFolder.create(true, true, null);
+        }
+
+        String fileName = entityName + "RepositoryImpl.java";
+        IFile targetFile = targetFolder.getFile(fileName);
         if (targetFile.exists()) {
-            WinVMJConsole.println("[DbMetricsInjector] MonitoringRepositoryUtil.java already exists, skipping");
+            WinVMJConsole.println("[DbMetricsInjector] " + fileName + " already exists, skipping");
             return;
         }
 
-        String source = generateMonitoringRepoSource(packageName);
+        String source = generateRepoImplSource(packageName, featureName, tableName, entityName);
         try (InputStream stream = new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8))) {
             targetFile.create(stream, true, null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create MonitoringRepositoryUtil.java", e);
+            throw new RuntimeException("Failed to create " + fileName, e);
         }
-        WinVMJConsole.println("[DbMetricsInjector] Generated MonitoringRepositoryUtil.java in " + targetFolder.getFullPath());
+        WinVMJConsole.println("[DbMetricsInjector] Generated " + fileName + " in " + targetFolder.getFullPath());
     }
 
-    private static String generateMonitoringRepoSource(String packageName) {
+    private static String generateRepoImplSource(String packageName, String featureName, String tableName, String entityName) {
+        String className = entityName + "RepositoryImpl";
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(packageName).append(";\n\n");
         sb.append("import id.ac.ui.cs.prices.winvmj.hibernate.RepositoryUtil;\n");
@@ -219,16 +238,14 @@ public class DbMetricsInjector {
         sb.append("import java.util.function.Consumer;\n");
         sb.append("import javax.persistence.PersistenceException;\n");
         sb.append("import org.hibernate.Session;\n\n");
-        sb.append("public class MonitoringRepositoryUtil<Y> extends RepositoryUtil<Y> {\n\n");
-        sb.append("    private final String featureName;\n");
-        sb.append("    private final String tableName;\n");
+        sb.append("public class ").append(className).append("<Y> extends RepositoryUtil<Y> {\n\n");
+        sb.append("    private static final String FEATURE_NAME = \"").append(featureName).append("\";\n");
+        sb.append("    private static final String TABLE_NAME = \"").append(tableName).append("\";\n");
         sb.append("    private final LongCounter dbQueryCounter;\n");
         sb.append("    private final LongCounter dbQueryErrorCounter;\n");
         sb.append("    private final LongHistogram dbQueryDurationHistogram;\n\n");
-        sb.append("    public MonitoringRepositoryUtil(Class<? extends Y> componentClass, String featureName, String tableName) {\n");
+        sb.append("    public ").append(className).append("(Class<? extends Y> componentClass) {\n");
         sb.append("        super(componentClass);\n");
-        sb.append("        this.featureName = featureName;\n");
-        sb.append("        this.tableName = tableName;\n");
         sb.append("        Meter meter = GlobalOpenTelemetry.get().getMeter(\"monitoring\");\n");
         sb.append("        this.dbQueryCounter = meter.counterBuilder(\"db_queries_total\")\n");
         sb.append("            .setDescription(\"Total number of database queries\").build();\n");
@@ -239,9 +256,9 @@ public class DbMetricsInjector {
         sb.append("    }\n\n");
         sb.append("    private Attributes attrs(String operation) {\n");
         sb.append("        return Attributes.of(\n");
-        sb.append("            AttributeKey.stringKey(\"feature\"), featureName,\n");
+        sb.append("            AttributeKey.stringKey(\"feature\"), FEATURE_NAME,\n");
         sb.append("            AttributeKey.stringKey(\"db.operation\"), operation,\n");
-        sb.append("            AttributeKey.stringKey(\"db.table\"), tableName);\n");
+        sb.append("            AttributeKey.stringKey(\"db.table\"), TABLE_NAME);\n");
         sb.append("    }\n\n");
         sb.append(voidOverride("saveObject", "Y object", "object", "INSERT", "PersistenceException"));
         sb.append(voidOverride("updateObject", "Y object", "object", "UPDATE", null));
@@ -298,30 +315,29 @@ public class DbMetricsInjector {
     // ========== Constructor Injection ==========
 
     /**
-     * Inject MonitoringRepositoryUtil replacement into ServiceImpl/ResourceImpl constructors.
+     * Inject RepositoryImpl replacement into ServiceImpl/ResourceImpl constructors.
      * Uses AstUtils.addConstructorInit for find-or-create + idempotency.
      */
-    private static void injectConstructorReplacement(IFolder moduleDir, String featureName, String tableName,
-            String componentClassFQN, String repoFieldName) throws CoreException {
+    private static void injectConstructorReplacement(IFolder moduleDir,
+            String componentClassFQN, String repoFieldName, String entityName) throws CoreException {
         for (IFile file : AstUtils.findImplFiles(moduleDir)) {
-            injectIntoImpl(file, featureName, tableName, componentClassFQN, repoFieldName);
+            injectIntoImpl(file, componentClassFQN, repoFieldName, entityName);
         }
     }
 
-    private static void injectIntoImpl(IFile file, String featureName, String tableName,
-            String componentClassFQN, String repoFieldName) {
+    private static void injectIntoImpl(IFile file,
+            String componentClassFQN, String repoFieldName, String entityName) {
         WinVMJConsole.println("[DbMetricsInjector] Processing " + file.getFullPath());
 
         CompilationUnit cu = JavaParserUtil.parse(file);
 
-        String stmt = "this." + repoFieldName + " = new MonitoringRepositoryUtil<>("
-            + componentClassFQN + ".class, "
-            + "\"" + featureName + "\", "
-            + "\"" + tableName + "\");";
+        String className = entityName + "RepositoryImpl";
+        String stmt = "this." + repoFieldName + " = new " + className + "<>("
+            + componentClassFQN + ".class);";
 
-        AstUtils.addConstructorInit(cu, new String[] { stmt }, "MonitoringRepositoryUtil");
+        AstUtils.addConstructorInit(cu, new String[] { stmt }, className);
         AstUtils.overwriteFile(file, cu);
 
-        WinVMJConsole.println("[DbMetricsInjector] Injected MonitoringRepositoryUtil in " + file.getName());
+        WinVMJConsole.println("[DbMetricsInjector] Injected " + className + " in " + file.getName());
     }
 }
