@@ -10,12 +10,15 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -119,5 +122,69 @@ public class AstUtils {
         } catch (CoreException | IOException e) {
             throw new RuntimeException("Failed to update module-info: " + moduleInfoFile.getFullPath(), e);
         }
+    }
+
+    // ========== File Discovery Utilities ==========
+
+    /**
+     * Recursively find all files in a module directory matching any of the given suffixes.
+     */
+    public static List<IFile> findFiles(IFolder folder, String... suffixes) throws CoreException {
+        List<IFile> result = new ArrayList<>();
+        scanFiles(folder, result, suffixes);
+        return result;
+    }
+
+    private static void scanFiles(IFolder folder, List<IFile> result, String... suffixes) throws CoreException {
+        for (IResource resource : folder.members()) {
+            if (resource instanceof IFile file) {
+                for (String suffix : suffixes) {
+                    if (file.getName().endsWith(suffix)) {
+                        result.add(file);
+                        break;
+                    }
+                }
+            } else if (resource instanceof IFolder subFolder) {
+                scanFiles(subFolder, result, suffixes);
+            }
+        }
+    }
+
+    /**
+     * Find all ServiceImpl and ResourceImpl files in a module directory.
+     */
+    public static List<IFile> findImplFiles(IFolder moduleDir) throws CoreException {
+        return findFiles(moduleDir, "ServiceImpl.java", "ResourceImpl.java");
+    }
+
+    /**
+     * Find all ResourceImpl files in a module directory.
+     */
+    public static List<IFile> findResourceImplFiles(IFolder moduleDir) throws CoreException {
+        return findFiles(moduleDir, "ResourceImpl.java");
+    }
+
+    /**
+     * Find the folder containing ServiceImpl or ResourceImpl.
+     * Prefers service/ over resource/ if both exist.
+     */
+    public static IFolder findImplFolder(IFolder folder) throws CoreException {
+        IFolder resourceFolder = null;
+        for (IResource resource : folder.members()) {
+            if (resource instanceof IFile file) {
+                if (file.getName().endsWith("ServiceImpl.java")) {
+                    return (IFolder) file.getParent();
+                } else if (file.getName().endsWith("ResourceImpl.java")) {
+                    resourceFolder = (IFolder) file.getParent();
+                }
+            } else if (resource instanceof IFolder subFolder) {
+                IFolder found = findImplFolder(subFolder);
+                if (found != null) {
+                    if (found.getFullPath().toString().contains("/service/")) return found;
+                    if (resourceFolder == null) resourceFolder = found;
+                }
+            }
+        }
+        return resourceFolder;
     }
 }

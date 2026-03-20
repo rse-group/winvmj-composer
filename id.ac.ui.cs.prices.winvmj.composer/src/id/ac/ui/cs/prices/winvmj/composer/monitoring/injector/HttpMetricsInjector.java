@@ -18,7 +18,6 @@ import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import java.util.List;
@@ -54,24 +53,15 @@ public class HttpMetricsInjector {
 
     public static void inject(IFolder moduleDir, String featureName) {
         try {
-            // Inject requires into feature module's module-info.java
             IFile moduleInfo = moduleDir.getFile("module-info.java");
             if (moduleInfo.exists()) {
                 AstUtils.addModuleRequires(moduleInfo, List.of("io.opentelemetry.api"));
             }
-            findAndProcess(moduleDir, featureName);
+            for (IFile file : AstUtils.findResourceImplFiles(moduleDir)) {
+                processFile(file, featureName);
+            }
         } catch (CoreException e) {
             WinVMJConsole.println("[HttpMetricsInjector] Error scanning " + moduleDir.getName() + ": " + e.getMessage());
-        }
-    }
-
-    private static void findAndProcess(IFolder folder, String featureName) throws CoreException {
-        for (IResource resource : folder.members()) {
-            if (resource instanceof IFile file && file.getName().endsWith("ResourceImpl.java")) {
-                processFile(file, featureName);
-            } else if (resource instanceof IFolder subFolder) {
-                findAndProcess(subFolder, featureName);
-            }
         }
     }
 

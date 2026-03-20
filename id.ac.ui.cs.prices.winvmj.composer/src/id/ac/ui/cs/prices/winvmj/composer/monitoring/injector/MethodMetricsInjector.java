@@ -16,7 +16,6 @@ import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import java.util.List;
@@ -53,22 +52,15 @@ public class MethodMetricsInjector {
 
     public static void inject(IFolder moduleDir, String featureName) {
         try {
-            findAndProcess(moduleDir, featureName);
+            IFile moduleInfo = moduleDir.getFile("module-info.java");
+            if (moduleInfo.exists()) {
+                AstUtils.addModuleRequires(moduleInfo, List.of("io.opentelemetry.api"));
+            }
+            for (IFile file : AstUtils.findImplFiles(moduleDir)) {
+                processFile(file, featureName);
+            }
         } catch (CoreException e) {
             WinVMJConsole.println("[MethodMetricsInjector] Error scanning " + moduleDir.getName() + ": " + e.getMessage());
-        }
-    }
-
-    private static void findAndProcess(IFolder folder, String featureName) throws CoreException {
-        for (IResource resource : folder.members()) {
-            if (resource instanceof IFile file) {
-                String name = file.getName();
-                if (name.endsWith("ResourceImpl.java") || name.endsWith("ServiceImpl.java")) {
-                    processFile(file, featureName);
-                }
-            } else if (resource instanceof IFolder subFolder) {
-                findAndProcess(subFolder, featureName);
-            }
         }
     }
 

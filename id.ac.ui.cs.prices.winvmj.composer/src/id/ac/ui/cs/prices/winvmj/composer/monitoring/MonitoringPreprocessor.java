@@ -1,6 +1,7 @@
 package id.ac.ui.cs.prices.winvmj.composer.monitoring;
 
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.DbMetricsInjector;
 import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.HttpMetricsInjector;
 import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.MethodMetricsInjector;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
@@ -46,7 +47,10 @@ public class MonitoringPreprocessor {
                 if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) {
                     moduleDirs.forEach(dir -> HttpMetricsInjector.inject(dir, featureName));
                 }
-                // TODO: MethodMetricsInjector, DbMetricsInjector, TracingInjector, LoggingInjector
+                if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) {
+                    moduleDirs.forEach(dir -> DbMetricsInjector.inject(dir, featureName));
+                }
+                // TODO: TracingInjector, LoggingInjector
             }
         } catch (Exception e) {
             WinVMJConsole.println("[MonitoringPreprocessor] Error: " + e.getMessage());
