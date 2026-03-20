@@ -7,6 +7,10 @@ import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+
 import id.ac.ui.cs.prices.winvmj.composer.microservicepreprocessor.JavaParserUtil;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 
@@ -16,9 +20,13 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -191,8 +199,6 @@ public class DbMetricsInjector {
 
     private static void generateRepositoryImpl(IFolder moduleDir, String packageName,
             String featureName, String tableName, String entityName) throws CoreException {
-        // Find the feature-level folder (e.g. .../accountpl/account/overdraft/)
-        // by going to parent of any impl folder (service/ or resource/)
         IFolder implFolder = AstUtils.findImplFolder(moduleDir);
         if (implFolder == null) {
             WinVMJConsole.println("[DbMetricsInjector] Could not find impl folder for " + packageName);
@@ -200,7 +206,6 @@ public class DbMetricsInjector {
         }
         IFolder featureFolder = (IFolder) implFolder.getParent();
 
-        // Place in repository/ subfolder
         IFolder targetFolder = featureFolder.getFolder("repository");
         if (!targetFolder.exists()) {
             targetFolder.create(true, true, null);
@@ -213,103 +218,27 @@ public class DbMetricsInjector {
             return;
         }
 
-        String source = generateRepoImplSource(packageName, featureName, tableName, entityName);
-        try (InputStream stream = new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8))) {
-            targetFile.create(stream, true, null);
-        } catch (Exception e) {
+        Map<String, Object> dataModel = new HashMap<>();
+        dataModel.put("packageName", packageName);
+        dataModel.put("entityName", entityName);
+        dataModel.put("featureName", featureName);
+        dataModel.put("tableName", tableName);
+
+        try {
+            Configuration cfg = new Configuration(Configuration.VERSION_2_3_31);
+            cfg.setClassForTemplateLoading(DbMetricsInjector.class, "/templates");
+            Template template = cfg.getTemplate("RepositoryImpl.ftl");
+
+            StringWriter writer = new StringWriter();
+            template.process(dataModel, writer);
+
+            try (InputStream stream = new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8))) {
+                targetFile.create(stream, true, null);
+            }
+        } catch (IOException | TemplateException e) {
             throw new RuntimeException("Failed to create " + fileName, e);
         }
         WinVMJConsole.println("[DbMetricsInjector] Generated " + fileName + " in " + targetFolder.getFullPath());
-    }
-
-    private static String generateRepoImplSource(String packageName, String featureName, String tableName, String entityName) {
-        String className = entityName + "RepositoryImpl";
-        StringBuilder sb = new StringBuilder();
-        sb.append("package ").append(packageName).append(";\n\n");
-        sb.append("import id.ac.ui.cs.prices.winvmj.hibernate.RepositoryUtil;\n");
-        sb.append("import io.opentelemetry.api.GlobalOpenTelemetry;\n");
-        sb.append("import io.opentelemetry.api.metrics.Meter;\n");
-        sb.append("import io.opentelemetry.api.metrics.LongCounter;\n");
-        sb.append("import io.opentelemetry.api.metrics.LongHistogram;\n");
-        sb.append("import io.opentelemetry.api.common.Attributes;\n");
-        sb.append("import io.opentelemetry.api.common.AttributeKey;\n\n");
-        sb.append("import java.util.List;\n");
-        sb.append("import java.util.UUID;\n");
-        sb.append("import java.util.function.Consumer;\n");
-        sb.append("import javax.persistence.PersistenceException;\n");
-        sb.append("import org.hibernate.Session;\n\n");
-        sb.append("public class ").append(className).append("<Y> extends RepositoryUtil<Y> {\n\n");
-        sb.append("    private static final String FEATURE_NAME = \"").append(featureName).append("\";\n");
-        sb.append("    private static final String TABLE_NAME = \"").append(tableName).append("\";\n");
-        sb.append("    private final LongCounter dbQueryCounter;\n");
-        sb.append("    private final LongCounter dbQueryErrorCounter;\n");
-        sb.append("    private final LongHistogram dbQueryDurationHistogram;\n\n");
-        sb.append("    public ").append(className).append("(Class<? extends Y> componentClass) {\n");
-        sb.append("        super(componentClass);\n");
-        sb.append("        Meter meter = GlobalOpenTelemetry.get().getMeter(\"monitoring\");\n");
-        sb.append("        this.dbQueryCounter = meter.counterBuilder(\"db_queries_total\")\n");
-        sb.append("            .setDescription(\"Total number of database queries\").build();\n");
-        sb.append("        this.dbQueryErrorCounter = meter.counterBuilder(\"db_query_errors_total\")\n");
-        sb.append("            .setDescription(\"Total number of failed database queries\").build();\n");
-        sb.append("        this.dbQueryDurationHistogram = meter.histogramBuilder(\"db_query_duration_ms\")\n");
-        sb.append("            .setDescription(\"Database query duration in milliseconds\").ofLongs().build();\n");
-        sb.append("    }\n\n");
-        sb.append("    private Attributes attrs(String operation) {\n");
-        sb.append("        return Attributes.of(\n");
-        sb.append("            AttributeKey.stringKey(\"feature\"), FEATURE_NAME,\n");
-        sb.append("            AttributeKey.stringKey(\"db.operation\"), operation,\n");
-        sb.append("            AttributeKey.stringKey(\"db.table\"), TABLE_NAME);\n");
-        sb.append("    }\n\n");
-        sb.append(voidOverride("saveObject", "Y object", "object", "INSERT", "PersistenceException"));
-        sb.append(voidOverride("updateObject", "Y object", "object", "UPDATE", null));
-        sb.append(returnOverride("getObject", "int id", "id", "Y", "SELECT"));
-        sb.append(returnOverride("getObject", "UUID id", "id", "Y", "SELECT"));
-        sb.append(returnOverride("getAllObject", "String tableName", "tableName", "List<Y>", "SELECT"));
-        sb.append(returnOverride("getAllObject", "String tableName, String objectName", "tableName, objectName", "List<Y>", "SELECT"));
-        sb.append(voidOverride("deleteObject", "int id", "id", "DELETE", null));
-        sb.append(voidOverride("deleteObject", "UUID id", "id", "DELETE", null));
-        sb.append(voidOverride("executeQuery", "Consumer<Session> action", "action", "EXECUTE", "PersistenceException"));
-        sb.append("}\n");
-        return sb.toString();
-    }
-
-    private static String voidOverride(String method, String params, String args, String op, String throwsClause) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("    @Override\n");
-        sb.append("    public void ").append(method).append("(").append(params).append(")");
-        if (throwsClause != null) sb.append(" throws ").append(throwsClause);
-        sb.append(" {\n");
-        sb.append("        long start = System.currentTimeMillis();\n");
-        sb.append("        try {\n");
-        sb.append("            super.").append(method).append("(").append(args).append(");\n");
-        sb.append("            dbQueryCounter.add(1, attrs(\"").append(op).append("\"));\n");
-        sb.append("        } catch (Throwable t) {\n");
-        sb.append("            dbQueryErrorCounter.add(1, attrs(\"").append(op).append("\"));\n");
-        sb.append("            throw t;\n");
-        sb.append("        } finally {\n");
-        sb.append("            dbQueryDurationHistogram.record(System.currentTimeMillis() - start, attrs(\"").append(op).append("\"));\n");
-        sb.append("        }\n");
-        sb.append("    }\n\n");
-        return sb.toString();
-    }
-
-    private static String returnOverride(String method, String params, String args, String retType, String op) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("    @Override\n");
-        sb.append("    public ").append(retType).append(" ").append(method).append("(").append(params).append(") {\n");
-        sb.append("        long start = System.currentTimeMillis();\n");
-        sb.append("        try {\n");
-        sb.append("            ").append(retType).append(" result = super.").append(method).append("(").append(args).append(");\n");
-        sb.append("            dbQueryCounter.add(1, attrs(\"").append(op).append("\"));\n");
-        sb.append("            return result;\n");
-        sb.append("        } catch (Throwable t) {\n");
-        sb.append("            dbQueryErrorCounter.add(1, attrs(\"").append(op).append("\"));\n");
-        sb.append("            throw t;\n");
-        sb.append("        } finally {\n");
-        sb.append("            dbQueryDurationHistogram.record(System.currentTimeMillis() - start, attrs(\"").append(op).append("\"));\n");
-        sb.append("        }\n");
-        sb.append("    }\n\n");
-        return sb.toString();
     }
 
     // ========== Constructor Injection ==========
@@ -330,6 +259,14 @@ public class DbMetricsInjector {
         WinVMJConsole.println("[DbMetricsInjector] Processing " + file.getFullPath());
 
         CompilationUnit cu = JavaParserUtil.parse(file);
+
+        // Only inject if this class (or its parent chain) actually uses the Repository field.
+        // Check: does the file contain "this.<repoFieldName>" or "new RepositoryUtil" usage?
+        String source = cu.toString();
+        if (!source.contains(repoFieldName)) {
+            WinVMJConsole.println("[DbMetricsInjector] " + file.getName() + " does not use field '" + repoFieldName + "', skipping");
+            return;
+        }
 
         String className = entityName + "RepositoryImpl";
         String stmt = "this." + repoFieldName + " = new " + className + "<>("
