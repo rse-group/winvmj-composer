@@ -196,7 +196,7 @@ task loadSql(type: Exec) {
     }
 }
 
-<#if shouldHaveMonitoring>
+<#if shouldHaveMonitoring && monitoringMode == "AOP">
 // AspectJ weaver agent path
 def aspectjWeaverJar = configurations.runtimeClasspath.find { it.name.contains('aspectjweaver') }
 </#if>
@@ -211,7 +211,7 @@ tasks.register("runWinVMJ", JavaExec) {
     classpath.from fileTree(dir: 'libs', include: ['**/*.jar'])
     classpath.from files(project.projectDir)
     classpath.from configurations.runtimeClasspath
-    <#if shouldHaveMonitoring>
+    <#if shouldHaveMonitoring && monitoringMode == "AOP">
     doFirst {
         if (aspectjWeaverJar) {
             jvmArgs "-javaagent:${r"${aspectjWeaverJar}"}"
@@ -228,7 +228,7 @@ tasks.register("runWinVMJNoSQL", JavaExec) {
     classpath.from fileTree(dir: 'libs', include: ['**/*.jar'])
     classpath.from files(project.projectDir)
     classpath.from configurations.runtimeClasspath
-    <#if shouldHaveMonitoring>
+    <#if shouldHaveMonitoring && monitoringMode == "AOP">
     doFirst {
         if (aspectjWeaverJar) {
             jvmArgs "-javaagent:${r"${aspectjWeaverJar}"}"

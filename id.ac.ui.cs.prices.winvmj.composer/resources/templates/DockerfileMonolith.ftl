@@ -39,7 +39,7 @@ USER winvmj
 EXPOSE 7776
 
 # Run the application
-<#if shouldHaveMonitoring>
+<#if shouldHaveMonitoring && monitoringMode == "AOP">
 CMD ["java", "-javaagent:jars/aspectjweaver-1.9.22.jar", "-cp", "jars/*:.", "${productPackage}.${productName}"]
 <#else>
 CMD ["java", "-cp", "jars/*:.", "${productPackage}.${productName}"]
