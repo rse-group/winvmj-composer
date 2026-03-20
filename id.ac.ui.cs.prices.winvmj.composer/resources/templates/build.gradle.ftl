@@ -62,7 +62,9 @@ dependencies {
     <#if anyLoggingEnabled>
     implementation 'io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.4.0-alpha'
     </#if>
+    <#if monitoringMode == "AOP">
     implementation 'org.aspectj:aspectjweaver:1.9.22'
+    </#if>
     </#if>
 
     <#list dependencies as dependency>

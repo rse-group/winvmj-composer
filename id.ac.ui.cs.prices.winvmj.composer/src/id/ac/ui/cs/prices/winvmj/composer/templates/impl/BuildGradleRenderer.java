@@ -78,6 +78,7 @@ public class BuildGradleRenderer extends TemplateRenderer {
         
         boolean shouldHaveMonitoring = monitoringEnabled && (enableJvmMetrics || !monitoredFeatures.isEmpty());
         dataModel.put("shouldHaveMonitoring", shouldHaveMonitoring);
+        dataModel.put("monitoringMode", MonitoringUtils.MONITORING_MODE.name());
         dataModel.put("enableJvmMetrics", enableJvmMetrics);
         dataModel.put("anyTracingEnabled", anyTracingEnabled);
         dataModel.put("anyHttpMetricsEnabled", anyHttpMetricsEnabled);

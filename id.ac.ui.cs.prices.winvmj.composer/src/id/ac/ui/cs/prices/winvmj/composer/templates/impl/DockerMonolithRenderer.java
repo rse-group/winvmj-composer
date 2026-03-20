@@ -64,6 +64,7 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         
         boolean shouldHaveMonitoring = monitoringEnabled && (enableJvmMetrics || !monitoredFeatures.isEmpty());
         dataModel.put("shouldHaveMonitoring", shouldHaveMonitoring);
+        dataModel.put("monitoringMode", MonitoringUtils.MONITORING_MODE.name());
         dataModel.put("enableJvmMetrics", enableJvmMetrics);
         
         return dataModel;
