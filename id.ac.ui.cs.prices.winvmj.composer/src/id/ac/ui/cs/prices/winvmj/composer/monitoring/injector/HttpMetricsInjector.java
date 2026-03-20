@@ -36,7 +36,8 @@ public class HttpMetricsInjector {
         "io.opentelemetry.api.metrics.LongCounter",
         "io.opentelemetry.api.metrics.LongHistogram",
         "io.opentelemetry.api.common.Attributes",
-        "io.opentelemetry.api.common.AttributeKey"
+        "io.opentelemetry.api.common.AttributeKey",
+        "id.ac.ui.cs.prices.winvmj.core.exceptions.VMJException"
     );
 
     private static final String[] FIELD_DECLARATIONS = {
@@ -137,15 +138,17 @@ public class HttpMetricsInjector {
         newBody.addStatement(StaticJavaParser.parseStatement(
             "long _httpStartTime = System.currentTimeMillis();"));
         newBody.addStatement(StaticJavaParser.parseStatement(
-            "boolean _httpSuccess = true;"));
+            "int _httpStatusCode = 200;"));
 
         // try { originalBody }
         BlockStmt tryBlock = new BlockStmt();
         originalStmts.forEach(tryBlock::addStatement);
 
-        // catch (Throwable _httpT) { _httpSuccess = false; throw _httpT; }
+        // catch (Throwable _httpT) { infer status code from exception type, rethrow }
         BlockStmt catchBlock = new BlockStmt();
-        catchBlock.addStatement(StaticJavaParser.parseStatement("_httpSuccess = false;"));
+        catchBlock.addStatement(StaticJavaParser.parseStatement(
+            "_httpStatusCode = (_httpT instanceof VMJException) "
+                + "? ((VMJException) _httpT).getHttpStatusCode() : 500;"));
         catchBlock.addStatement(StaticJavaParser.parseStatement("throw _httpT;"));
         CatchClause catchClause = new CatchClause(
             new Parameter(StaticJavaParser.parseType("Throwable"), "_httpT"), catchBlock);
@@ -159,7 +162,7 @@ public class HttpMetricsInjector {
                 + "AttributeKey.stringKey(\"feature\"), \"" + featureName + "\", "
                 + "AttributeKey.stringKey(\"http.method\"), _httpMethod, "
                 + "AttributeKey.stringKey(\"http.route\"), \"/" + routeUrl + "\", "
-                + "AttributeKey.booleanKey(\"success\"), _httpSuccess);"));
+                + "AttributeKey.longKey(\"http.status_code\"), (long) _httpStatusCode);"));
         finallyBlock.addStatement(StaticJavaParser.parseStatement(
             "_httpRequestCounter.add(1, _httpAttrs);"));
         finallyBlock.addStatement(StaticJavaParser.parseStatement(

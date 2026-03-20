@@ -495,13 +495,13 @@ public class MonitoringAspect {
         }
         
         long startTime = System.currentTimeMillis();
-        boolean success = true;
+        int statusCode = 200;
         
         try {
             Object result = joinPoint.proceed();
             return result;
         } catch (Throwable t) {
-            success = false;
+            statusCode = (t instanceof VMJException) ? ((VMJException) t).getHttpStatusCode() : 500;
             throw t;
         } finally {
             long duration = System.currentTimeMillis() - startTime;
@@ -510,14 +510,14 @@ public class MonitoringAspect {
                 AttributeKey.stringKey("feature"), featureName,
                 AttributeKey.stringKey("http.method"), httpMethod,
                 AttributeKey.stringKey("http.route"), "/" + httpRoute,
-                AttributeKey.booleanKey("success"), success
+                AttributeKey.longKey("http.status_code"), (long) statusCode
             );
             
             httpRequestCounter.add(1, httpAttributes);
             httpRequestDurationHistogram.record(duration, httpAttributes);
             
 <#if config.enableLogging>
-            logger.info("[{}][HTTP] {} /{} -> {} ({}ms)", featureName, httpMethod, httpRoute, success ? "OK" : "ERROR", duration);
+            logger.info("[{}][HTTP] {} /{} -> {} ({}ms)", featureName, httpMethod, httpRoute, statusCode, duration);
 </#if>
         }
     }
