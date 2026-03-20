@@ -3,6 +3,7 @@ package id.ac.ui.cs.prices.winvmj.composer.templates.impl;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -11,6 +12,7 @@ import org.eclipse.core.resources.IFolder;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.MonitoringUtils;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
 
@@ -39,6 +41,22 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		dataModel.put("productPackage", product.getProductQualifiedName());
 		dataModel.put("requiredModules", getRequiredModules(product));
 		dataModel.put("exportedModules", exportedModules);
+		
+		// Monitoring flags for conditional OTel requires
+		Set<String> selectedFeatures = project.loadCurrentConfiguration()
+			.getSelectedFeatureNames();
+		boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
+		dataModel.put("monitoringEnabled", monitoringEnabled);
+		dataModel.put("monitoringMode", MonitoringUtils.MONITORING_MODE.name());
+		dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(selectedFeatures));
+		
+		if (monitoringEnabled) {
+			Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+			dataModel.put("anyTracingEnabled", monitoredFeatures.stream()
+				.anyMatch(f -> MonitoringUtils.isTracingEnabled(selectedFeatures, f)));
+			dataModel.put("anyLoggingEnabled", monitoredFeatures.stream()
+				.anyMatch(f -> MonitoringUtils.isLoggingEnabled(selectedFeatures, f)));
+		}
 		
 		return dataModel;
 	}

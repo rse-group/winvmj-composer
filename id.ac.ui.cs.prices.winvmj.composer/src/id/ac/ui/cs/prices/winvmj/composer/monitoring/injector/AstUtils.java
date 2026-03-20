@@ -55,10 +55,14 @@ public class AstUtils {
 
     /**
      * Inject statements at the end of the first constructor body.
+     * If no constructor exists, creates a default no-arg constructor.
      * Idempotent — checks for sentinel statement substring before injecting.
      */
     public static void addConstructorInit(CompilationUnit cu, String[] statements, String sentinelSubstring) {
-        cu.findFirst(ConstructorDeclaration.class).ifPresent(ctor -> {
+        cu.findFirst(ClassOrInterfaceDeclaration.class).ifPresent(classDecl -> {
+            ConstructorDeclaration ctor = classDecl.findFirst(ConstructorDeclaration.class)
+                .orElseGet(() -> classDecl.addConstructor(com.github.javaparser.ast.Modifier.Keyword.PUBLIC));
+
             BlockStmt body = ctor.getBody();
             boolean alreadyInjected = body.getStatements().stream()
                 .anyMatch(s -> s.toString().contains(sentinelSubstring));
@@ -79,6 +83,41 @@ public class AstUtils {
             }
         } catch (CoreException | IOException e) {
             throw new RuntimeException("Failed to write to file: " + file.getFullPath(), e);
+        }
+    }
+
+    /**
+     * Add 'requires' directives to a module-info.java file via text manipulation.
+     * Idempotent — skips modules already required.
+     */
+    public static void addModuleRequires(IFile moduleInfoFile, List<String> requiredModules) {
+        try {
+            String content;
+            try (InputStream is = moduleInfoFile.getContents()) {
+                content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+
+            StringBuilder toInsert = new StringBuilder();
+            for (String mod : requiredModules) {
+                if (!content.contains("requires " + mod + ";")) {
+                    toInsert.append("    requires ").append(mod).append(";\n");
+                }
+            }
+            if (toInsert.length() == 0) return;
+
+            // Insert before the closing brace
+            int lastBrace = content.lastIndexOf('}');
+            if (lastBrace == -1) return;
+
+            String newContent = content.substring(0, lastBrace)
+                + toInsert
+                + content.substring(lastBrace);
+
+            try (InputStream stream = new ByteArrayInputStream(newContent.getBytes(StandardCharsets.UTF_8))) {
+                moduleInfoFile.setContents(stream, true, true, null);
+            }
+        } catch (CoreException | IOException e) {
+            throw new RuntimeException("Failed to update module-info: " + moduleInfoFile.getFullPath(), e);
         }
     }
 }

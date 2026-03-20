@@ -53,6 +53,11 @@ public class HttpMetricsInjector {
 
     public static void inject(IFolder moduleDir, String featureName) {
         try {
+            // Inject requires into feature module's module-info.java
+            IFile moduleInfo = moduleDir.getFile("module-info.java");
+            if (moduleInfo.exists()) {
+                AstUtils.addModuleRequires(moduleInfo, List.of("io.opentelemetry.api"));
+            }
             findAndProcess(moduleDir, featureName);
         } catch (CoreException e) {
             WinVMJConsole.println("[HttpMetricsInjector] Error scanning " + moduleDir.getName() + ": " + e.getMessage());
