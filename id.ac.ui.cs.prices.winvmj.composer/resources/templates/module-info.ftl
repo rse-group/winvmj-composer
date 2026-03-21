@@ -26,10 +26,11 @@ module ${productPackage} {
     </#if>
     <#if anyLoggingEnabled!false>
     requires io.opentelemetry.sdk.logs;
-    requires io.opentelemetry.logback.appender;
+    requires io.opentelemetry.instrumentation.logback_appender_1_0;
+    requires ch.qos.logback.core;
     </#if>
     <#if enableJvmMetrics!false>
-    requires io.opentelemetry.instrumentation.runtimemetrics.java8;
+    requires io.opentelemetry.instrumentation.runtime_telemetry_java8;
     </#if>
     </#if>
 

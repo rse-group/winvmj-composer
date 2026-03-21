@@ -138,7 +138,8 @@ public class HttpMetricsInjector {
         BlockStmt catchBlock = new BlockStmt();
         catchBlock.addStatement(StaticJavaParser.parseStatement(
             "_httpStatusCode = (_httpT instanceof VMJException) "
-                + "? ((VMJException) _httpT).getHttpStatusCode() : 500;"));
+                + "? ((VMJException) _httpT).getHttpStatusCode() "
+                + ": (_httpT.getMessage() != null ? 400 : 500);"));
         catchBlock.addStatement(StaticJavaParser.parseStatement("throw _httpT;"));
         CatchClause catchClause = new CatchClause(
             new Parameter(StaticJavaParser.parseType("Throwable"), "_httpT"), catchBlock);

@@ -575,7 +575,7 @@ public class MonitoringAspect {
             Object result = joinPoint.proceed();
             return result;
         } catch (Throwable t) {
-            statusCode = (t instanceof VMJException) ? ((VMJException) t).getHttpStatusCode() : 500;
+            statusCode = (t instanceof VMJException) ? ((VMJException) t).getHttpStatusCode() : (t.getMessage() != null ? 400 : 500);
             throw t;
         } finally {
             long duration = System.currentTimeMillis() - startTime;
