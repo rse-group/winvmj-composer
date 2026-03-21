@@ -75,15 +75,17 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         dataModel.put("enableJvmMetrics", enableJvmMetrics);
         dataModel.put("featureMonitoringConfigs", featureConfigs);
         
-        Map<String, List<String>> dbMetricsFeatureToModuleMap = new HashMap<>();
+        // Include features that need DB-level interception (DB metrics OR tracing)
+        Map<String, List<String>> dbInterceptFeatureToModuleMap = new HashMap<>();
         for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
             String featureName = entry.getKey();
-            if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) {
-                dbMetricsFeatureToModuleMap.put(featureName, entry.getValue());
+            if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)
+                    || MonitoringUtils.isTracingEnabled(selectedFeatures, featureName)) {
+                dbInterceptFeatureToModuleMap.put(featureName, entry.getValue());
             }
         }
         
-        Map<String, String> tableToFeatureMap = Utils.resolveTableToFeatureMap(project, dbMetricsFeatureToModuleMap);
+        Map<String, String> tableToFeatureMap = Utils.resolveTableToFeatureMap(project, dbInterceptFeatureToModuleMap);
         dataModel.put("tableToFeatureMap", tableToFeatureMap);
         
         WinVMJConsole.println("[MonitoringAspect] Generating aspect for package: " + monitoringModuleName);

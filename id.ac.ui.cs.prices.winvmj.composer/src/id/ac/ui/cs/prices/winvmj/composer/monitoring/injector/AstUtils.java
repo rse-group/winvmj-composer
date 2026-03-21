@@ -165,6 +165,13 @@ public class AstUtils {
     }
 
     /**
+     * Find all RepositoryImpl files (generated proxy) in a module directory.
+     */
+    public static List<IFile> findRepositoryImplFiles(IFolder moduleDir) throws CoreException {
+        return findFiles(moduleDir, "RepositoryImpl.java");
+    }
+
+    /**
      * Find the folder containing ServiceImpl or ResourceImpl.
      * Prefers service/ over resource/ if both exist.
      */

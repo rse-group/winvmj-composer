@@ -3,7 +3,10 @@ package id.ac.ui.cs.prices.winvmj.composer.monitoring;
 import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.DbMetricsInjector;
 import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.HttpMetricsInjector;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.LoggingInjector;
 import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.MethodMetricsInjector;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.RepositoryInjector;
+import id.ac.ui.cs.prices.winvmj.composer.monitoring.injector.TracingInjector;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 
 import de.ovgu.featureide.core.IFeatureProject;
@@ -18,7 +21,15 @@ import java.util.stream.Collectors;
 /**
  * DOP Monitoring Preprocessor — orchestrator.
  * Reads feature config, dispatches to specific injectors.
- * Called from WinVMJComposer.composeProduct() as a single line.
+ * Each injector is independent — applies its own delta.
+ *
+ * Ordering:
+ * 1. RepositoryInjector — generate bare proxy + inject constructor (if any DB-level concern)
+ * 2. DbMetricsInjector — AST modify RepositoryImpl with metrics wrapping
+ * 3. MethodMetricsInjector — AST modify ServiceImpl + ResourceImpl + RepositoryImpl with method timing
+ * 4. LoggingInjector — AST modify ServiceImpl + ResourceImpl + RepositoryImpl with SLF4J logging
+ * 5. HttpMetricsInjector — AST modify ResourceImpl @Route methods with HTTP metrics
+ * 6. TracingInjector — AST modify RepositoryImpl + ServiceImpl + ResourceImpl with spans (outermost)
  */
 public class MonitoringPreprocessor {
 
@@ -40,16 +51,35 @@ public class MonitoringPreprocessor {
                 Set<IFolder> moduleDirs = resolveModuleDirs(featureToModuleMap, buildFolder, featureName);
                 if (moduleDirs.isEmpty()) continue;
 
-                if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) {
+                boolean dbMetrics = MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName);
+                boolean methodMetrics = MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName);
+                boolean logging = MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName);
+                boolean tracing = MonitoringUtils.isTracingEnabled(selectedFeatures, featureName);
+
+                // 1. Generate bare RepositoryImpl proxy if any concern needs it
+                if (dbMetrics || methodMetrics || logging || tracing) {
+                    moduleDirs.forEach(dir -> RepositoryInjector.inject(dir, featureName));
+                }
+                // 2. Inject DB metrics into RepositoryImpl
+                if (dbMetrics) {
                     moduleDirs.forEach(dir -> DbMetricsInjector.inject(dir, featureName));
                 }
-                if (MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName)) {
+                // 3. Inject method metrics into ServiceImpl + ResourceImpl + RepositoryImpl
+                if (methodMetrics) {
                     moduleDirs.forEach(dir -> MethodMetricsInjector.inject(dir, featureName));
                 }
+                // 4. Inject logging into ServiceImpl + ResourceImpl + RepositoryImpl
+                if (logging) {
+                    moduleDirs.forEach(dir -> LoggingInjector.inject(dir, featureName));
+                }
+                // 5. Inject HTTP metrics into ResourceImpl @Route methods
                 if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) {
                     moduleDirs.forEach(dir -> HttpMetricsInjector.inject(dir, featureName));
                 }
-                // TODO: TracingInjector, LoggingInjector
+                // 6. Inject tracing spans into RepositoryImpl + ServiceImpl + ResourceImpl (outermost)
+                if (tracing) {
+                    moduleDirs.forEach(dir -> TracingInjector.inject(dir, featureName));
+                }
             }
         } catch (Exception e) {
             WinVMJConsole.println("[MonitoringPreprocessor] Error: " + e.getMessage());

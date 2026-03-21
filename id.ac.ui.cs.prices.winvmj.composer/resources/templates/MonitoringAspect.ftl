@@ -92,7 +92,16 @@ import io.opentelemetry.instrumentation.runtimemetrics.java8.Threads;
 </#if>
 </#list>
 
-<#if anyDbMetricsEnabled>
+<#-- Check if any feature needs DB-level interception (metrics OR tracing) -->
+<#assign anyDbInterceptEnabled = false>
+<#list featureMonitoringConfigs as config>
+<#if config.enableDbMetrics || config.enableTracing>
+<#assign anyDbInterceptEnabled = true>
+<#break>
+</#if>
+</#list>
+
+<#if anyDbInterceptEnabled>
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 </#if>
@@ -228,6 +237,7 @@ public class MonitoringAspect {
         .build();
 </#if>
 
+<#if anyDbInterceptEnabled>
 <#if anyDbMetricsEnabled>
     private static final LongCounter dbQueryCounter = meter
         .counterBuilder("db_queries_total")
@@ -244,6 +254,7 @@ public class MonitoringAspect {
         .setDescription("Database query duration in milliseconds")
         .ofLongs()
         .build();
+</#if>
     
     /**
      * Compile-time resolved map: @Table(name) -> featureName.
@@ -258,11 +269,22 @@ public class MonitoringAspect {
     private static final java.util.Map<String, Boolean> FEATURE_LOGGING_ENABLED = new java.util.HashMap<>();
     static {
     <#list featureMonitoringConfigs as config>
-    <#if config.enableDbMetrics>
+    <#if config.enableDbMetrics || config.enableTracing>
         FEATURE_LOGGING_ENABLED.put("${config.featureName}", ${config.enableLogging?string("true", "false")});
     </#if>
     </#list>
     }
+
+<#if anyTracingEnabled>
+    private static final java.util.Map<String, Boolean> FEATURE_TRACING_ENABLED = new java.util.HashMap<>();
+    static {
+    <#list featureMonitoringConfigs as config>
+    <#if config.enableDbMetrics || config.enableTracing>
+        FEATURE_TRACING_ENABLED.put("${config.featureName}", ${config.enableTracing?string("true", "false")});
+    </#if>
+    </#list>
+    }
+</#if>
 
     private static final Pattern INSERT_PATTERN = Pattern.compile("(?i)insert\\s+into\\s+(\\S+)");
     private static final Pattern UPDATE_PATTERN = Pattern.compile("(?i)update\\s+(\\S+)");
@@ -328,10 +350,31 @@ public class MonitoringAspect {
         }
 
         long startTime = System.nanoTime();
+<#if anyTracingEnabled>
+        // Create DB span if any matched feature has tracing enabled
+        Span dbSpan = null;
+        Scope dbScope = null;
+        for (String feature : matchedFeatures) {
+            Boolean tracingEnabled = FEATURE_TRACING_ENABLED.get(feature);
+            if (Boolean.TRUE.equals(tracingEnabled)) {
+                String spanName = operation + " " + String.join(",", tableNames);
+                dbSpan = tracer.spanBuilder(spanName)
+                    .setSpanKind(SpanKind.CLIENT)
+                    .setAttribute("feature", feature)
+                    .setAttribute("db.operation", operation)
+                    .setAttribute("db.table", featureToTable.getOrDefault(feature, "unknown"))
+                    .setAttribute("db.statement", sql != null ? sql : "")
+                    .startSpan();
+                dbScope = dbSpan.makeCurrent();
+                break; // one span per DB execution is enough
+            }
+        }
+</#if>
         try {
             Object result = joinPoint.proceed();
             long duration = (System.nanoTime() - startTime) / 1_000_000;
 
+<#if anyDbMetricsEnabled>
             for (String feature : matchedFeatures) {
                 Attributes dbAttributes = Attributes.of(
                     AttributeKey.stringKey("feature"), feature,
@@ -340,7 +383,10 @@ public class MonitoringAspect {
                 );
                 dbQueryCounter.add(1, dbAttributes);
                 dbQueryDurationHistogram.record(duration, dbAttributes);
+            }
+</#if>
 
+            for (String feature : matchedFeatures) {
                 Boolean loggingEnabled = FEATURE_LOGGING_ENABLED.get(feature);
                 if (Boolean.TRUE.equals(loggingEnabled)) {
                     logger.info("[{}][DB] {} {} {}ms", feature, operation, featureToTable.get(feature), duration);
@@ -350,6 +396,14 @@ public class MonitoringAspect {
         } catch (Throwable t) {
             long duration = (System.nanoTime() - startTime) / 1_000_000;
 
+<#if anyTracingEnabled>
+            if (dbSpan != null) {
+                dbSpan.setStatus(StatusCode.ERROR, t.getMessage());
+                dbSpan.recordException(t);
+            }
+</#if>
+
+<#if anyDbMetricsEnabled>
             for (String feature : matchedFeatures) {
                 Attributes errorAttributes = Attributes.of(
                     AttributeKey.stringKey("feature"), feature,
@@ -358,13 +412,26 @@ public class MonitoringAspect {
                 );
                 dbQueryErrorCounter.add(1, errorAttributes);
                 dbQueryDurationHistogram.record(duration, errorAttributes);
+            }
+</#if>
 
+            for (String feature : matchedFeatures) {
                 Boolean loggingEnabled = FEATURE_LOGGING_ENABLED.get(feature);
                 if (Boolean.TRUE.equals(loggingEnabled)) {
                     logger.error("[{}][DB][ERROR] {} {} {}ms - {}", feature, operation, featureToTable.get(feature), duration, t.getMessage());
                 }
             }
             throw t;
+        } finally {
+<#if anyTracingEnabled>
+            if (dbSpan != null) {
+                dbSpan.setAttribute("duration_ms", (System.nanoTime() - startTime) / 1_000_000);
+                dbSpan.end();
+            }
+            if (dbScope != null) {
+                dbScope.close();
+            }
+</#if>
         }
     }
 </#if>
@@ -372,118 +439,125 @@ public class MonitoringAspect {
 <#list featureMonitoringConfigs as config>
 
     // ==================== FEATURE: ${config.featureName} ====================
-    
+
 <#if config.enableMethodMetrics || config.enableTracing || config.enableLogging>
-    @Pointcut("<#list config.modulePackages as mp>execution(* ${mp}..*Impl.*(..))<#if mp?has_next> || </#if></#list>")
+    @Pointcut("<#list config.modulePackages as mp>execution(* ${mp}..*ServiceImpl.*(..)) || execution(* ${mp}..*ResourceImpl.*(..))<#if mp?has_next> || </#if></#list>")
     public void ${config.featureNameLower}AllMethods() {}
-    
+</#if>
+
+    <#-- ===== 1. Tracing advice (outermost — declared first) ===== -->
+<#if config.enableTracing>
     @Around("${config.featureNameLower}AllMethods()")
-    public Object monitor${config.featureName}Methods(ProceedingJoinPoint joinPoint) throws Throwable {
+    public Object trace${config.featureName}(ProceedingJoinPoint joinPoint) throws Throwable {
+        String className = joinPoint.getSignature().getDeclaringTypeName();
+        String methodName = joinPoint.getSignature().getName();
+        String fullMethodName = className + "." + methodName;
+
+        SpanKind spanKind = className.contains("Resource") ? SpanKind.SERVER : SpanKind.INTERNAL;
+        Span span = tracer.spanBuilder(fullMethodName)
+            .setSpanKind(spanKind)
+            .setAttribute("feature", "${config.featureName}")
+            .setAttribute("class", className)
+            .setAttribute("method", methodName)
+            .startSpan();
+
+        try (Scope scope = span.makeCurrent()) {
+            Object result = joinPoint.proceed();
+            return result;
+        } catch (Throwable t) {
+            span.setStatus(StatusCode.ERROR, t.getMessage());
+            span.recordException(t);
+            throw t;
+        } finally {
+            span.end();
+        }
+    }
+</#if>
+
+    <#-- ===== 2. Logging advice ===== -->
+<#if config.enableLogging>
+    @Around("${config.featureNameLower}AllMethods()")
+    public Object log${config.featureName}(ProceedingJoinPoint joinPoint) throws Throwable {
         String className = joinPoint.getSignature().getDeclaringTypeName();
         String methodName = joinPoint.getSignature().getName();
         String fullMethodName = className + "." + methodName;
         String featureName = "${config.featureName}";
-        
-<#if config.enableLogging>
+
         Object[] args = joinPoint.getArgs();
         for (int i = 0; i < args.length; i++) {
             logger.info("[{}][{}] arg[{}]: {}", featureName, fullMethodName, i, args[i]);
         }
+
+        long startTime = System.currentTimeMillis();
+        try {
+            Object result = joinPoint.proceed();
+            long duration = System.currentTimeMillis() - startTime;
+            logger.info("[{}] {} completed in {}ms", featureName, fullMethodName, duration);
+            return result;
+        } catch (Throwable t) {
+            long duration = System.currentTimeMillis() - startTime;
+            logger.error("[{}][ERROR] {} threw {} after {}ms: {}", featureName, fullMethodName,
+                t.getClass().getSimpleName(), duration, t.getMessage());
+            throw t;
+        }
+    }
 </#if>
-        
+
+    <#-- ===== 3. MethodMetrics advice ===== -->
 <#if config.enableMethodMetrics>
+    @Around("${config.featureNameLower}AllMethods()")
+    public Object methodMetrics${config.featureName}(ProceedingJoinPoint joinPoint) throws Throwable {
+        String className = joinPoint.getSignature().getDeclaringTypeName();
+        String methodName = joinPoint.getSignature().getName();
+        String featureName = "${config.featureName}";
+
         Attributes attributes = Attributes.of(
             AttributeKey.stringKey("feature"), featureName,
             AttributeKey.stringKey("class"), className,
             AttributeKey.stringKey("method"), methodName
         );
-</#if>
-        
+
         long startTime = System.currentTimeMillis();
-        
-<#if config.enableTracing>
-        SpanKind spanKind = className.contains("Resource") ? SpanKind.SERVER : SpanKind.INTERNAL;
-        Span span = tracer.spanBuilder(fullMethodName)
-            .setSpanKind(spanKind)
-            .setAttribute("feature", featureName)
-            .setAttribute("class", className)
-            .setAttribute("method", methodName)
-            .startSpan();
-        
-        try (Scope scope = span.makeCurrent()) {
-<#else>
         try {
-</#if>
             Object result = joinPoint.proceed();
-            
             long duration = System.currentTimeMillis() - startTime;
-            
-<#if config.enableMethodMetrics>
             methodCallCounter.add(1, attributes);
             methodDurationHistogram.record(duration, attributes);
-</#if>
-            
-<#if config.enableLogging>
-            logger.info("[{}] {} completed in {}ms", featureName, fullMethodName, duration);
-</#if>
-            
             return result;
         } catch (Throwable t) {
             long duration = System.currentTimeMillis() - startTime;
-            
-<#if config.enableTracing>
-            span.setStatus(StatusCode.ERROR, t.getMessage());
-            span.recordException(t);
-</#if>
-            
-<#if config.enableLogging>
-            logger.error("[{}][ERROR] {} threw {} after {}ms: {}", featureName, fullMethodName, t.getClass().getSimpleName(), duration, t.getMessage());
-</#if>
-            
-<#if config.enableMethodMetrics>
             Attributes errorAttributes = Attributes.of(
                 AttributeKey.stringKey("feature"), featureName,
                 AttributeKey.stringKey("class"), className,
                 AttributeKey.stringKey("method"), methodName,
                 AttributeKey.stringKey("exception"), t.getClass().getSimpleName()
             );
-            
             methodCallCounter.add(1, attributes);
             methodErrorCounter.add(1, errorAttributes);
             methodDurationHistogram.record(duration, attributes);
-</#if>
-            
             throw t;
-        } finally {
-<#if config.enableTracing>
-            long duration = System.currentTimeMillis() - startTime;
-            span.setAttribute("duration_ms", duration);
-            span.end();
-</#if>
         }
     }
 </#if>
 
+    <#-- ===== 4. HttpMetrics advice ===== -->
 <#if config.enableHttpMetrics>
     @Pointcut("(<#list config.modulePackages as mp>execution(* ${mp}.*Resource*.*(..))<#if mp?has_next> || </#if></#list>) && @annotation(id.ac.ui.cs.prices.winvmj.core.Route)")
     public void ${config.featureNameLower}HttpEndpoints() {}
-    
+
     @Around("${config.featureNameLower}HttpEndpoints()")
-    public Object monitor${config.featureName}Http(ProceedingJoinPoint joinPoint) throws Throwable {
-        String className = joinPoint.getSignature().getDeclaringTypeName();
-        String methodName = joinPoint.getSignature().getName();
+    public Object httpMetrics${config.featureName}(ProceedingJoinPoint joinPoint) throws Throwable {
         String featureName = "${config.featureName}";
-        
+
         String httpMethod = "UNKNOWN";
         Object[] args = joinPoint.getArgs();
         for (Object arg : args) {
             if (arg instanceof VMJExchange) {
-                VMJExchange exchange = (VMJExchange) arg;
-                httpMethod = exchange.getHttpMethod();
+                httpMethod = ((VMJExchange) arg).getHttpMethod();
                 break;
             }
         }
-        
+
         String httpRoute = "UNKNOWN";
         try {
             MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -493,10 +567,10 @@ public class MonitoringAspect {
             }
         } catch (Exception e) {
         }
-        
+
         long startTime = System.currentTimeMillis();
         int statusCode = 200;
-        
+
         try {
             Object result = joinPoint.proceed();
             return result;
@@ -505,20 +579,16 @@ public class MonitoringAspect {
             throw t;
         } finally {
             long duration = System.currentTimeMillis() - startTime;
-            
+
             Attributes httpAttributes = Attributes.of(
                 AttributeKey.stringKey("feature"), featureName,
                 AttributeKey.stringKey("http.method"), httpMethod,
                 AttributeKey.stringKey("http.route"), "/" + httpRoute,
                 AttributeKey.longKey("http.status_code"), (long) statusCode
             );
-            
+
             httpRequestCounter.add(1, httpAttributes);
             httpRequestDurationHistogram.record(duration, httpAttributes);
-            
-<#if config.enableLogging>
-            logger.info("[{}][HTTP] {} /{} -> {} ({}ms)", featureName, httpMethod, httpRoute, statusCode, duration);
-</#if>
         }
     }
 </#if>
