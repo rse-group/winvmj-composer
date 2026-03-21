@@ -91,12 +91,30 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         renderEnvExample(product);
         WinVMJConsole.println("[DockerMonolith] Generated .env.example");
         
-        // Render otelCollectorConfig.yaml (only if monitoring enabled)
+        // Render observability configs (only if monitoring enabled)
         Map<String, Object> dataModel = extractDataModel(product);
         boolean shouldHaveMonitoring = (boolean) dataModel.get("shouldHaveMonitoring");
         if (shouldHaveMonitoring) {
             renderOtelCollectorConfig(product);
             WinVMJConsole.println("[DockerMonolith] Generated otel collector config");
+            
+            renderObservabilityConfig(product, "PrometheusConfig.ftl", "prometheus.yml");
+            WinVMJConsole.println("[DockerMonolith] Generated prometheus config");
+            
+            renderObservabilityConfig(product, "LokiConfig.ftl", "loki-config.yaml");
+            WinVMJConsole.println("[DockerMonolith] Generated loki config");
+            
+            renderObservabilityConfig(product, "TempoConfig.ftl", "tempo-config.yaml");
+            WinVMJConsole.println("[DockerMonolith] Generated tempo config");
+            
+            renderObservabilityConfig(product, "GrafanaDatasources.ftl", "grafana-datasources.yaml");
+            WinVMJConsole.println("[DockerMonolith] Generated grafana datasources");
+            
+            renderObservabilityConfig(product, "GrafanaDashboardProvisioning.ftl", "grafana-dashboards.yaml");
+            WinVMJConsole.println("[DockerMonolith] Generated grafana dashboard provisioning");
+            
+            renderObservabilityConfig(product, "GrafanaDashboard.json.ftl", "grafana-dashboard.json");
+            WinVMJConsole.println("[DockerMonolith] Generated grafana dashboard");
         }
     }
     
@@ -131,6 +149,16 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         IFile outputFile = outputFolder.getFile("otel-collector-config.yaml");
         
         renderTemplate("OtelCollectorConfig.ftl", outputFile, extractDataModel(product));
+    }
+
+    /**
+     * Generate an observability config file in the product output folder.
+     */
+    private void renderObservabilityConfig(WinVMJProduct product, String templateName, String outputFileName) {
+        IFolder outputFolder = project.getProject().getFolder("src-gen")
+                .getFolder(product.getProductName());
+        IFile outputFile = outputFolder.getFile(outputFileName);
+        renderTemplate(templateName, outputFile, extractDataModel(product));
     }
 
     /**

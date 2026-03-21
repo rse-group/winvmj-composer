@@ -26,4 +26,18 @@ HOST_PORT_POSTGRES=5432
 # ============================================
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 OTEL_SERVICE_NAME=${productName?lower_case}
+
+# ============================================
+# Observability Stack Ports
+# ============================================
+HOST_PORT_PROMETHEUS=9090
+HOST_PORT_GRAFANA=3000
+HOST_PORT_LOKI=3100
+HOST_PORT_TEMPO=3200
+
+# ============================================
+# Grafana Credentials
+# ============================================
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=admin123
 </#if>
