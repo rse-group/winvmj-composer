@@ -67,7 +67,10 @@ public class TracingInjector {
             }
 
             // Wrap ServiceImpl + ResourceImpl methods
-            for (IFile file : AstUtils.findImplFiles(moduleDir)) {
+            for (IFile file : AstUtils.findServiceImplFiles(moduleDir)) {
+                processImplFile(file, featureName);
+            }
+            for (IFile file : AstUtils.findResourceImplFiles(moduleDir)) {
                 processImplFile(file, featureName);
             }
 

@@ -56,7 +56,13 @@ public class MethodMetricsInjector {
             if (moduleInfo.exists()) {
                 AstUtils.addModuleRequires(moduleInfo, List.of("io.opentelemetry.api"));
             }
-            for (IFile file : AstUtils.findImplFiles(moduleDir)) {
+            for (IFile file : AstUtils.findServiceImplFiles(moduleDir)) {
+                processFile(file, featureName);
+            }
+            for (IFile file : AstUtils.findResourceImplFiles(moduleDir)) {
+                processFile(file, featureName);
+            }
+            for (IFile file : AstUtils.findRepositoryImplFiles(moduleDir)) {
                 processFile(file, featureName);
             }
         } catch (CoreException e) {

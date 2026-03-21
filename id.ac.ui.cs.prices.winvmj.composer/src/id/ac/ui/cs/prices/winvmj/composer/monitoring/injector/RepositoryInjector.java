@@ -162,7 +162,10 @@ public class RepositoryInjector {
     // ========== Package Name Resolution ==========
 
     private static String resolveImplPackageName(IFolder moduleDir) throws CoreException {
-        for (IFile file : AstUtils.findImplFiles(moduleDir)) {
+        List<IFile> allFiles = new java.util.ArrayList<>();
+        allFiles.addAll(AstUtils.findServiceImplFiles(moduleDir));
+        allFiles.addAll(AstUtils.findResourceImplFiles(moduleDir));
+        for (IFile file : allFiles) {
             try {
                 CompilationUnit cu = JavaParserUtil.parse(file);
                 if (cu.getPackageDeclaration().isPresent()) {
@@ -223,7 +226,10 @@ public class RepositoryInjector {
 
     private static void injectConstructorReplacement(IFolder moduleDir,
             String componentClassFQN, String repoFieldName, String entityName) throws CoreException {
-        for (IFile file : AstUtils.findImplFiles(moduleDir)) {
+        for (IFile file : AstUtils.findServiceImplFiles(moduleDir)) {
+            injectIntoImpl(file, componentClassFQN, repoFieldName, entityName);
+        }
+        for (IFile file : AstUtils.findResourceImplFiles(moduleDir)) {
             injectIntoImpl(file, componentClassFQN, repoFieldName, entityName);
         }
     }

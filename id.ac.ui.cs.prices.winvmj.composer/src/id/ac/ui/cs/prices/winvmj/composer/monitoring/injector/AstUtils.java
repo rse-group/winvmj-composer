@@ -151,10 +151,10 @@ public class AstUtils {
     }
 
     /**
-     * Find all ServiceImpl and ResourceImpl files in a module directory.
+     * Find all ServiceImpl files in a module directory.
      */
-    public static List<IFile> findImplFiles(IFolder moduleDir) throws CoreException {
-        return findFiles(moduleDir, "ServiceImpl.java", "ResourceImpl.java");
+    public static List<IFile> findServiceImplFiles(IFolder moduleDir) throws CoreException {
+        return findFiles(moduleDir, "ServiceImpl.java");
     }
 
     /**
