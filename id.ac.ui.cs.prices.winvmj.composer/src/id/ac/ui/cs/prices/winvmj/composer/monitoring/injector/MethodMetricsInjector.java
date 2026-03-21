@@ -59,10 +59,6 @@ public class MethodMetricsInjector {
             for (IFile file : AstUtils.findImplFiles(moduleDir)) {
                 processFile(file, featureName);
             }
-            // Also inject into RepositoryImpl if proxy exists
-            for (IFile file : AstUtils.findRepositoryImplFiles(moduleDir)) {
-                processFile(file, featureName);
-            }
         } catch (CoreException e) {
             WinVMJConsole.println("[MethodMetricsInjector] Error scanning " + moduleDir.getName() + ": " + e.getMessage());
         }
