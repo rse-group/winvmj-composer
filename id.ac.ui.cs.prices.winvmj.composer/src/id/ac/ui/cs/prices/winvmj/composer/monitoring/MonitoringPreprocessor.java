@@ -56,8 +56,8 @@ public class MonitoringPreprocessor {
                 boolean logging = MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName);
                 boolean tracing = MonitoringUtils.isTracingEnabled(selectedFeatures, featureName);
 
-                // 1. Generate bare RepositoryImpl proxy if any concern needs it
-                if (dbMetrics || methodMetrics || logging || tracing) {
+                // 1. Generate bare RepositoryImpl proxy if DB-level concern needs it
+                if (dbMetrics || tracing) {
                     moduleDirs.forEach(dir -> RepositoryInjector.inject(dir, featureName));
                 }
                 // 2. Inject DB metrics into RepositoryImpl
