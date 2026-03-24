@@ -29,7 +29,7 @@ import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
  */
 public class PricesDeploymentCliRunner {
 
-    private static final String CLI_JAR_NAME = "prices-deployment-cli-1.0.0.jar";
+    private static final String CLI_JAR_NAME = "prices-deployment-cli-1.0.1.jar";
     private static final String BUNDLE_ID = "id.ac.ui.cs.prices.winvmj.composer";
     
     public PricesDeploymentCliRunner() {
@@ -623,6 +623,14 @@ public class PricesDeploymentCliRunner {
             args.add(String.valueOf(backendListeningPort));
         }
         return runJsonCommand(args.toArray(new String[0]));
+    }
+    
+    /**
+     * Get monitoring dashboard URL for a project (JSON output).
+     * @return CliResult with url and expiredAt fields
+     */
+    public CliResult monitoringJson(String projectSlug) {
+        return runJsonCommand("monitoring", projectSlug);
     }
     
     /**

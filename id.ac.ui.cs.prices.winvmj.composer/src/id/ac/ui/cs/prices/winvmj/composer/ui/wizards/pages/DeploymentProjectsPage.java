@@ -34,6 +34,8 @@ import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.dnd.Clipboard;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
+import org.eclipse.swt.browser.Browser;
+import org.eclipse.swt.program.Program;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -539,6 +541,7 @@ public class DeploymentProjectsPage extends WizardPage {
         
         public ProjectDetailDialog(Shell parentShell, ProjectInfo project, PricesDeploymentCliRunner cliRunner, Runnable onChangeCallback) {
             super(parentShell);
+            setShellStyle(getShellStyle() | SWT.RESIZE | SWT.MAX);
             this.project = project;
             this.cliRunner = cliRunner;
             this.onChangeCallback = onChangeCallback;
@@ -548,6 +551,7 @@ public class DeploymentProjectsPage extends WizardPage {
         protected void configureShell(Shell shell) {
             super.configureShell(shell);
             shell.setText("Project: " + project.name);
+            shell.setMaximized(true);
         }
         
         @Override
@@ -577,6 +581,11 @@ public class DeploymentProjectsPage extends WizardPage {
             TabItem logsTab = new TabItem(tabFolder, SWT.NONE);
             logsTab.setText("Logs");
             logsTab.setControl(createLogsTab(tabFolder));
+            
+            // Monitoring tab
+            TabItem monitoringTab = new TabItem(tabFolder, SWT.NONE);
+            monitoringTab.setText("Monitoring");
+            monitoringTab.setControl(createMonitoringTab(tabFolder));
             
             return container;
         }
@@ -1154,9 +1163,180 @@ public class DeploymentProjectsPage extends WizardPage {
             return comp;
         }
         
+        private Composite createMonitoringTab(TabFolder parent) {
+            Composite comp = new Composite(parent, SWT.NONE);
+            comp.setLayout(new GridLayout(1, false));
+            
+            // Info/status label
+            Label infoLabel = new Label(comp, SWT.WRAP);
+            infoLabel.setText("Loading monitoring dashboard...");
+            GridData infoGd = new GridData(SWT.FILL, SWT.TOP, true, false);
+            infoGd.widthHint = 500;
+            infoLabel.setLayoutData(infoGd);
+            
+            // Expiry label
+            Label expiryLabel = new Label(comp, SWT.NONE);
+            expiryLabel.setText("");
+            expiryLabel.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+            
+            // Button bar: Regenerate, Open in Browser, Copy URL
+            Composite buttonBar = new Composite(comp, SWT.NONE);
+            buttonBar.setLayout(new GridLayout(3, false));
+            buttonBar.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+            
+            Button generateButton = new Button(buttonBar, SWT.PUSH);
+            generateButton.setText("Regenerate Monitoring URL");
+            generateButton.setEnabled(false);
+            
+            Button openBrowserButton = new Button(buttonBar, SWT.PUSH);
+            openBrowserButton.setText("Open in Browser");
+            openBrowserButton.setEnabled(false);
+            
+            Button copyUrlButton = new Button(buttonBar, SWT.PUSH);
+            copyUrlButton.setText("Copy URL");
+            copyUrlButton.setEnabled(false);
+            
+            // Embedded browser widget (SWT.EDGE forces Chromium engine on Windows)
+            Browser browser = new Browser(comp, SWT.EDGE);
+            GridData browserGd = new GridData(SWT.FILL, SWT.FILL, true, true);
+            browserGd.heightHint = 300;
+            browser.setLayoutData(browserGd);
+            
+            // Show loading placeholder in embedded browser
+            browser.setText("<html><body style='font-family:sans-serif;color:#666;display:flex;align-items:center;"
+                + "justify-content:center;height:100vh;margin:0;background:#f5f5f5;'>"
+                + "<div style='text-align:center;'>"
+                + "<p style='font-size:16px;'>Loading monitoring dashboard...</p>"
+                + "</div></body></html>");
+            
+            // Track the generated URL
+            final String[] monitoringUrl = {null};
+            
+            // Reusable generate/regenerate logic
+            Runnable doGenerate = () -> {
+                Display.getDefault().asyncExec(() -> {
+                    if (comp.isDisposed()) return;
+                    infoLabel.setText("Generating monitoring URL...");
+                    generateButton.setEnabled(false);
+                    openBrowserButton.setEnabled(false);
+                    copyUrlButton.setEnabled(false);
+                });
+                
+                WinVMJConsole.println("[MONITORING] Generating monitoring URL for " + project.slug + "...");
+                CliResult result = cliRunner.monitoringJson(project.slug);
+                
+                Display.getDefault().asyncExec(() -> {
+                    if (comp.isDisposed()) return;
+                    generateButton.setEnabled(true);
+                    
+                    if (result.isSuccess()) {
+                        Map<String, Object> data = result.getData();
+                        String url = data.get("url") != null ? data.get("url").toString() : null;
+                        String expiredAt = data.get("expiredAt") != null ? data.get("expiredAt").toString() : null;
+                        
+                        if (url != null) {
+                            monitoringUrl[0] = url;
+                            
+                            infoLabel.setText("Monitoring dashboard loaded. URL generated successfully.");
+                            if (expiredAt != null) {
+                                expiryLabel.setText("Expires: " + expiredAt);
+                            }
+                            
+                            // Enable action buttons
+                            openBrowserButton.setEnabled(true);
+                            copyUrlButton.setEnabled(true);
+                            
+                            // Load in embedded browser
+                            browser.setUrl(url);
+                            
+                            WinVMJConsole.println("[MONITORING] URL: " + url);
+                            WinVMJConsole.println("[MONITORING] Expires: " + expiredAt);
+                        } else {
+                            infoLabel.setText("Failed: No URL returned from server.");
+                        }
+                    } else {
+                        infoLabel.setText("Failed to generate monitoring URL: " + result.getMessage());
+                        WinVMJConsole.println("[MONITORING] Error: " + result.getMessage());
+                    }
+                });
+            };
+            
+            // Check deployment status, then auto-generate if has deployments
+            new Thread(() -> {
+                CliResult historyResult = cliRunner.historyJson(project.slug);
+                
+                boolean hasDeployments = false;
+                if (historyResult.isSuccess()) {
+                    String arrayJson = historyResult.getDataFieldAsString("_array");
+                    if (arrayJson != null && !arrayJson.isEmpty()) {
+                        try {
+                            JsonArray array = new Gson().fromJson(arrayJson, JsonArray.class);
+                            hasDeployments = array.size() > 0;
+                        } catch (Exception e) {
+                            // parse error, assume no deployments
+                        }
+                    }
+                }
+                
+                if (hasDeployments) {
+                    // Auto-generate monitoring URL
+                    doGenerate.run();
+                } else {
+                    Display.getDefault().asyncExec(() -> {
+                        if (comp.isDisposed()) return;
+                        infoLabel.setText("This project has not been deployed yet. "
+                            + "Deploy your project first before generating a monitoring dashboard.");
+                        generateButton.setEnabled(false);
+                        browser.setText("<html><body style='font-family:sans-serif;color:#999;display:flex;align-items:center;"
+                            + "justify-content:center;height:100vh;margin:0;background:#f5f5f5;'>"
+                            + "<div style='text-align:center;'>"
+                            + "<p style='font-size:18px;font-weight:bold;'>No Deployments Found</p>"
+                            + "<p style='font-size:14px;'>This project has not been deployed yet.<br/>"
+                            + "Deploy your project first to access the monitoring dashboard.</p>"
+                            + "</div></body></html>");
+                    });
+                }
+            }).start();
+            
+            // Regenerate button handler
+            generateButton.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    new Thread(doGenerate).start();
+                }
+            });
+            
+            // Open in Browser button handler
+            openBrowserButton.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    if (monitoringUrl[0] != null) {
+                        Program.launch(monitoringUrl[0]);
+                        WinVMJConsole.println("[MONITORING] Opened in external browser: " + monitoringUrl[0]);
+                    }
+                }
+            });
+            
+            // Copy URL button handler
+            copyUrlButton.addSelectionListener(new SelectionAdapter() {
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    if (monitoringUrl[0] != null) {
+                        Clipboard clipboard = new Clipboard(comp.getDisplay());
+                        clipboard.setContents(new Object[] { monitoringUrl[0] }, new Transfer[] { TextTransfer.getInstance() });
+                        clipboard.dispose();
+                        WinVMJConsole.println("[MONITORING] URL copied to clipboard");
+                    }
+                }
+            });
+            
+            return comp;
+        }
+        
         @Override
         protected Point getInitialSize() {
-            return new Point(700, 550);
+            // Fallback size if not maximized
+            return new Point(900, 700);
         }
         
         @Override
