@@ -51,6 +51,7 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.impl.DockerMonolithRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.EndpointsConfigRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.HibernatePropertiesRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.LogbackXmlRenderer;
+import id.ac.ui.cs.prices.winvmj.composer.templates.impl.MonitoringPropertiesRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.SettingsGradleRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixDeploymentScriptRenderer;
 import id.ac.ui.cs.prices.winvmj.composer.templates.impl.UnixRunAllScriptRenderer;
@@ -340,6 +341,7 @@ public class SourceCompiler {
 		new UnixRunAllScriptRenderer(project, dbUsername, dbPassword).render(product);
 		new EndpointsConfigRenderer(project).render(product);
 		new LogbackXmlRenderer(project).render(product);
+		new MonitoringPropertiesRenderer(project).render(product);
 		
 		// Generate Docker files for non-microservice (monolith) only
 		// Microservice Docker files are handled by deployment scripts
