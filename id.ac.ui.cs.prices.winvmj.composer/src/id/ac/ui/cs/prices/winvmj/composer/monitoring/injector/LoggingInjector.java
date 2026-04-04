@@ -29,7 +29,8 @@ public class LoggingInjector {
 
     private static final List<String> IMPORTS = List.of(
         "org.slf4j.Logger",
-        "org.slf4j.LoggerFactory"
+        "org.slf4j.LoggerFactory",
+        "org.slf4j.MDC"
     );
 
     private static final String FIELD_SENTINEL = "_logLogger";
@@ -93,11 +94,15 @@ public class LoggingInjector {
 
         BlockStmt newBody = new BlockStmt();
 
+        // Set MDC feature context
+        newBody.addStatement(StaticJavaParser.parseStatement(
+            "MDC.put(\"feature\", \"" + featureName + "\");"));
+
         // Log entry: each parameter
         List<Parameter> params = method.getParameters();
         for (int i = 0; i < params.size(); i++) {
             newBody.addStatement(StaticJavaParser.parseStatement(
-                "_logLogger.info(\"[" + featureName + "][" + fullMethodName + "] arg[" + i + "]: {}\", "
+                "_logLogger.info(\"" + fullMethodName + " arg[" + i + "]: {}\", "
                     + params.get(i).getNameAsString() + ");"));
         }
 
@@ -111,7 +116,7 @@ public class LoggingInjector {
         catchBlock.addStatement(StaticJavaParser.parseStatement(
             "long _logDuration = System.currentTimeMillis() - _logStart;"));
         catchBlock.addStatement(StaticJavaParser.parseStatement(
-            "_logLogger.error(\"[" + featureName + "][ERROR] " + fullMethodName
+            "_logLogger.error(\"[ERROR] " + fullMethodName
                 + " threw {} after {}ms: {}\", _logT.getClass().getSimpleName(), _logDuration, _logT.getMessage());"));
         catchBlock.addStatement(StaticJavaParser.parseStatement("throw _logT;"));
 
@@ -122,7 +127,9 @@ public class LoggingInjector {
         finallyBlock.addStatement(StaticJavaParser.parseStatement(
             "long _logDur = System.currentTimeMillis() - _logStart;"));
         finallyBlock.addStatement(StaticJavaParser.parseStatement(
-            "_logLogger.info(\"[" + featureName + "] " + fullMethodName + " completed in {}ms\", _logDur);"));
+            "_logLogger.info(\"" + fullMethodName + " completed in {}ms\", _logDur);"));
+        finallyBlock.addStatement(StaticJavaParser.parseStatement(
+            "MDC.remove(\"feature\");"));
 
         newBody.addStatement(new TryStmt(tryBlock, new NodeList<>(catchClause), finallyBlock));
         method.setBody(newBody);

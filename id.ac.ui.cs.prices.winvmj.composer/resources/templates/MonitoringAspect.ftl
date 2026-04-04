@@ -8,6 +8,7 @@ import org.aspectj.lang.reflect.MethodSignature;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import id.ac.ui.cs.prices.winvmj.core.Route;
 import id.ac.ui.cs.prices.winvmj.core.VMJExchange;
@@ -124,8 +125,6 @@ public class MonitoringAspect {
             otlpEndpoint = "http://localhost:4318";
         }
         
-        System.out.println("== MONITORING ASPECT: Initializing OpenTelemetry with OTLP HTTP ==");
-        System.out.println("== MONITORING ASPECT: OTLP endpoint: " + otlpEndpoint + " ==");
         
         try {
             String serviceName = System.getenv("OTEL_SERVICE_NAME");
@@ -183,11 +182,9 @@ public class MonitoringAspect {
             
 <#if anyTracingEnabled>
             tracer = openTelemetry.getTracer("${monitoringPackage}");
-            System.out.println("== MONITORING ASPECT: Tracing enabled ==");
 </#if>
 <#if anyLoggingEnabled>
             OpenTelemetryAppender.install(openTelemetry);
-            System.out.println("== MONITORING ASPECT: Log export to OTel Collector enabled ==");
 </#if>
             
             meter = openTelemetry.getMeter("${monitoringPackage}");
@@ -198,9 +195,8 @@ public class MonitoringAspect {
             GarbageCollector.registerObservers(openTelemetry);
             MemoryPools.registerObservers(openTelemetry);
             Threads.registerObservers(openTelemetry);
-            System.out.println("== MONITORING ASPECT: JVM metrics registered ==");
 </#if>
-            System.out.println("== MONITORING ASPECT: OpenTelemetry initialized - metrics push every 30s ==");
+            
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize OpenTelemetry monitoring", e);
         }
@@ -389,7 +385,9 @@ public class MonitoringAspect {
             for (String feature : matchedFeatures) {
                 Boolean loggingEnabled = FEATURE_LOGGING_ENABLED.get(feature);
                 if (Boolean.TRUE.equals(loggingEnabled)) {
-                    logger.info("[{}][DB] {} {} {}ms", feature, operation, featureToTable.get(feature), duration);
+                    MDC.put("feature", feature);
+                    logger.info("[DB] {} {} {}ms", operation, featureToTable.get(feature), duration);
+                    MDC.remove("feature");
                 }
             }
             return result;
@@ -418,7 +416,9 @@ public class MonitoringAspect {
             for (String feature : matchedFeatures) {
                 Boolean loggingEnabled = FEATURE_LOGGING_ENABLED.get(feature);
                 if (Boolean.TRUE.equals(loggingEnabled)) {
-                    logger.error("[{}][DB][ERROR] {} {} {}ms - {}", feature, operation, featureToTable.get(feature), duration, t.getMessage());
+                    MDC.put("feature", feature);
+                    logger.error("[DB][ERROR] {} {} {}ms - {}", operation, featureToTable.get(feature), duration, t.getMessage());
+                    MDC.remove("feature");
                 }
             }
             throw t;
@@ -483,22 +483,27 @@ public class MonitoringAspect {
         String fullMethodName = className + "." + methodName;
         String featureName = "${config.featureName}";
 
-        Object[] args = joinPoint.getArgs();
-        for (int i = 0; i < args.length; i++) {
-            logger.info("[{}][{}] arg[{}]: {}", featureName, fullMethodName, i, args[i]);
-        }
-
-        long startTime = System.currentTimeMillis();
+        MDC.put("feature", featureName);
         try {
-            Object result = joinPoint.proceed();
-            long duration = System.currentTimeMillis() - startTime;
-            logger.info("[{}] {} completed in {}ms", featureName, fullMethodName, duration);
-            return result;
-        } catch (Throwable t) {
-            long duration = System.currentTimeMillis() - startTime;
-            logger.error("[{}][ERROR] {} threw {} after {}ms: {}", featureName, fullMethodName,
-                t.getClass().getSimpleName(), duration, t.getMessage());
-            throw t;
+            Object[] args = joinPoint.getArgs();
+            for (int i = 0; i < args.length; i++) {
+                logger.info("{} arg[{}]: {}", fullMethodName, i, args[i]);
+            }
+
+            long startTime = System.currentTimeMillis();
+            try {
+                Object result = joinPoint.proceed();
+                long duration = System.currentTimeMillis() - startTime;
+                logger.info("{} completed in {}ms", fullMethodName, duration);
+                return result;
+            } catch (Throwable t) {
+                long duration = System.currentTimeMillis() - startTime;
+                logger.error("[ERROR] {} threw {} after {}ms: {}", fullMethodName,
+                    t.getClass().getSimpleName(), duration, t.getMessage());
+                throw t;
+            }
+        } finally {
+            MDC.remove("feature");
         }
     }
 </#if>

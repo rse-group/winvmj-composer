@@ -319,7 +319,7 @@
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
-          "expr": "{service_name=~\"$service\"} |~ \"\\\\[$feature\\\\]\"",
+          "expr": "{service_name=~\"$service\"} | feature=~\"$feature\" | line_format \"[{{.service_name}}]{{ if .feature }}[{{.feature}}]{{ end }} {{._msg}}\"",
           "refId": "A"
         }
       ],
