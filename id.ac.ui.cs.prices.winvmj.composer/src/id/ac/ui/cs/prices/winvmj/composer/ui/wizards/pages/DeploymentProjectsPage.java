@@ -105,6 +105,10 @@ public class DeploymentProjectsPage extends WizardPage {
         typeCol.setText("Type");
         typeCol.setWidth(70);
         
+        TableColumn plCol = new TableColumn(projectsTable, SWT.NONE);
+        plCol.setText("Product Line");
+        plCol.setWidth(120);
+        
         TableColumn frontendCol = new TableColumn(projectsTable, SWT.NONE);
         frontendCol.setText("Frontend URLs");
         frontendCol.setWidth(180);
@@ -119,13 +123,14 @@ public class DeploymentProjectsPage extends WizardPage {
             public void controlResized(ControlEvent e) {
                 int totalWidth = projectsTable.getClientArea().width;
                 if (totalWidth > 0) {
-                    nameCol.setWidth((int)(totalWidth * 0.12));
-                    slugCol.setWidth((int)(totalWidth * 0.13));
-                    descCol.setWidth((int)(totalWidth * 0.13));
-                    statusCol.setWidth((int)(totalWidth * 0.08));
-                    typeCol.setWidth((int)(totalWidth * 0.08));
-                    frontendCol.setWidth((int)(totalWidth * 0.23));
-                    backendCol.setWidth((int)(totalWidth * 0.23));
+                    nameCol.setWidth((int)(totalWidth * 0.10));
+                    slugCol.setWidth((int)(totalWidth * 0.11));
+                    descCol.setWidth((int)(totalWidth * 0.11));
+                    statusCol.setWidth((int)(totalWidth * 0.07));
+                    typeCol.setWidth((int)(totalWidth * 0.07));
+                    plCol.setWidth((int)(totalWidth * 0.12));
+                    frontendCol.setWidth((int)(totalWidth * 0.21));
+                    backendCol.setWidth((int)(totalWidth * 0.21));
                 }
             }
         });
@@ -264,6 +269,8 @@ public class DeploymentProjectsPage extends WizardPage {
                 info.status = obj.has("status") ? obj.get("status").getAsString() : "unknown";
                 info.projectType = obj.has("projectType") && !obj.get("projectType").isJsonNull() 
                     ? obj.get("projectType").getAsString() : "regular";
+                info.productLine = obj.has("productLine") && !obj.get("productLine").isJsonNull()
+                    ? obj.get("productLine").getAsString() : "";
                 
                 // Build frontend URLs - custom first, then default
                 List<String> frontendUrls = new ArrayList<>();
@@ -312,7 +319,7 @@ public class DeploymentProjectsPage extends WizardPage {
                 projects.add(info);
                 
                 TableItem item = new TableItem(projectsTable, SWT.NONE);
-                item.setText(new String[] { info.name, info.slug, info.description, info.status, info.projectType, info.frontendUrls, info.backendUrls });
+                item.setText(new String[] { info.name, info.slug, info.description, info.status, info.projectType, info.productLine, info.frontendUrls, info.backendUrls });
             }
         } catch (Exception e) {
             WinVMJConsole.println("[PROJECTS] Failed to parse projects: " + e.getMessage());
@@ -322,19 +329,20 @@ public class DeploymentProjectsPage extends WizardPage {
     private void openCreateProjectDialog() {
         CreateProjectDialog dialog = new CreateProjectDialog(getShell(), wizard.getFeatureProject().getProjectName());
         if (dialog.open() == org.eclipse.jface.window.Window.OK) {
-            createProject(dialog.getProjectName(), dialog.getDescription(), 
+            createProject(dialog.getProjectName(), dialog.getDescription(), dialog.getProductLine(),
                          dialog.getCustomFrontendUrl(), dialog.getCustomBackendUrl(),
                          dialog.getFrontendListeningPort(), dialog.getBackendListeningPort());
         }
     }
     
-    private void createProject(String name, String description, String customFrontendUrl, String customBackendUrl,
+    private void createProject(String name, String description, String productLine,
+                               String customFrontendUrl, String customBackendUrl,
                                Integer frontendListeningPort, Integer backendListeningPort) {
         statusLabel.setText("Creating project '" + name + "'...");
         
         new Thread(() -> {
             WinVMJConsole.println("[PROJECTS] Creating project: " + name);
-            CliResult result = cliRunner.createProjectJson(name, description, customFrontendUrl, customBackendUrl,
+            CliResult result = cliRunner.createProjectJson(name, description, productLine, customFrontendUrl, customBackendUrl,
                                                             frontendListeningPort, backendListeningPort);
             
             Display.getDefault().asyncExec(() -> {
@@ -355,6 +363,7 @@ public class DeploymentProjectsPage extends WizardPage {
     private static class CreateProjectDialog extends Dialog {
         private Text nameText;
         private Text descriptionText;
+        private Text productLineText;
         private Text customFrontendText;
         private Text customBackendText;
         private Text frontendPortText;
@@ -362,6 +371,7 @@ public class DeploymentProjectsPage extends WizardPage {
         
         private String projectName;
         private String description;
+        private String productLine;
         private String customFrontendUrl;
         private String customBackendUrl;
         private Integer frontendListeningPort;
@@ -399,6 +409,13 @@ public class DeploymentProjectsPage extends WizardPage {
             descriptionText = new Text(container, SWT.BORDER);
             descriptionText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
             descriptionText.setText("Deployed from WinVMJ Composer");
+            
+            // Product Line
+            Label plLabel = new Label(container, SWT.NONE);
+            plLabel.setText("Product Line:");
+            productLineText = new Text(container, SWT.BORDER);
+            productLineText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            productLineText.setMessage("e.g., BankAccount");
             
             // Separator
             Label separator = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
@@ -472,6 +489,7 @@ public class DeploymentProjectsPage extends WizardPage {
         protected void okPressed() {
             projectName = nameText.getText().trim();
             description = descriptionText.getText().trim();
+            productLine = productLineText.getText().trim();
             customFrontendUrl = customFrontendText.getText().trim();
             customBackendUrl = customBackendText.getText().trim();
             
@@ -498,6 +516,7 @@ public class DeploymentProjectsPage extends WizardPage {
         
         public String getProjectName() { return projectName; }
         public String getDescription() { return description; }
+        public String getProductLine() { return productLine; }
         public String getCustomFrontendUrl() { return customFrontendUrl; }
         public String getCustomBackendUrl() { return customBackendUrl; }
         public Integer getFrontendListeningPort() { return frontendListeningPort; }
@@ -523,6 +542,7 @@ public class DeploymentProjectsPage extends WizardPage {
         String description;
         String status;
         String projectType;
+        String productLine;
         String frontendUrls;
         String backendUrls;
         String customFrontendUrl;
@@ -627,6 +647,7 @@ public class DeploymentProjectsPage extends WizardPage {
                             createLabelPair(infoComp, "Slug:", getStr(data, "slug"));
                             createLabelPair(infoComp, "Description:", getStr(data, "description"));
                             createLabelPair(infoComp, "Status:", getStr(data, "status"));
+                            createLabelPair(infoComp, "Product Line:", getStr(data, "productLine"));
                             
                             // Separator
                             Label sep1 = new Label(infoComp, SWT.SEPARATOR | SWT.HORIZONTAL);

@@ -29,7 +29,7 @@ import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
  */
 public class PricesDeploymentCliRunner {
 
-    private static final String CLI_JAR_NAME = "prices-deployment-cli-1.0.1.jar";
+    private static final String CLI_JAR_NAME = "prices-cli.jar";
     private static final String BUNDLE_ID = "id.ac.ui.cs.prices.winvmj.composer";
     
     public PricesDeploymentCliRunner() {
@@ -378,8 +378,9 @@ public class PricesDeploymentCliRunner {
     /**
      * Create a new project with JSON output.
      */
-    public CliResult createProjectJson(String name, String description, String customFrontendUrl, String customBackendUrl) {
-        return createProjectJson(name, description, customFrontendUrl, customBackendUrl, null, null);
+    public CliResult createProjectJson(String name, String description, String productLine,
+                                        String customFrontendUrl, String customBackendUrl) {
+        return createProjectJson(name, description, productLine, customFrontendUrl, customBackendUrl, null, null);
     }
     
     /**
@@ -387,7 +388,8 @@ public class PricesDeploymentCliRunner {
      * @param frontendListeningPort internal port the frontend listens on (null for default 80)
      * @param backendListeningPort internal port the backend listens on (null for default 7776)
      */
-    public CliResult createProjectJson(String name, String description, String customFrontendUrl, String customBackendUrl,
+    public CliResult createProjectJson(String name, String description, String productLine,
+                                        String customFrontendUrl, String customBackendUrl,
                                         Integer frontendListeningPort, Integer backendListeningPort) {
         java.util.List<String> args = new java.util.ArrayList<>();
         args.add("create");
@@ -396,6 +398,10 @@ public class PricesDeploymentCliRunner {
         if (description != null && !description.isEmpty()) {
             args.add("--desc");
             args.add(description);
+        }
+        if (productLine != null && !productLine.isEmpty()) {
+            args.add("--product-line");
+            args.add(productLine);
         }
         if (customFrontendUrl != null && !customFrontendUrl.isEmpty()) {
             args.add("--frontend-url");
