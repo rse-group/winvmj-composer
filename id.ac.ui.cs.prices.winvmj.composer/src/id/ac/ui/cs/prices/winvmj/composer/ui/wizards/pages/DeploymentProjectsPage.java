@@ -412,7 +412,7 @@ public class DeploymentProjectsPage extends WizardPage {
             
             // Product Line
             Label plLabel = new Label(container, SWT.NONE);
-            plLabel.setText("Product Line:");
+            plLabel.setText("Product Line:*");
             productLineText = new Text(container, SWT.BORDER);
             productLineText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
             productLineText.setMessage("e.g., BankAccount");
@@ -501,6 +501,10 @@ public class DeploymentProjectsPage extends WizardPage {
             
             if (projectName.isEmpty()) {
                 nameText.setFocus();
+                return;
+            }
+            if (productLine.isEmpty()) {
+                productLineText.setFocus();
                 return;
             }
             super.okPressed();

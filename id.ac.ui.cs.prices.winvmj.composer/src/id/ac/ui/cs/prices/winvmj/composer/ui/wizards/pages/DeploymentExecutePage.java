@@ -28,7 +28,6 @@ public class DeploymentExecutePage extends WizardPage {
     private DeploymentWizard wizard;
     private PricesDeploymentCliRunner cliRunner;
     
-    private Label projectNameLabel;
     private Label targetProjectLabel;
     private Text folderPathText;
     private Button browseButton;
@@ -50,12 +49,6 @@ public class DeploymentExecutePage extends WizardPage {
     public void createControl(Composite parent) {
         Composite container = new Composite(parent, SWT.NONE);
         container.setLayout(new GridLayout(2, false));
-        
-        // Source project
-        Label sourceLabel = new Label(container, SWT.NONE);
-        sourceLabel.setText("Source Project:");
-        projectNameLabel = new Label(container, SWT.NONE);
-        projectNameLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         
         // Target project
         Label targetLabel = new Label(container, SWT.NONE);
@@ -175,12 +168,7 @@ public class DeploymentExecutePage extends WizardPage {
     }
     
     private void updateLabels() {
-        IFeatureProject project = wizard.getFeatureProject();
         String slug = wizard.getSelectedProjectSlug();
-        
-        if (project != null) {
-            projectNameLabel.setText(project.getProjectName());
-        }
         
         if (slug != null) {
             targetProjectLabel.setText(slug);
