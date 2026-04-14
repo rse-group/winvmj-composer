@@ -29,8 +29,10 @@ public class DeploymentExecutePage extends WizardPage {
     private PricesDeploymentCliRunner cliRunner;
     
     private Label targetProjectLabel;
-    private Text folderPathText;
-    private Button browseButton;
+    private Text frontendPathText;
+    private Button frontendBrowseButton;
+    private Text backendPathText;
+    private Button backendBrowseButton;
     private Button deployButton;
     private ProgressBar progressBar;
     private Text logText;
@@ -56,40 +58,76 @@ public class DeploymentExecutePage extends WizardPage {
         targetProjectLabel = new Label(container, SWT.NONE);
         targetProjectLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         
-        // Folder to deploy
-        Label folderLabel = new Label(container, SWT.NONE);
-        folderLabel.setText("Folder to Deploy:");
+        // Frontend folder
+        Label frontendLabel = new Label(container, SWT.NONE);
+        frontendLabel.setText("Frontend Folder:");
         
-        Composite folderComp = new Composite(container, SWT.NONE);
-        GridLayout folderLayout = new GridLayout(2, false);
-        folderLayout.marginWidth = 0;
-        folderLayout.marginHeight = 0;
-        folderComp.setLayout(folderLayout);
-        folderComp.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        Composite frontendComp = new Composite(container, SWT.NONE);
+        GridLayout frontendLayout = new GridLayout(2, false);
+        frontendLayout.marginWidth = 0;
+        frontendLayout.marginHeight = 0;
+        frontendComp.setLayout(frontendLayout);
+        frontendComp.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         
-        folderPathText = new Text(folderComp, SWT.BORDER);
-        folderPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-        folderPathText.setMessage("Select folder to zip and deploy");
-        folderPathText.addModifyListener(e -> updateDeployButtonState());
+        frontendPathText = new Text(frontendComp, SWT.BORDER);
+        frontendPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        frontendPathText.setMessage("Select frontend directory");
+        frontendPathText.addModifyListener(e -> updateDeployButtonState());
         
-        browseButton = new Button(folderComp, SWT.PUSH);
-        browseButton.setText("Browse...");
-        browseButton.addSelectionListener(new SelectionAdapter() {
+        frontendBrowseButton = new Button(frontendComp, SWT.PUSH);
+        frontendBrowseButton.setText("Browse...");
+        frontendBrowseButton.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
                 DirectoryDialog dialog = new DirectoryDialog(getShell());
-                dialog.setText("Select Folder to Deploy");
-                dialog.setMessage("Choose the folder containing files to deploy");
+                dialog.setText("Select Frontend Folder");
+                dialog.setMessage("Choose the frontend directory to deploy");
                 
                 IFeatureProject proj = wizard.getFeatureProject();
                 if (proj != null) {
-                    String projectPath = proj.getProject().getLocation().toOSString();
-                    dialog.setFilterPath(projectPath);
+                    dialog.setFilterPath(proj.getProject().getLocation().toOSString());
                 }
                 
                 String selected = dialog.open();
                 if (selected != null) {
-                    folderPathText.setText(selected);
+                    frontendPathText.setText(selected);
+                }
+            }
+        });
+        
+        // Backend folder
+        Label backendLabel = new Label(container, SWT.NONE);
+        backendLabel.setText("Backend Folder:");
+        
+        Composite backendComp = new Composite(container, SWT.NONE);
+        GridLayout backendLayout = new GridLayout(2, false);
+        backendLayout.marginWidth = 0;
+        backendLayout.marginHeight = 0;
+        backendComp.setLayout(backendLayout);
+        backendComp.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        backendPathText = new Text(backendComp, SWT.BORDER);
+        backendPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        backendPathText.setMessage("Select backend directory");
+        backendPathText.addModifyListener(e -> updateDeployButtonState());
+        
+        backendBrowseButton = new Button(backendComp, SWT.PUSH);
+        backendBrowseButton.setText("Browse...");
+        backendBrowseButton.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                DirectoryDialog dialog = new DirectoryDialog(getShell());
+                dialog.setText("Select Backend Folder");
+                dialog.setMessage("Choose the backend directory to deploy");
+                
+                IFeatureProject proj = wizard.getFeatureProject();
+                if (proj != null) {
+                    dialog.setFilterPath(proj.getProject().getLocation().toOSString());
+                }
+                
+                String selected = dialog.open();
+                if (selected != null) {
+                    backendPathText.setText(selected);
                 }
             }
         });
@@ -178,16 +216,18 @@ public class DeploymentExecutePage extends WizardPage {
     private void updateDeployButtonState() {
         if (deployButton == null || deployButton.isDisposed()) return;
         
-        String folderPath = folderPathText.getText().trim();
-        boolean hasPath = !folderPath.isEmpty();
+        String frontendPath = frontendPathText.getText().trim();
+        String backendPath = backendPathText.getText().trim();
+        boolean hasPaths = !frontendPath.isEmpty() && !backendPath.isEmpty();
         boolean notDeploying = (deployState != STATE_DEPLOYING);
         
-        deployButton.setEnabled(hasPath && notDeploying);
+        deployButton.setEnabled(hasPaths && notDeploying);
     }
     
     private void startDeployment() {
         String slug = wizard.getSelectedProjectSlug();
-        String folderPath = folderPathText.getText().trim();
+        String frontendPath = frontendPathText.getText().trim();
+        String backendPath = backendPathText.getText().trim();
         
         if (slug == null) {
             appendLog("[ERROR] No target project selected.");
@@ -200,7 +240,8 @@ public class DeploymentExecutePage extends WizardPage {
         
         appendLog("=== Starting Deployment ===");
         appendLog("Target: " + slug);
-        appendLog("Folder: " + (folderPath.isEmpty() ? "(current directory)" : folderPath));
+        appendLog("Frontend: " + frontendPath);
+        appendLog("Backend: " + backendPath);
         appendLog("");
         
         Display display = Display.getDefault();
@@ -214,7 +255,7 @@ public class DeploymentExecutePage extends WizardPage {
                         appendLog(line);
                     }
                 });
-            }, slug, folderPath);
+            }, slug, frontendPath, backendPath);
             
             // Update state on completion
             display.asyncExec(() -> {
@@ -247,8 +288,10 @@ public class DeploymentExecutePage extends WizardPage {
         boolean deploying = (deployState == STATE_DEPLOYING);
         
         deployButton.setEnabled(!deploying);
-        browseButton.setEnabled(!deploying);
-        folderPathText.setEnabled(!deploying);
+        frontendBrowseButton.setEnabled(!deploying);
+        backendBrowseButton.setEnabled(!deploying);
+        frontendPathText.setEnabled(!deploying);
+        backendPathText.setEnabled(!deploying);
         progressBar.setVisible(deploying);
         
         if (deployState == STATE_DONE) {

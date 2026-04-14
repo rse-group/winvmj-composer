@@ -430,10 +430,24 @@ public class PricesDeploymentCliRunner {
     }
     
     /**
+     * Deploy separate frontend and backend folders to a project.
+     */
+    public int deploy(String projectSlug, String frontendPath, String backendPath) {
+        return runCommand("deploy", "--frontend", frontendPath, "--backend", backendPath, "--project", projectSlug, "-y");
+    }
+    
+    /**
      * Deploy a folder to a project with custom output consumer for streaming logs.
      */
     public int deploy(Consumer<String> outputConsumer, String projectSlug, String folderPath) {
         return runCommand(outputConsumer, "deploy", folderPath, "--project", projectSlug, "-y");
+    }
+    
+    /**
+     * Deploy separate frontend and backend folders with custom output consumer.
+     */
+    public int deploy(Consumer<String> outputConsumer, String projectSlug, String frontendPath, String backendPath) {
+        return runCommand(outputConsumer, "deploy", "--frontend", frontendPath, "--backend", backendPath, "--project", projectSlug, "-y");
     }
     
     /**
@@ -652,7 +666,8 @@ public class PricesDeploymentCliRunner {
      * Start interactive SSH deployment - supports password/passphrase prompts.
      * Returns immediately with an InteractiveProcess handle.
      * 
-     * @param projectPath local project directory path
+     * @param frontendPath local frontend directory path
+     * @param backendPath local backend directory path
      * @param sshHost SSH host from ~/.ssh/config
      * @param projectName project name for deployment
      * @param frontendUrl optional custom frontend URL
@@ -663,14 +678,17 @@ public class PricesDeploymentCliRunner {
      * @param completionCallback called with exit code when process finishes
      * @return InteractiveProcess handle for sending input (password, etc.)
      */
-    public InteractiveProcess startSshDeploy(Path projectPath, String sshHost, String projectName,
+    public InteractiveProcess startSshDeploy(Path frontendPath, Path backendPath, String sshHost, String projectName,
                                               String frontendUrl, String backendUrl,
                                               int frontendPort, int backendPort,
                                               Consumer<String> outputConsumer,
                                               Consumer<Integer> completionCallback) {
         List<String> args = new ArrayList<>();
         args.add("deploy-ssh");
-        args.add(projectPath.toAbsolutePath().toString());
+        args.add("--frontend");
+        args.add(frontendPath.toAbsolutePath().toString());
+        args.add("--backend");
+        args.add(backendPath.toAbsolutePath().toString());
         args.add("--ssh-host");
         args.add(sshHost);
         args.add("--project-name");
@@ -793,7 +811,8 @@ public class PricesDeploymentCliRunner {
      * Opens a terminal window where user can interact with SSH passphrase prompts.
      */
     public void launchSshDeployInTerminal(
-            String projectPath,
+            String frontendPath,
+            String backendPath,
             String sshHost,
             String projectName,
             String frontendUrl,
@@ -806,7 +825,8 @@ public class PricesDeploymentCliRunner {
         // Build the CLI command
         StringBuilder cmd = new StringBuilder();
         cmd.append("java -jar \"").append(jarPath).append("\" deploy-ssh");
-        cmd.append(" \"").append(projectPath).append("\"");
+        cmd.append(" --frontend \"").append(frontendPath).append("\"");
+        cmd.append(" --backend \"").append(backendPath).append("\"");
         cmd.append(" --ssh-host ").append(sshHost);
         cmd.append(" --project-name ").append(projectName);
         if (frontendUrl != null && !frontendUrl.isEmpty()) {

@@ -36,14 +36,17 @@ public class DeploymentSshPage extends WizardPage {
     private Text frontendPortText;
     private Text backendPortText;
     private Text outputText;
-    private Text folderPathText;
+    private Text frontendPathText;
+    private Text backendPathText;
     
     private Button deployButton;
-    private Button browseButton;
+    private Button frontendBrowseButton;
+    private Button backendBrowseButton;
     private Label statusLabel;
     
     private boolean isDeploying = false;
-    private Path selectedProjectPath = null;
+    private Path selectedFrontendPath = null;
+    private Path selectedBackendPath = null;
     
     public DeploymentSshPage(DeploymentSshWizard wizard) {
         super("SshDeployment");
@@ -61,32 +64,57 @@ public class DeploymentSshPage extends WizardPage {
         
         // Project folder group
         Group folderGroup = new Group(container, SWT.NONE);
-        folderGroup.setText("Project Folder");
+        folderGroup.setText("Project Folders");
         folderGroup.setLayout(new GridLayout(3, false));
         folderGroup.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
         
-        new Label(folderGroup, SWT.NONE).setText("Folder*:");
-        folderPathText = new Text(folderGroup, SWT.BORDER | SWT.READ_ONLY);
-        folderPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-        folderPathText.setMessage("Select project folder...");
+        new Label(folderGroup, SWT.NONE).setText("Frontend*:");
+        frontendPathText = new Text(folderGroup, SWT.BORDER | SWT.READ_ONLY);
+        frontendPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        frontendPathText.setMessage("Select frontend folder...");
         
-        browseButton = new Button(folderGroup, SWT.PUSH);
-        browseButton.setText("Browse...");
-        browseButton.addSelectionListener(new SelectionAdapter() {
+        frontendBrowseButton = new Button(folderGroup, SWT.PUSH);
+        frontendBrowseButton.setText("Browse...");
+        frontendBrowseButton.addSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {
                 DirectoryDialog dialog = new DirectoryDialog(getShell());
-                dialog.setText("Select Project Folder");
-                dialog.setMessage("Select the folder containing your project to deploy");
+                dialog.setText("Select Frontend Folder");
+                dialog.setMessage("Select the frontend directory to deploy");
                 
-                // Default to feature project location
                 String defaultPath = featureProject.getProject().getLocation().toFile().getAbsolutePath();
                 dialog.setFilterPath(defaultPath);
                 
                 String selected = dialog.open();
                 if (selected != null) {
-                    selectedProjectPath = Paths.get(selected);
-                    folderPathText.setText(selected);
+                    selectedFrontendPath = Paths.get(selected);
+                    frontendPathText.setText(selected);
+                    updatePageComplete();
+                }
+            }
+        });
+        
+        new Label(folderGroup, SWT.NONE).setText("Backend*:");
+        backendPathText = new Text(folderGroup, SWT.BORDER | SWT.READ_ONLY);
+        backendPathText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        backendPathText.setMessage("Select backend folder...");
+        
+        backendBrowseButton = new Button(folderGroup, SWT.PUSH);
+        backendBrowseButton.setText("Browse...");
+        backendBrowseButton.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                DirectoryDialog dialog = new DirectoryDialog(getShell());
+                dialog.setText("Select Backend Folder");
+                dialog.setMessage("Select the backend directory to deploy");
+                
+                String defaultPath = featureProject.getProject().getLocation().toFile().getAbsolutePath();
+                dialog.setFilterPath(defaultPath);
+                
+                String selected = dialog.open();
+                if (selected != null) {
+                    selectedBackendPath = Paths.get(selected);
+                    backendPathText.setText(selected);
                     updatePageComplete();
                 }
             }
@@ -191,7 +219,8 @@ public class DeploymentSshPage extends WizardPage {
     private void updatePageComplete() {
         boolean valid = !sshHostText.getText().trim().isEmpty() 
                      && !projectNameText.getText().trim().isEmpty()
-                     && selectedProjectPath != null;
+                     && selectedFrontendPath != null
+                     && selectedBackendPath != null;
         setPageComplete(valid && !isDeploying);
         deployButton.setEnabled(valid && !isDeploying);
     }
@@ -225,7 +254,8 @@ public class DeploymentSshPage extends WizardPage {
         appendOutput("=== SSH DEPLOYMENT ===\n");
         appendOutput("SSH Host: " + sshHost + "\n");
         appendOutput("Project: " + projectName + "\n");
-        appendOutput("Path: " + selectedProjectPath + "\n");
+        appendOutput("Frontend: " + selectedFrontendPath + "\n");
+        appendOutput("Backend: " + selectedBackendPath + "\n");
         if (!frontendUrl.isEmpty()) appendOutput("Frontend URL: " + frontendUrl + "\n");
         if (!backendUrl.isEmpty()) appendOutput("Backend URL: " + backendUrl + "\n");
         appendOutput("Frontend Port: " + frontendPort + "\n");
@@ -238,7 +268,8 @@ public class DeploymentSshPage extends WizardPage {
         try {
             // Launch deployment in external terminal window
             cliRunner.launchSshDeployInTerminal(
-                selectedProjectPath.toString(),
+                selectedFrontendPath.toString(),
+                selectedBackendPath.toString(),
                 sshHost,
                 projectName,
                 frontendUrl.isEmpty() ? null : frontendUrl,
