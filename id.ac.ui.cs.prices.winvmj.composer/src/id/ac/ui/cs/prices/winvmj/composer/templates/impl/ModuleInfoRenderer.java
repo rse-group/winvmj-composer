@@ -43,19 +43,17 @@ public class ModuleInfoRenderer extends TemplateRenderer {
 		dataModel.put("exportedModules", exportedModules);
 		
 		// Monitoring flags for conditional OTel requires
-		Set<String> selectedFeatures = project.loadCurrentConfiguration()
-			.getSelectedFeatureNames();
-		boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
+		boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(project);
 		dataModel.put("monitoringEnabled", monitoringEnabled);
 		dataModel.put("monitoringMode", MonitoringUtils.MONITORING_MODE.name());
-		dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(selectedFeatures));
+		dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(project));
 		
 		if (monitoringEnabled) {
-			Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+			Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(project);
 			dataModel.put("anyTracingEnabled", monitoredFeatures.stream()
-				.anyMatch(f -> MonitoringUtils.isTracingEnabled(selectedFeatures, f)));
+				.anyMatch(f -> MonitoringUtils.isTracingEnabled(project, f)));
 			dataModel.put("anyLoggingEnabled", monitoredFeatures.stream()
-				.anyMatch(f -> MonitoringUtils.isLoggingEnabled(selectedFeatures, f)));
+				.anyMatch(f -> MonitoringUtils.isLoggingEnabled(project, f)));
 		}
 		
 		return dataModel;

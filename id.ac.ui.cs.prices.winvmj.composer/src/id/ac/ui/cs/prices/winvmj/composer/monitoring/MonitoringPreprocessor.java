@@ -35,26 +35,21 @@ public class MonitoringPreprocessor {
 
     public static void process(IFeatureProject featureProject) {
         try {
-            Set<String> selectedFeatures = featureProject.loadCurrentConfiguration()
-                .getSelectedFeatureNames().stream()
-                .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
-                .collect(Collectors.toSet());
-
-            if (!MonitoringUtils.isMonitoringEnabled(selectedFeatures)) return;
+            if (!MonitoringUtils.isMonitoringEnabled(featureProject)) return;
 
             Map<String, List<String>> featureToModuleMap = Utils.getFeatureToModuleMap(
                 featureProject.getProject());
             IFolder buildFolder = featureProject.getBuildFolder();
 
-            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(featureProject);
             for (String featureName : monitoredFeatures) {
                 Set<IFolder> moduleDirs = resolveModuleDirs(featureToModuleMap, buildFolder, featureName);
                 if (moduleDirs.isEmpty()) continue;
 
-                boolean dbMetrics = MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName);
-                boolean methodMetrics = MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName);
-                boolean logging = MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName);
-                boolean tracing = MonitoringUtils.isTracingEnabled(selectedFeatures, featureName);
+                boolean dbMetrics = MonitoringUtils.isDbMetricsEnabled(featureProject, featureName);
+                boolean methodMetrics = MonitoringUtils.isMethodMetricsEnabled(featureProject, featureName);
+                boolean logging = MonitoringUtils.isLoggingEnabled(featureProject, featureName);
+                boolean tracing = MonitoringUtils.isTracingEnabled(featureProject, featureName);
 
                 // 1. Generate bare RepositoryImpl proxy if DB-level concern needs it
                 if (dbMetrics || tracing) {
@@ -73,7 +68,7 @@ public class MonitoringPreprocessor {
                     moduleDirs.forEach(dir -> LoggingInjector.inject(dir, featureName));
                 }
                 // 5. Inject HTTP metrics into ResourceImpl @Route methods
-                if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) {
+                if (MonitoringUtils.isHttpMetricsEnabled(featureProject, featureName)) {
                     moduleDirs.forEach(dir -> HttpMetricsInjector.inject(dir, featureName));
                 }
                 // 6. Inject tracing spans into RepositoryImpl + ServiceImpl + ResourceImpl (outermost)

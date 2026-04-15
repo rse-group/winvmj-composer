@@ -13,14 +13,9 @@ import id.ac.ui.cs.prices.winvmj.composer.core.WinVMJProduct;
 import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 
 public class LogbackXmlRenderer extends TemplateRenderer {
-    private Set<String> selectedFeatures;
 
     public LogbackXmlRenderer(IFeatureProject project) {
         super(project);
-        Set<String> features = project.loadCurrentConfiguration().getSelectedFeatureNames();
-        selectedFeatures = features.stream()
-            .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
-            .collect(Collectors.toSet());
     }
 
     @Override
@@ -34,8 +29,8 @@ public class LogbackXmlRenderer extends TemplateRenderer {
     protected Map<String, Object> extractDataModel(WinVMJProduct product) {
         Map<String, Object> dataModel = new HashMap<>();
         boolean anyLoggingEnabled = false;
-        for (String featureName : MonitoringUtils.getMonitoredFeatures(selectedFeatures)) {
-            if (MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName)) {
+        for (String featureName : MonitoringUtils.getMonitoredFeatures(project)) {
+            if (MonitoringUtils.isLoggingEnabled(project, featureName)) {
                 anyLoggingEnabled = true;
                 break;
             }

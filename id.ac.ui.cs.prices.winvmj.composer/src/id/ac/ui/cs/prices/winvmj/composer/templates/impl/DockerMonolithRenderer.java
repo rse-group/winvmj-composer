@@ -26,18 +26,8 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
  */
 public class DockerMonolithRenderer extends TemplateRenderer {
 
-    private Set<String> selectedFeatures;
-
     public DockerMonolithRenderer(IFeatureProject project) {
         super(project);
-        loadSelectedFeatures();
-    }
-
-    private void loadSelectedFeatures() {
-        Set<String> features = project.loadCurrentConfiguration().getSelectedFeatureNames();
-        selectedFeatures = features.stream()
-            .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
-            .collect(Collectors.toSet());
     }
 
     @Override
@@ -56,11 +46,11 @@ public class DockerMonolithRenderer extends TemplateRenderer {
         dataModel.put("productPackage", product.getProductQualifiedName());
         
         // Monitoring flags from selected features
-        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
-        boolean enableJvmMetrics = MonitoringUtils.isJvmMetricsEnabled(selectedFeatures);
+        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(project);
+        boolean enableJvmMetrics = MonitoringUtils.isJvmMetricsEnabled(project);
         
         // Per-feature monitoring checks
-        Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+        Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(project);
         
         boolean shouldHaveMonitoring = monitoringEnabled && (enableJvmMetrics || !monitoredFeatures.isEmpty());
         dataModel.put("shouldHaveMonitoring", shouldHaveMonitoring);

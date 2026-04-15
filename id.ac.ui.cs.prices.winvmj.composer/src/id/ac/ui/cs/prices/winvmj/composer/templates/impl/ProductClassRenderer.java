@@ -71,10 +71,10 @@ public class ProductClassRenderer extends TemplateRenderer {
         dataModel.put("defaultAuthModel", checkDefaultAuthModel(product));
 
         // Add monitoring configuration from selected features
-        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
+        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(project);
         dataModel.put("monitoringEnabled", monitoringEnabled);
         dataModel.put("monitoringMode", MonitoringUtils.MONITORING_MODE.name());
-        dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(selectedFeatures));
+        dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(project));
         
         if (monitoringEnabled) {
             String monitoringPackage = MonitoringUtils.getMonitoringModuleName(
@@ -82,11 +82,11 @@ public class ProductClassRenderer extends TemplateRenderer {
             dataModel.put("monitoringPackage", monitoringPackage);
             
             // Compute anyTracingEnabled / anyLoggingEnabled from selected features
-            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(project);
             boolean anyTracingEnabled = monitoredFeatures.stream()
-                .anyMatch(f -> MonitoringUtils.isTracingEnabled(selectedFeatures, f));
+                .anyMatch(f -> MonitoringUtils.isTracingEnabled(project, f));
             boolean anyLoggingEnabled = monitoredFeatures.stream()
-                .anyMatch(f -> MonitoringUtils.isLoggingEnabled(selectedFeatures, f));
+                .anyMatch(f -> MonitoringUtils.isLoggingEnabled(project, f));
             dataModel.put("anyTracingEnabled", anyTracingEnabled);
             dataModel.put("anyLoggingEnabled", anyLoggingEnabled);
         }

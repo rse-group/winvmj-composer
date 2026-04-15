@@ -114,6 +114,25 @@
                   style="push">
             </command>
             <command
+                  commandId="de.ovgu.featureide.core.winvmj.generatemonitoringconfighandler"
+                  icon="resources/icons/FeatureIconSmall.ico"
+                  id="de.ovgu.featureide.core.winvmj.generatemonitoringconfighandler"
+                  label="Generate Monitoring Configuration"
+                  style="push">
+               <visibleWhen checkEnabled="false">
+                  <with variable="activeMenuSelection">
+                     <iterate ifEmpty="false">
+                        <adapt type="org.eclipse.core.resources.IFile">
+                           <and>
+                              <test property="org.eclipse.core.resources.extension" value="xml"/>
+                              <test property="org.eclipse.core.resources.path" value="*/configs/*"/>
+                           </and>
+                        </adapt>
+                     </iterate>
+                  </with>
+               </visibleWhen>
+            </command>
+            <command
                   commandId="de.ovgu.featureide.core.winvmj.microservicescomposehandler"
                   icon="resources/icons/FeatureIconSmall.ico"
                   id="de.ovgu.featureide.core.winvmj.microservicescomposehandler"
@@ -166,6 +185,10 @@
       <handler
             class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.DeploymentSshHandler"
             commandId="de.ovgu.featureide.core.winvmj.deploymentsshhandler">
+      </handler>
+      <handler
+            class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.GenerateMonitoringConfigHandler"
+            commandId="de.ovgu.featureide.core.winvmj.generatemonitoringconfighandler">
       </handler>
       <handler
             class="id.ac.ui.cs.prices.winvmj.composer.ui.handlers.MicroservicesComposeHandler"

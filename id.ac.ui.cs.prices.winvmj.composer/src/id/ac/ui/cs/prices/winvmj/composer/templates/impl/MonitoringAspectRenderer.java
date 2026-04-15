@@ -27,25 +27,16 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 
 public class MonitoringAspectRenderer extends TemplateRenderer {
 
-    protected Set<String> selectedFeatures;
     private Map<String, List<String>> featureToModuleMap;
 
     public MonitoringAspectRenderer(IFeatureProject project) {
         super(project);
-        loadSelectedFeatures(project);
         try {
             featureToModuleMap = Utils.getFeatureToModuleMap(project.getProject());
         } catch (CoreException e) {
             e.printStackTrace();
             featureToModuleMap = new HashMap<>();
         }
-    }
-
-    private void loadSelectedFeatures(IFeatureProject winVmjProject) {
-        Set<String> features = winVmjProject.loadCurrentConfiguration().getSelectedFeatureNames();
-        selectedFeatures = features.stream()
-            .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
-            .collect(Collectors.toSet());
     }
 
     private String getMonitoringModuleName(WinVMJProduct product) {
@@ -60,7 +51,7 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         dataModel.put("monitoringPackage", monitoringModuleName);
         dataModel.put("productName", product.getProductName());
         
-        Map<String, Object> monitoringInfos = MonitoringUtils.getMonitoringInfos(selectedFeatures);
+        Map<String, Object> monitoringInfos = MonitoringUtils.getMonitoringInfos(project);
         
         boolean enableJvmMetrics = (Boolean) monitoringInfos.get(MonitoringUtils.INFO_JVM_METRICS_ENABLED);
         @SuppressWarnings("unchecked")
@@ -79,8 +70,8 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
         Map<String, List<String>> dbInterceptFeatureToModuleMap = new HashMap<>();
         for (Map.Entry<String, List<String>> entry : featureToModuleMap.entrySet()) {
             String featureName = entry.getKey();
-            if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)
-                    || MonitoringUtils.isTracingEnabled(selectedFeatures, featureName)) {
+            if (MonitoringUtils.isDbMetricsEnabled(project, featureName)
+                    || MonitoringUtils.isTracingEnabled(project, featureName)) {
                 dbInterceptFeatureToModuleMap.put(featureName, entry.getValue());
             }
         }
@@ -130,7 +121,7 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
     }
 
     public boolean shouldRender() {
-        return MonitoringUtils.isMonitoringEnabled(selectedFeatures);
+        return MonitoringUtils.isMonitoringEnabled(project);
     }
 
     public void generateAopXml(WinVMJProduct product) {
@@ -167,7 +158,7 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             dataModel.put("aspectPackage", monitoringModuleName);
             
             List<String> monitoredPackages = new ArrayList<>();
-            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+            Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(project);
             for (String feature : monitoredFeatures) {
                 List<String> modules = featureToModuleMap.get(feature);
                 if (modules != null) {
@@ -181,9 +172,9 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             dataModel.put("monitoredPackages", monitoredPackages);
             
             boolean anyDbMetricsEnabled = false;
-            Set<String> monFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+            Set<String> monFeatures = MonitoringUtils.getMonitoredFeatures(project);
             for (String f : monFeatures) {
-                if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, f)) {
+                if (MonitoringUtils.isDbMetricsEnabled(project, f)) {
                     anyDbMetricsEnabled = true;
                     break;
                 }
@@ -231,13 +222,13 @@ public class MonitoringAspectRenderer extends TemplateRenderer {
             
             Map<String, Object> dataModel = new HashMap<>();
             dataModel.put("monitoringModuleName", monitoringModuleName);
-            dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(selectedFeatures));
+            dataModel.put("enableJvmMetrics", MonitoringUtils.isJvmMetricsEnabled(project));
             
             boolean anyTracingEnabled = false;
             boolean anyLoggingEnabled = false;
-            for (String featureName : MonitoringUtils.getMonitoredFeatures(selectedFeatures)) {
-                if (MonitoringUtils.isTracingEnabled(selectedFeatures, featureName)) anyTracingEnabled = true;
-                if (MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName)) anyLoggingEnabled = true;
+            for (String featureName : MonitoringUtils.getMonitoredFeatures(project)) {
+                if (MonitoringUtils.isTracingEnabled(project, featureName)) anyTracingEnabled = true;
+                if (MonitoringUtils.isLoggingEnabled(project, featureName)) anyLoggingEnabled = true;
             }
             dataModel.put("anyTracingEnabled", anyTracingEnabled);
             dataModel.put("anyLoggingEnabled", anyLoggingEnabled);

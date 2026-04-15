@@ -23,20 +23,11 @@ import id.ac.ui.cs.prices.winvmj.composer.templates.TemplateRenderer;
 public class BuildGradleRenderer extends TemplateRenderer {
     private String dbUsername;
     private String dbPassword;
-    private Set<String> selectedFeatures;
 
     public BuildGradleRenderer(IFeatureProject project, String dbUsername, String dbPassword) {
         super(project);
         this.dbUsername = dbUsername;
         this.dbPassword = dbPassword;
-        loadSelectedFeatures();
-    }
-
-    private void loadSelectedFeatures() {
-        Set<String> features = project.loadCurrentConfiguration().getSelectedFeatureNames();
-        selectedFeatures = features.stream()
-            .map(name -> name.contains(".") ? name.substring(name.indexOf('.') + 1) : name)
-            .collect(Collectors.toSet());
     }
 
     protected IFile getOutputFile(WinVMJProduct product) {
@@ -58,22 +49,22 @@ public class BuildGradleRenderer extends TemplateRenderer {
         dataModel.put("SQLFolder", "sql");
         
         // Monitoring flags from selected features
-        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(selectedFeatures);
-        boolean enableJvmMetrics = MonitoringUtils.isJvmMetricsEnabled(selectedFeatures);
+        boolean monitoringEnabled = MonitoringUtils.isMonitoringEnabled(project);
+        boolean enableJvmMetrics = MonitoringUtils.isJvmMetricsEnabled(project);
         
         // Per-feature monitoring checks
-        Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(selectedFeatures);
+        Set<String> monitoredFeatures = MonitoringUtils.getMonitoredFeatures(project);
         boolean anyTracingEnabled = false;
         boolean anyHttpMetricsEnabled = false;
         boolean anyDbMetricsEnabled = false;
         boolean anyMethodMetricsEnabled = false;
         boolean anyLoggingEnabled = false;
         for (String featureName : monitoredFeatures) {
-            if (MonitoringUtils.isTracingEnabled(selectedFeatures, featureName)) anyTracingEnabled = true;
-            if (MonitoringUtils.isHttpMetricsEnabled(selectedFeatures, featureName)) anyHttpMetricsEnabled = true;
-            if (MonitoringUtils.isDbMetricsEnabled(selectedFeatures, featureName)) anyDbMetricsEnabled = true;
-            if (MonitoringUtils.isMethodMetricsEnabled(selectedFeatures, featureName)) anyMethodMetricsEnabled = true;
-            if (MonitoringUtils.isLoggingEnabled(selectedFeatures, featureName)) anyLoggingEnabled = true;
+            if (MonitoringUtils.isTracingEnabled(project, featureName)) anyTracingEnabled = true;
+            if (MonitoringUtils.isHttpMetricsEnabled(project, featureName)) anyHttpMetricsEnabled = true;
+            if (MonitoringUtils.isDbMetricsEnabled(project, featureName)) anyDbMetricsEnabled = true;
+            if (MonitoringUtils.isMethodMetricsEnabled(project, featureName)) anyMethodMetricsEnabled = true;
+            if (MonitoringUtils.isLoggingEnabled(project, featureName)) anyLoggingEnabled = true;
         }
         
         boolean shouldHaveMonitoring = monitoringEnabled && (enableJvmMetrics || !monitoredFeatures.isEmpty());

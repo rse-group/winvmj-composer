@@ -1,35 +1,31 @@
 package id.ac.ui.cs.prices.winvmj.composer.monitoring;
 
+import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
+import org.eclipse.core.resources.IFile;
+
+import de.ovgu.featureide.core.IFeatureProject;
+
 /**
- * Utility class for monitoring feature detection and configuration.
- * Handles parsing of Mon_ prefixed features from the feature model.
+ * Utility class for monitoring configuration.
+ * Reads monitoring settings from monitoring/{configName}.properties.
  */
 public class MonitoringUtils {
-	
+
 	// Programming mode: switch between AOP (AspectJ) and DOP (source modification)
 	public enum MonitoringMode { AOP, DOP }
 	public static final MonitoringMode MONITORING_MODE = MonitoringMode.DOP;
-	
-	// Monitoring feature constants
-	public static final String MON_PREFIX = "Mon_";
-	public static final String FEATURE_MONITORING = "Monitoring";
-	public static final String FEATURE_JVM_METRICS = "JvmMetrics";
-	
-	// Monitoring types (used as suffix after Mon_FeatureName_)
-	public static final String MON_HTTP_METRICS = "HttpMetrics";
-	public static final String MON_DB_METRICS = "DbMetrics";
-	public static final String MON_METHOD_METRICS = "MethodMetrics";
-	public static final String MON_TRACING = "Tracing";
-	public static final String MON_LOGGING = "Logging";
-	
-	// Feature monitoring config keys
+
+	// Feature monitoring config keys (used by downstream renderers/templates)
 	public static final String CONFIG_FEATURE_NAME = "featureName";
 	public static final String CONFIG_FEATURE_NAME_LOWER = "featureNameLower";
 	public static final String CONFIG_ENABLE_HTTP_METRICS = "enableHttpMetrics";
@@ -38,188 +34,158 @@ public class MonitoringUtils {
 	public static final String CONFIG_ENABLE_TRACING = "enableTracing";
 	public static final String CONFIG_ENABLE_LOGGING = "enableLogging";
 	public static final String CONFIG_MONITORING_TYPES = "monitoringTypes";
-	
+
 	// MonitoringInfos config keys
 	public static final String INFO_JVM_METRICS_ENABLED = "jvmMetricsEnabled";
 	public static final String INFO_FEATURE_CONFIGS = "featureConfigs";
-	
+
 	// Module naming
 	public static final String MONITORING_MODULE_SUFFIX = ".monitoring.aspect";
-	
+
+	// Monitoring type keys (matching properties file format)
+	private static final String[] MONITORING_TYPE_KEYS = {
+		"httpMetrics", "dbMetrics", "methodMetrics", "tracing", "logging"
+	};
+	// Display names for monitoring types (for template compatibility)
+	private static final String[] MONITORING_TYPE_NAMES = {
+		"HttpMetrics", "DbMetrics", "MethodMetrics", "Tracing", "Logging"
+	};
+
 	/**
-	 * Check if Monitoring feature is selected in the current configuration.
+	 * Load monitoring properties from monitoring/{configName}.properties.
+	 * Returns null if file doesn't exist.
 	 */
-	public static boolean isMonitoringEnabled(Set<String> selectedFeatures) {
-		return selectedFeatures.contains(FEATURE_MONITORING);
-	}
-	
-	/**
-	 * Check if global JvmMetrics (Mon_JvmMetrics) is selected.
-	 */
-	public static boolean isJvmMetricsEnabled(Set<String> selectedFeatures) {
-		return selectedFeatures.contains(MON_PREFIX + FEATURE_JVM_METRICS);
-	}
-	
-	/**
-	 * Get all features that have monitoring enabled.
-	 * Parses Mon_FeatureName patterns and returns the feature names.
-	 */
-	public static Set<String> getMonitoredFeatures(Set<String> selectedFeatures) {
-		Set<String> monitoredFeatures = new HashSet<>();
-		for (String feature : selectedFeatures) {
-			if (feature.startsWith(MON_PREFIX)) {
-				String withoutPrefix = feature.substring(MON_PREFIX.length());
-				// Mon_Overdraft, Mon_Interest, etc. (no second underscore = feature monitoring group)
-				if (!withoutPrefix.contains("_") && !withoutPrefix.equals(FEATURE_JVM_METRICS)) {
-					monitoredFeatures.add(withoutPrefix);
-				}
+	private static Properties loadMonitoringProps(IFeatureProject project) {
+		if (project == null) return null;
+		try {
+			Path configPath = project.getCurrentConfiguration();
+			String configName = configPath.toFile().getName().replace(".xml", "");
+			IFile propsFile = project.getProject().getFile("monitoring/" + configName + ".properties");
+			if (!propsFile.exists()) return null;
+
+			Properties props = new Properties();
+			try (InputStream is = propsFile.getContents()) {
+				props.load(is);
 			}
-		}
-		return monitoredFeatures;
-	}
-	
-	/**
-	 * Check if a specific feature has HttpMetrics monitoring enabled.
-	 * @param featureName The functional feature name (e.g., "Overdraft")
-	 */
-	public static boolean isHttpMetricsEnabled(Set<String> selectedFeatures, String featureName) {
-		return selectedFeatures.contains(MON_PREFIX + featureName + "_" + MON_HTTP_METRICS);
-	}
-	
-	/**
-	 * Check if a specific feature has DbMetrics monitoring enabled.
-	 * @param featureName The functional feature name (e.g., "Overdraft")
-	 */
-	public static boolean isDbMetricsEnabled(Set<String> selectedFeatures, String featureName) {
-		return selectedFeatures.contains(MON_PREFIX + featureName + "_" + MON_DB_METRICS);
-	}
-	
-	/**
-	 * Check if a specific feature has MethodMetrics monitoring enabled.
-	 * @param featureName The functional feature name (e.g., "Overdraft")
-	 */
-	public static boolean isMethodMetricsEnabled(Set<String> selectedFeatures, String featureName) {
-		return selectedFeatures.contains(MON_PREFIX + featureName + "_" + MON_METHOD_METRICS);
-	}
-	
-	/**
-	 * Check if a specific feature has Tracing monitoring enabled.
-	 * @param featureName The functional feature name (e.g., "Overdraft")
-	 */
-	public static boolean isTracingEnabled(Set<String> selectedFeatures, String featureName) {
-		return selectedFeatures.contains(MON_PREFIX + featureName + "_" + MON_TRACING);
-	}
-	
-	/**
-	 * Check if a specific feature has Logging enabled.
-	 * @param featureName The functional feature name (e.g., "Overdraft")
-	 */
-	public static boolean isLoggingEnabled(Set<String> selectedFeatures, String featureName) {
-		return selectedFeatures.contains(MON_PREFIX + featureName + "_" + MON_LOGGING);
-	}
-	
-	/**
-	 * Parse a monitoring feature name and extract its components.
-	 * @param monFeature Feature name starting with Mon_ (e.g., "Mon_Overdraft_HttpMetrics")
-	 * @return String array: [featureName, monitoringType] or null if invalid
-	 */
-	public static String[] parseMonitoringFeature(String monFeature) {
-		if (!monFeature.startsWith(MON_PREFIX)) {
+			return props;
+		} catch (Exception e) {
 			return null;
 		}
-		String withoutPrefix = monFeature.substring(MON_PREFIX.length());
-		int underscoreIdx = withoutPrefix.indexOf('_');
-		if (underscoreIdx == -1) {
-			// Mon_JvmMetrics or Mon_Overdraft (no monitoring type)
-			return new String[] { withoutPrefix, null };
-		}
-		return new String[] {
-			withoutPrefix.substring(0, underscoreIdx),
-			withoutPrefix.substring(underscoreIdx + 1)
-		};
 	}
-	
+
 	/**
-	 * Get all monitoring types enabled for a specific feature.
-	 * @param featureName The functional feature name (e.g., "Overdraft")
-	 * @return Set of monitoring types (e.g., {"HttpMetrics", "DbMetrics", "Tracing"})
+	 * Check if monitoring is enabled (properties file exists).
 	 */
-	public static Set<String> getMonitoringTypesForFeature(Set<String> selectedFeatures, String featureName) {
-		Set<String> monitoringTypes = new HashSet<>();
-		String prefix = MON_PREFIX + featureName + "_";
-		
-		for (String feature : selectedFeatures) {
-			if (feature.startsWith(prefix)) {
-				String monType = feature.substring(prefix.length());
-				// Skip log level specifics, just add the type
-				if (monType.equals(MON_HTTP_METRICS) || 
-					monType.equals(MON_DB_METRICS) || 
-					monType.equals(MON_METHOD_METRICS) || 
-					monType.equals(MON_TRACING) ||
-					monType.equals(MON_LOGGING)) {
-					monitoringTypes.add(monType);
-				}
+	public static boolean isMonitoringEnabled(IFeatureProject project) {
+		return loadMonitoringProps(project) != null;
+	}
+
+	/**
+	 * Check if global JVM metrics is enabled.
+	 */
+	public static boolean isJvmMetricsEnabled(IFeatureProject project) {
+		Properties props = loadMonitoringProps(project);
+		return props != null && Boolean.parseBoolean(props.getProperty("jvmMetrics", "false"));
+	}
+
+	/**
+	 * Get all features that have at least one monitoring type enabled.
+	 */
+	public static Set<String> getMonitoredFeatures(IFeatureProject project) {
+		Properties props = loadMonitoringProps(project);
+		if (props == null) return Collections.emptySet();
+		Set<String> features = new HashSet<>();
+		for (String key : props.stringPropertyNames()) {
+			if (key.equals("jvmMetrics")) continue;
+			int dot = key.indexOf('.');
+			if (dot > 0 && Boolean.parseBoolean(props.getProperty(key, "false"))) {
+				features.add(key.substring(0, dot));
 			}
 		}
-		return monitoringTypes;
+		return features;
 	}
-	
+
+	public static boolean isHttpMetricsEnabled(IFeatureProject project, String featureName) {
+		Properties props = loadMonitoringProps(project);
+		return props != null && Boolean.parseBoolean(props.getProperty(featureName + ".httpMetrics", "false"));
+	}
+
+	public static boolean isDbMetricsEnabled(IFeatureProject project, String featureName) {
+		Properties props = loadMonitoringProps(project);
+		return props != null && Boolean.parseBoolean(props.getProperty(featureName + ".dbMetrics", "false"));
+	}
+
+	public static boolean isMethodMetricsEnabled(IFeatureProject project, String featureName) {
+		Properties props = loadMonitoringProps(project);
+		return props != null && Boolean.parseBoolean(props.getProperty(featureName + ".methodMetrics", "false"));
+	}
+
+	public static boolean isTracingEnabled(IFeatureProject project, String featureName) {
+		Properties props = loadMonitoringProps(project);
+		return props != null && Boolean.parseBoolean(props.getProperty(featureName + ".tracing", "false"));
+	}
+
+	public static boolean isLoggingEnabled(IFeatureProject project, String featureName) {
+		Properties props = loadMonitoringProps(project);
+		return props != null && Boolean.parseBoolean(props.getProperty(featureName + ".logging", "false"));
+	}
+
+	/**
+	 * Get all monitoring types enabled for a specific feature.
+	 */
+	public static Set<String> getMonitoringTypesForFeature(IFeatureProject project, String featureName) {
+		Properties props = loadMonitoringProps(project);
+		if (props == null) return Collections.emptySet();
+		Set<String> types = new HashSet<>();
+		for (int i = 0; i < MONITORING_TYPE_KEYS.length; i++) {
+			if (Boolean.parseBoolean(props.getProperty(featureName + "." + MONITORING_TYPE_KEYS[i], "false"))) {
+				types.add(MONITORING_TYPE_NAMES[i]);
+			}
+		}
+		return types;
+	}
+
 	/**
 	 * Build a complete monitoring config map for a feature.
-	 * Returns all monitoring settings in one call.
-	 * @param featureName The functional feature name (e.g., "Overdraft")
 	 */
-	public static Map<String, Object> getFeatureMonitoringConfig(Set<String> selectedFeatures, String featureName) {
+	public static Map<String, Object> getFeatureMonitoringConfig(IFeatureProject project, String featureName) {
 		Map<String, Object> config = new HashMap<>();
 		config.put(CONFIG_FEATURE_NAME, featureName);
 		config.put(CONFIG_FEATURE_NAME_LOWER, featureName.toLowerCase());
-		config.put(CONFIG_ENABLE_HTTP_METRICS, isHttpMetricsEnabled(selectedFeatures, featureName));
-		config.put(CONFIG_ENABLE_DB_METRICS, isDbMetricsEnabled(selectedFeatures, featureName));
-		config.put(CONFIG_ENABLE_METHOD_METRICS, isMethodMetricsEnabled(selectedFeatures, featureName));
-		config.put(CONFIG_ENABLE_TRACING, isTracingEnabled(selectedFeatures, featureName));
-		config.put(CONFIG_ENABLE_LOGGING, isLoggingEnabled(selectedFeatures, featureName));
-		config.put(CONFIG_MONITORING_TYPES, getMonitoringTypesForFeature(selectedFeatures, featureName));
+		config.put(CONFIG_ENABLE_HTTP_METRICS, isHttpMetricsEnabled(project, featureName));
+		config.put(CONFIG_ENABLE_DB_METRICS, isDbMetricsEnabled(project, featureName));
+		config.put(CONFIG_ENABLE_METHOD_METRICS, isMethodMetricsEnabled(project, featureName));
+		config.put(CONFIG_ENABLE_TRACING, isTracingEnabled(project, featureName));
+		config.put(CONFIG_ENABLE_LOGGING, isLoggingEnabled(project, featureName));
+		config.put(CONFIG_MONITORING_TYPES, getMonitoringTypesForFeature(project, featureName));
 		return config;
 	}
-	
+
 	/**
 	 * Get the monitoring aspect module name for a product.
-	 * Format: {spl}.monitoring.aspect (e.g., bankaccount.monitoring.aspect)
-	 * Note: Does NOT use .product. to avoid being treated as a product module.
 	 */
 	public static String getMonitoringModuleName(String productQualifiedName) {
 		String[] parts = productQualifiedName.split("\\.");
 		if (parts.length >= 1) {
 			return parts[0] + MONITORING_MODULE_SUFFIX;
 		}
-		return MONITORING_MODULE_SUFFIX.substring(1); // Remove leading dot
+		return MONITORING_MODULE_SUFFIX.substring(1);
 	}
-	
-	
-	
+
 	/**
 	 * Get complete monitoring information for all monitored features.
-	 * Returns a structured map containing:
-	 * - jvmMetricsEnabled: boolean
-	 * - featureConfigs: List of feature monitoring configs (each with its own loggingLevel)
-	 * 
-	 * @param selectedFeatures The set of selected features from UVL config
-	 * @return Map with monitoring info structure
 	 */
-	public static Map<String, Object> getMonitoringInfos(Set<String> selectedFeatures) {
+	public static Map<String, Object> getMonitoringInfos(IFeatureProject project) {
 		Map<String, Object> infos = new HashMap<>();
-		
-		// Global settings
-		infos.put(INFO_JVM_METRICS_ENABLED, isJvmMetricsEnabled(selectedFeatures));
-		
-		// Per-feature configs
-		Set<String> monitoredFeatures = getMonitoredFeatures(selectedFeatures);
+		infos.put(INFO_JVM_METRICS_ENABLED, isJvmMetricsEnabled(project));
+
+		Set<String> monitoredFeatures = getMonitoredFeatures(project);
 		List<Map<String, Object>> featureConfigs = new ArrayList<>();
 		for (String featureName : monitoredFeatures) {
-			featureConfigs.add(getFeatureMonitoringConfig(selectedFeatures, featureName));
+			featureConfigs.add(getFeatureMonitoringConfig(project, featureName));
 		}
 		infos.put(INFO_FEATURE_CONFIGS, featureConfigs);
-		
+
 		return infos;
 	}
 }
