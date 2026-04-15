@@ -91,10 +91,40 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	}
 	
 	public boolean isSameConfig() {
-		return (previousConfig != null && previousConfig.equals(
+		if (previousConfig == null) return false;
+		boolean sameFeatureConfig = previousConfig.equals(
 				featureProject.getCurrentConfiguration()) && 
 				previousFeatures.equals(featureProject
-						.loadCurrentConfiguration().getSelectedFeatureNames()));
+						.loadCurrentConfiguration().getSelectedFeatureNames());
+		if (!sameFeatureConfig) return false;
+
+		// Also check if monitoring properties changed
+		boolean monitoringChanged = hasMonitoringPropertiesChanged();
+		return !monitoringChanged;
+	}
+
+	private String previousMonitoringHash = null;
+
+	private boolean hasMonitoringPropertiesChanged() {
+		try {
+			java.nio.file.Path configPath = featureProject.getCurrentConfiguration();
+			String configName = configPath.toFile().getName().replace(".xml", "");
+			org.eclipse.core.resources.IFile propsFile = featureProject.getProject()
+					.getFile("monitoring/" + configName + ".properties");
+			String currentHash;
+			if (propsFile.exists()) {
+				try (java.io.InputStream is = propsFile.getContents()) {
+					currentHash = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+				}
+			} else {
+				currentHash = null;
+			}
+			boolean changed = !java.util.Objects.equals(previousMonitoringHash, currentHash);
+			previousMonitoringHash = currentHash;
+			return changed;
+		} catch (Exception e) {
+			return true; // assume changed on error
+		}
 	}
 
 	@Override
