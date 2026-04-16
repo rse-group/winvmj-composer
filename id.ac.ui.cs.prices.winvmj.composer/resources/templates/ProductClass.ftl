@@ -195,7 +195,7 @@ public class ${productName} {
 		</#if>
 		<#list models as modelSpec>
 		<#list modelSpec['class'] as className>
-		configuration.addAnnotatedClass(${modelSpec['module']}.${className}.class);
+		configuration.addAnnotatedClass(${modelSpec['module']}.model.${className}.class);
 		</#list>
 		</#list>
 
@@ -251,7 +251,7 @@ public class ${productName} {
             <#list moduleRoutings as routeSpec>
                 <#if routeSpec['componentType'] == "service">
         ${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
-            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}" 
+            .create${routeSpec['class']}("${routeSpec['module']}.service.${routeSpec['implClass']}"
             	<#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Service</#if>);		
                 </#if>
             </#list>
@@ -259,8 +259,8 @@ public class ${productName} {
             <#list moduleRoutings as routeSpec>
                 <#if routeSpec['componentType'] == "resource">
         ${routeSpec['class']} ${routeSpec['variableName']} = ${routeSpec['factory']}
-            .create${routeSpec['class']}("${routeSpec['module']}.${routeSpec['implClass']}" 
-                <#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Resource</#if>);
+            .create${routeSpec['class']}("${routeSpec['module']}.resource.${routeSpec['implClass']}"
+                <#if routeSpec['wrappedVariableName']??>, ${routeSpec['wrappedVariableName']}Resource<#if routeSpec['notSingleStructured']??>, ${routeSpec['wrappedVariableName']}Service</#if></#if>);
                 </#if>
             </#list>
 			

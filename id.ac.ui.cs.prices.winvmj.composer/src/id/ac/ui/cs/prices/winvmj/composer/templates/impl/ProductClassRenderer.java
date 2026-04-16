@@ -171,34 +171,34 @@ public class ProductClassRenderer extends TemplateRenderer {
 
                 if (isCoreModule(module)) {
                     if (featureTableMapping == null) {
-                        String componentClassName = "";
-                        List<String> components = new ArrayList<>();
-                        List<String> allClassInModelModule = Utils.getAllClassInModule(
-                            project, module, MODEL_FOLDERNAME);
-
-                        for (int i = 0; i < allClassInModelModule.size(); i++) {
-                            String className = allClassInModelModule.get(i);
-                            if (className.endsWith("Component")) {
-                                componentClassName = className;
-                                components.add(String.format("%s.%s", module, className));
-                            }
-                        }
-
-                        Map<String, Object> featureModels = new HashMap<>();
-                        featureModels.put("components", components);
-                        featureModels.put("deltas", new ArrayList<>());
+						String componentClassName = "";
+						List<String> components = new ArrayList<>();
+						List<String> allClassInModelModule = Utils.getAllClassInModule(
+							project, module, MODEL_FOLDERNAME);
+						
+						for (int i = 0; i < allClassInModelModule.size(); i++) {
+							String className = allClassInModelModule.get(i);
+							if (className.endsWith("Component")) {
+								componentClassName = className;
+								components.add(String.format("%s.model.%s", module, className));
+							}
+						}
+						
+						Map<String, Object> featureModels = new HashMap<>();
+						featureModels.put("components", components);
+						featureModels.put("deltas", new ArrayList<>());
 
                         featureTableMapping = new HashMap<>();
                         featureTableMapping.put(
-                            "referenceComponent", module + "." + componentClassName);
+							"referenceComponent", module + ".model." + componentClassName);
                         featureTableMapping.put("featureModels", featureModels);
                         featureTableMappings.add(featureTableMapping);
                     }
                 } else {
                     if (featureTableMapping != null) {
                         Map<String, Object> featureModels = (Map<String, Object>) featureTableMapping.get("featureModels");
-                        List<String> deltas = (List<String>) featureModels.get("deltas");
-                        String delta = String.format("%s.%s", module, getListModuleImplClass(
+						List<String> deltas = (List<String>) featureModels.get("deltas");
+                        String delta = String.format("%s.model.%s", module, getListModuleImplClass(
                                 module, MODEL_FOLDERNAME).get(0));
                         if (!deltas.contains(delta)) {
                             deltas.add(delta);
@@ -397,20 +397,20 @@ public class ProductClassRenderer extends TemplateRenderer {
         return imports;
     }
 
-    protected List<String> constructImport(String module) throws IOException, CoreException { 
-        List<String> modulesToImport = new ArrayList<>();
-        String coreModule = getCoreByModule(module); 
-        String mainModule = coreModule.replace(".core", ""); 
-        for (String moduleInterface : getListModuleInterface(module, CONTROLLER_FOLDERNAME)) { 
-            modulesToImport.add(mainModule + "." + moduleInterface + "Factory");
-            modulesToImport.add(coreModule + "." + moduleInterface);
-        }
-        for (String moduleInterface : getListModuleInterface(module, SERVICE_FOLDERNAME)) { 
-            modulesToImport.add(mainModule + "." + moduleInterface + "Factory");
-            modulesToImport.add(coreModule + "." + moduleInterface);
-        }
-        return modulesToImport;
-    }
+	protected List<String> constructImport(String module) throws IOException, CoreException { 
+		List<String> modulesToImport = new ArrayList<>();
+		String coreModule = getCoreByModule(module); 
+		String mainModule = coreModule.replace(".core", ""); 
+		for (String moduleInterface : getListModuleInterface(module, CONTROLLER_FOLDERNAME)) { 
+			modulesToImport.add(mainModule + "." + moduleInterface + "Factory");
+			modulesToImport.add(coreModule + ".resource." + moduleInterface);
+		}
+		for (String moduleInterface : getListModuleInterface(module, SERVICE_FOLDERNAME)) { 
+			modulesToImport.add(mainModule + "." + moduleInterface + "Factory");
+			modulesToImport.add(coreModule + ".service." + moduleInterface);
+		}
+		return modulesToImport;
+	}
 
     private List<Map<String, Object>> processMultiLevelDelta(
         String feature, List<String> modules) throws IOException, CoreException {
