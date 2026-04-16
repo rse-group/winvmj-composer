@@ -88,8 +88,26 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	public void updatePreviousConfig() {
 		previousConfig = featureProject.getCurrentConfiguration();
 		previousFeatures = featureProject.loadCurrentConfiguration().getSelectedFeatureNames();
+		// Also snapshot monitoring content
+		try {
+			java.nio.file.Path configPath = featureProject.getCurrentConfiguration();
+			String configName = configPath.toFile().getName().replace(".xml", "");
+			org.eclipse.core.resources.IFile propsFile = featureProject.getProject()
+					.getFile("monitoring/" + configName + ".properties");
+			if (propsFile.exists()) {
+				try (java.io.InputStream is = propsFile.getContents()) {
+					previousMonitoringContent = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+				}
+			} else {
+				previousMonitoringContent = null;
+			}
+		} catch (Exception e) {
+			previousMonitoringContent = null;
+		}
 	}
 	
+	private String previousMonitoringContent = null;
+
 	public boolean isSameConfig() {
 		if (previousConfig == null) return false;
 		boolean sameFeatureConfig = previousConfig.equals(
@@ -99,11 +117,8 @@ public class WinVMJComposer extends ComposerExtensionClass {
 		if (!sameFeatureConfig) return false;
 
 		// Also check if monitoring properties changed
-		boolean monitoringChanged = hasMonitoringPropertiesChanged();
-		return !monitoringChanged;
+		return !hasMonitoringPropertiesChanged();
 	}
-
-	private String previousMonitoringHash = null;
 
 	private boolean hasMonitoringPropertiesChanged() {
 		try {
@@ -111,19 +126,17 @@ public class WinVMJComposer extends ComposerExtensionClass {
 			String configName = configPath.toFile().getName().replace(".xml", "");
 			org.eclipse.core.resources.IFile propsFile = featureProject.getProject()
 					.getFile("monitoring/" + configName + ".properties");
-			String currentHash;
+			String currentContent;
 			if (propsFile.exists()) {
 				try (java.io.InputStream is = propsFile.getContents()) {
-					currentHash = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+					currentContent = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
 				}
 			} else {
-				currentHash = null;
+				currentContent = null;
 			}
-			boolean changed = !java.util.Objects.equals(previousMonitoringHash, currentHash);
-			previousMonitoringHash = currentHash;
-			return changed;
+			return !java.util.Objects.equals(previousMonitoringContent, currentContent);
 		} catch (Exception e) {
-			return true; // assume changed on error
+			return true;
 		}
 	}
 
