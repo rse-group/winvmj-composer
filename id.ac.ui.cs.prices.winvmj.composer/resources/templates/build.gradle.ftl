@@ -25,8 +25,8 @@ dependencies {
     // Default WinVMJ dependencies
     implementation 'id.ac.ui.cs.prices.winvmj:core:2.4.0'
     implementation 'id.ac.ui.cs.prices.winvmj:hibernate:1.2.0'
-    implementation 'id.ac.ui.cs.prices.winvmj:auth:1.2.1'
-    implementation 'id.ac.ui.cs.prices.winvmj:auth.model:1.2.1'
+    implementation 'id.ac.ui.cs.prices.winvmj:auth:1.2.2'
+    implementation 'id.ac.ui.cs.prices.winvmj:auth.model:1.2.2'
     implementation fileTree(dir: 'libs', include: ['**/*.jar'])
     implementation 'javax.persistence:javax.persistence-api:2.2'
     implementation 'com.google.code.gson:gson:2.10.1'
