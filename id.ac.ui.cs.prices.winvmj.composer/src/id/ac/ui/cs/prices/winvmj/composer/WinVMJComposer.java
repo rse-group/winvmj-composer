@@ -88,7 +88,7 @@ public class WinVMJComposer extends ComposerExtensionClass {
 	public void updatePreviousConfig() {
 		previousConfig = featureProject.getCurrentConfiguration();
 		previousFeatures = featureProject.loadCurrentConfiguration().getSelectedFeatureNames();
-		// Also snapshot monitoring content
+																																																														// Also snapshot monitoring content
 		try {
 			java.nio.file.Path configPath = featureProject.getCurrentConfiguration();
 			String configName = configPath.toFile().getName().replace(".xml", "");
