@@ -2,14 +2,11 @@ package id.ac.ui.cs.prices.winvmj.composer.monitoring.injector;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
-
-import freemarker.template.Configuration;
-import freemarker.template.Template;
-import freemarker.template.TemplateException;
 
 import id.ac.ui.cs.prices.winvmj.composer.microservicepreprocessor.JavaParserUtil;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
@@ -20,13 +17,9 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -177,7 +170,7 @@ public class RepositoryInjector {
         return null;
     }
 
-    // ========== RepositoryImpl Generation ==========
+    // ========== RepositoryImpl Generation (AST-based) ==========
 
     private static void generateRepositoryImpl(IFolder moduleDir, String packageName,
             String featureName, String tableName, String entityName) throws CoreException {
@@ -200,27 +193,174 @@ public class RepositoryInjector {
             return;
         }
 
-        Map<String, Object> dataModel = new HashMap<>();
-        dataModel.put("packageName", packageName);
-        dataModel.put("entityName", entityName);
-        dataModel.put("featureName", featureName);
-        dataModel.put("tableName", tableName);
+        // Locate RepositoryUtil.java in the build folder to read method signatures dynamically
+        IFile repoUtilFile = findRepositoryUtilSource((IFolder) moduleDir.getParent());
+        String source;
 
-        try {
-            Configuration cfg = new Configuration(Configuration.VERSION_2_3_31);
-            cfg.setClassForTemplateLoading(RepositoryInjector.class, "/templates");
-            Template template = cfg.getTemplate("RepositoryImpl.ftl");
+        if (repoUtilFile != null) {
+            source = buildFromSource(repoUtilFile, packageName, featureName, tableName, entityName);
+            WinVMJConsole.println("[RepositoryInjector] Built " + fileName + " from RepositoryUtil source");
+        } else {
+            WinVMJConsole.println("[RepositoryInjector] RepositoryUtil.java not found, building minimal proxy");
+            source = buildMinimalProxy(packageName, featureName, tableName, entityName);
+        }
 
-            StringWriter writer = new StringWriter();
-            template.process(dataModel, writer);
-
-            try (InputStream stream = new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8))) {
-                targetFile.create(stream, true, null);
-            }
-        } catch (IOException | TemplateException e) {
+        try (InputStream stream = new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8))) {
+            targetFile.create(stream, true, null);
+        } catch (Exception e) {
             throw new RuntimeException("Failed to create " + fileName, e);
         }
         WinVMJConsole.println("[RepositoryInjector] Generated " + fileName + " in " + targetFolder.getFullPath());
+    }
+
+    /**
+     * Recursively search the build folder for RepositoryUtil.java.
+     * vmj-libraries are unpacked into the build folder at compose time.
+     */
+    private static IFile findRepositoryUtilSource(IFolder buildFolder) {
+        try {
+            return scanForFile(buildFolder, "RepositoryUtil.java");
+        } catch (CoreException e) {
+            WinVMJConsole.println("[RepositoryInjector] Error scanning for RepositoryUtil: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static IFile scanForFile(IFolder folder, String fileName) throws CoreException {
+        for (IResource resource : folder.members()) {
+            if (resource instanceof IFile file && file.getName().equals(fileName)) {
+                return file;
+            } else if (resource instanceof IFolder subFolder) {
+                IFile found = scanForFile(subFolder, fileName);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Parse RepositoryUtil.java, read all public method signatures, and generate
+     * a proxy class source string. If RepositoryUtil gains or loses methods,
+     * the generated proxy automatically follows.
+     */
+    private static String buildFromSource(IFile repoUtilFile,
+            String packageName, String featureName, String tableName, String entityName) {
+        CompilationUnit repoUtilCu = JavaParserUtil.parse(repoUtilFile);
+        ClassOrInterfaceDeclaration repoUtilClass = repoUtilCu
+                .findFirst(ClassOrInterfaceDeclaration.class)
+                .orElseThrow(() -> new RuntimeException("No class found in RepositoryUtil.java"));
+
+        String className = entityName + "RepositoryImpl";
+
+        // Collect imports from RepositoryUtil (types used in method signatures)
+        StringBuilder sb = new StringBuilder();
+        sb.append("package ").append(packageName).append(";\n\n");
+        sb.append("import id.ac.ui.cs.prices.winvmj.hibernate.RepositoryUtil;\n");
+        repoUtilCu.getImports().forEach(imp -> {
+            String importName = imp.getNameAsString();
+            if (!importName.startsWith("id.ac.ui.cs.prices.winvmj.hibernate")) {
+                sb.append(imp).append("\n");
+            }
+        });
+        sb.append("\n");
+
+        // Class declaration
+        sb.append("/**\n");
+        sb.append(" * Bare Repository proxy — extends RepositoryUtil, overrides all public methods\n");
+        sb.append(" * with pass-through to super. Monitoring injectors (DbMetrics, Tracing, etc.)\n");
+        sb.append(" * will modify this file via AST to wrap method bodies with their concerns.\n");
+        sb.append(" *\n");
+        sb.append(" * AUTO-GENERATED from RepositoryUtil source — do not edit manually.\n");
+        sb.append(" */\n");
+        sb.append("public class ").append(className).append("<Y> extends RepositoryUtil<Y> {\n\n");
+
+        // Static fields
+        sb.append("    private static final String FEATURE_NAME = \"").append(featureName).append("\";\n\n");
+        sb.append("    private static final String TABLE_NAME = \"").append(tableName).append("\";\n\n");
+
+        // Constructor
+        sb.append("    public ").append(className).append("(Class<? extends Y> componentClass) {\n");
+        sb.append("        super(componentClass);\n");
+        sb.append("    }\n");
+
+        // Override every public method from RepositoryUtil
+        for (MethodDeclaration srcMethod : repoUtilClass.getMethods()) {
+            if (!srcMethod.isPublic()) continue;
+
+            sb.append("\n    @Override\n");
+            sb.append("    public ");
+
+            // Type parameters (e.g. <Z>, <T>)
+            if (!srcMethod.getTypeParameters().isEmpty()) {
+                sb.append("<");
+                for (int i = 0; i < srcMethod.getTypeParameters().size(); i++) {
+                    if (i > 0) sb.append(", ");
+                    sb.append(srcMethod.getTypeParameters().get(i));
+                }
+                sb.append("> ");
+            }
+
+            // Return type + method name
+            sb.append(srcMethod.getType()).append(" ").append(srcMethod.getNameAsString()).append("(");
+
+            // Parameters
+            for (int i = 0; i < srcMethod.getParameters().size(); i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(srcMethod.getParameter(i).getType()).append(" ")
+                  .append(srcMethod.getParameter(i).getNameAsString());
+            }
+            sb.append(")");
+
+            // Throws
+            if (!srcMethod.getThrownExceptions().isEmpty()) {
+                sb.append(" throws ");
+                for (int i = 0; i < srcMethod.getThrownExceptions().size(); i++) {
+                    if (i > 0) sb.append(", ");
+                    sb.append(srcMethod.getThrownExceptions().get(i));
+                }
+            }
+
+            sb.append(" {\n");
+
+            // Body: super call
+            String args = srcMethod.getParameters().stream()
+                .map(p -> p.getNameAsString())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
+            String superCall = "super." + srcMethod.getNameAsString() + "(" + args + ")";
+
+            if (srcMethod.getType().isVoidType()) {
+                sb.append("        ").append(superCall).append(";\n");
+            } else {
+                sb.append("        return ").append(superCall).append(";\n");
+            }
+
+            sb.append("    }\n");
+        }
+
+        sb.append("}\n");
+        return sb.toString();
+    }
+
+    /**
+     * Fallback: generate a minimal proxy with just the constructor.
+     * Other injectors can still modify this file, but no method overrides are pre-generated.
+     */
+    private static String buildMinimalProxy(
+            String packageName, String featureName, String tableName, String entityName) {
+        String className = entityName + "RepositoryImpl";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("package ").append(packageName).append(";\n\n");
+        sb.append("import id.ac.ui.cs.prices.winvmj.hibernate.RepositoryUtil;\n\n");
+        sb.append("public class ").append(className).append("<Y> extends RepositoryUtil<Y> {\n\n");
+        sb.append("    private static final String FEATURE_NAME = \"").append(featureName).append("\";\n\n");
+        sb.append("    private static final String TABLE_NAME = \"").append(tableName).append("\";\n\n");
+        sb.append("    public ").append(className).append("(Class<? extends Y> componentClass) {\n");
+        sb.append("        super(componentClass);\n");
+        sb.append("    }\n");
+        sb.append("}\n");
+        return sb.toString();
     }
 
     // ========== Constructor Injection ==========
