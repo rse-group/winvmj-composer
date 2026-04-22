@@ -3,16 +3,10 @@
    <feature url="features/de.ovgu.featureide_3.11.1.202410061546.jar" id="de.ovgu.featureide" version="3.11.1.202410061546">
       <category name="WinVMJ Composer Dependencies"/>
    </feature>
-   <feature url="features/id.ac.ui.cs.prices.winvmj.composer.feature_3.6.0.202512151502.jar" id="id.ac.ui.cs.prices.winvmj.composer.feature" version="3.6.0.202512151502">
-      <category name="WinVMJ Composer"/>
-   </feature>
-   <feature url="features/id.ac.ui.cs.prices.winvmj.composer.feature_3.7.0.202603101733.jar" id="id.ac.ui.cs.prices.winvmj.composer.feature" version="3.7.0.202603101733">
-      <category name="WinVMJ Composer"/>
-   </feature>
    <feature url="features/id.ac.ui.cs.prices.winvmj.composer.feature_3.7.1.202604201059.jar" id="id.ac.ui.cs.prices.winvmj.composer.feature" version="3.7.1.202604201059">
       <category name="WinVMJ Composer"/>
    </feature>
-   <feature url="features/id.ac.ui.cs.prices.winvmj.composer.feature_3.7.2.202604221435.jar" id="id.ac.ui.cs.prices.winvmj.composer.feature" version="3.7.2.202604221435">
+   <feature url="features/id.ac.ui.cs.prices.winvmj.composer.feature_3.7.2.202604222349.jar" id="id.ac.ui.cs.prices.winvmj.composer.feature" version="3.7.2.202604222349">
       <category name="WinVMJ Composer"/>
    </feature>
    <category-def name="WinVMJ Composer" label="WinVMJ Composer"/>
