@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Testingui
 Bundle-SymbolicName: id.ac.ui.cs.prices.winvmj.composer.testingui;singleton:=true
-Bundle-Version: 3.7.1.qualifier
+Bundle-Version: 3.7.2.qualifier
 Require-Bundle: org.eclipse.jface.text,
  org.eclipse.core.resources,
  org.eclipse.ui,
