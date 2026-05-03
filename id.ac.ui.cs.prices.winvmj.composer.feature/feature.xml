@@ -2,7 +2,7 @@
 <feature
       id="id.ac.ui.cs.prices.winvmj.composer.feature"
       label="WinVMJ Composer"
-      version="3.7.2.qualifier"
+      version="3.7.3.qualifier"
       provider-name="RSE Lab Fasilkom UI">
 
    <description>
@@ -202,10 +202,10 @@ Library.
 
    <plugin
          id="id.ac.ui.cs.prices.winvmj.composer"
-         version="3.7.2.qualifier"/>
+         version="3.7.3.qualifier"/>
 
    <plugin
          id="id.ac.ui.cs.prices.winvmj.composer.testingui"
-         version="3.7.2.qualifier"/>
+         version="3.7.3.qualifier"/>
 
 </feature>
