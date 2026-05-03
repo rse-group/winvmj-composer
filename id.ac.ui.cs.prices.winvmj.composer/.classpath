@@ -16,6 +16,7 @@
 	<classpathentry kind="lib" path="libs/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar"/>
 	<classpathentry kind="lib" path="libs/logicng-2.2.0.jar"/>
 	<classpathentry kind="lib" path="libs/javaparser-core-3.26.3.jar"/>
+	<classpathentry kind="lib" path="libs/prices-cli.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jdk-17">
 		<attributes>
 			<attribute name="module" value="true"/>
