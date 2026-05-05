@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -248,41 +250,34 @@ public class SourceCompiler {
 	        if (!compiledModulesDir.exists())
 	            compiledModulesDir.create(false, true, null);
 
-	        IFile compiledJar = compiledModulesDir.getFile(module.getName() + ".jar");
-
-	        long moduleLastModified = getLastModifiedTime(module);
-	        long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
-
-	        
+	        // Resolve compile order: module + its dependencies, ordered by topological sort
 	        Set<String> requirements = extractRequirements(project, module);
-	        boolean requiresUpdate = false;
-
+	        List<IFolder> modulesToCompile = new ArrayList<>();
+	        modulesToCompile.add(module);
 	        for (String require : requirements) {
 	        	if (WINVMJ_LIBRARIES.contains(require)) continue;
-				
 	            IFolder requireFolder = project.getProject().getFolder(MODULES_FOLDER).getFolder(require);
 	            if (requireFolder.exists()) {
-	                IFile generatedJar = compiledModulesDir.getFile(require + ".jar");
-
-	                long requireLastModified = getLastModifiedTime(requireFolder);
-	                long requireJarLastModified = generatedJar.exists() ? generatedJar.getLocalTimeStamp() : -1;
-
-	                if (!generatedJar.exists() || requireLastModified > requireJarLastModified) {
-	                    WinVMJConsole.println("Required module " + require + " is outdated. Recompiling...");
-	                    compileModuleSource(requireFolder, project);
-	                    requiresUpdate = true; 
-	                }
+	                modulesToCompile.add(requireFolder);
 	            }
 	        }
-	        if (requiresUpdate || moduleLastModified > jarLastModified) {
-	            WinVMJConsole.println("Compiling module " + module.getName() + "...");
-	            List<IResource> externalLibraries = listAllExternalLibraries(project);
-	            importWinVMJLibrariesForModules(compiledModulesDir);
-	            importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, module);
-	            compileModuleForProduct(project, compiledModulesDir, module, "compileModule");
-	            cleanBinaries(project);
-	        } else {
-	            WinVMJConsole.println("Module " + module.getName() + " is up-to-date. Skipping compilation.");
+	        List<IFolder> orderedModules = resolveCompileOrder(project, modulesToCompile);
+
+	        for (IFolder mod : orderedModules) {
+	            IFile compiledJar = compiledModulesDir.getFile(mod.getName() + ".jar");
+	            long moduleLastModified = getLastModifiedTime(mod);
+	            long jarLastModified = compiledJar.exists() ? compiledJar.getLocalTimeStamp() : -1;
+
+	            if (moduleLastModified > jarLastModified) {
+	                WinVMJConsole.println("Compiling module " + mod.getName() + "...");
+	                List<IResource> externalLibraries = listAllExternalLibraries(project);
+	                importWinVMJLibrariesForModules(compiledModulesDir);
+	                importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir, mod);
+	                compileModuleForProduct(project, compiledModulesDir, mod, "compileModule");
+	                cleanBinaries(project);
+	            } else {
+	                WinVMJConsole.println("Module " + mod.getName() + " is up-to-date. Skipping compilation.");
+	            }
 	        }
 	        
             deleteLibraries(compiledModulesDir, srcResource);
@@ -390,7 +385,9 @@ public class SourceCompiler {
 
 		IFolder generatedModulesDir = project.getProject().getFolder(OUTPUT_MODULES_FOLDER);
 		List<IResource> externalLibraries = listAllExternalLibraries(project);
-		for (IFolder module : product.getModules()) {
+		
+		List<IFolder> orderedModules = resolveCompileOrder(project, product.getModules());
+		for (IFolder module : orderedModules) {
 
 			boolean isJarCopied = false;
 
@@ -578,9 +575,15 @@ public class SourceCompiler {
 		
 		filteredModule.addAll(Arrays.asList(moduleResources));
 		
-		for (IResource resource : filteredModule) {
-			if (resource instanceof IFolder) {
-				IFolder moduleFolder = (IFolder) resource;
+		// Convert to IFolder list and resolve compile order by dependencies
+		List<IFolder> moduleFolders = filteredModule.stream()
+				.filter(r -> r instanceof IFolder)
+				.map(r -> (IFolder) r)
+				.filter(f -> !f.getName().contains("product.template"))
+				.collect(Collectors.toList());
+		List<IFolder> orderedModules = resolveCompileOrder(project, moduleFolders);
+		
+		for (IFolder moduleFolder : orderedModules) {
 				IFile compiledJar = compiledModulesDir.getFile(moduleFolder.getName() + ".jar");
 
 				long moduleLastModified = getLastModifiedTime(moduleFolder);
@@ -594,13 +597,9 @@ public class SourceCompiler {
 					continue;
 				}
 
-				if (!(moduleFolder.getName().contains("product.template"))) {
-					importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir,
-							moduleFolder);
-					compileModuleForProduct(project, compiledModulesDir, moduleFolder, "");
-				}
-
-			}
+				importExternalLibrariesByModuleInfoForModules(project, externalLibraries, compiledModulesDir,
+						moduleFolder);
+				compileModuleForProduct(project, compiledModulesDir, moduleFolder, "");
 		}
 
 		cleanBinaries(project);
@@ -766,6 +765,81 @@ public class SourceCompiler {
 	    }
 
 	    return dependencies;
+	}
+
+	/**
+	 * Resolves the compile order of the given modules using topological sort
+	 * based on dependency information from module-info.java.
+	 * Modules without dependencies are compiled first, then modules that depend on them, etc.
+	 * Detects circular dependencies and throws RuntimeException if found.
+	 * 
+	 * @param project the feature project
+	 * @param modules the list of modules to sort (from src/ or modules/ folder)
+	 * @return a new list with the same modules, ordered so dependencies come first
+	 */
+	static List<IFolder> resolveCompileOrder(IFeatureProject project, List<IFolder> modules) 
+			throws CoreException {
+		// Build name -> folder lookup
+		Map<String, IFolder> nameToFolder = new LinkedHashMap<>();
+		for (IFolder module : modules) {
+			nameToFolder.put(module.getName(), module);
+		}
+		
+		// Build dependency graph (only internal dependencies within the given module set)
+		Map<String, Set<String>> dependencies = new LinkedHashMap<>();
+		Map<String, Integer> inDegree = new LinkedHashMap<>();
+		for (IFolder module : modules) {
+			String name = module.getName();
+			dependencies.putIfAbsent(name, new HashSet<>());
+			inDegree.putIfAbsent(name, 0);
+			
+			Set<String> reqs = extractRequirements(project, module);
+			for (String req : reqs) {
+				if (nameToFolder.containsKey(req)) {
+					dependencies.get(name).add(req);
+					inDegree.put(name, inDegree.get(name) + 1);
+				}
+			}
+		}
+		
+		// Kahn's algorithm - topological sort
+		Queue<String> queue = new LinkedList<>();
+		for (Map.Entry<String, Integer> entry : inDegree.entrySet()) {
+			if (entry.getValue() == 0) {
+				queue.add(entry.getKey());
+			}
+		}
+		
+		List<IFolder> sorted = new ArrayList<>();
+		while (!queue.isEmpty()) {
+			String current = queue.poll();
+			sorted.add(nameToFolder.get(current));
+			
+			for (Map.Entry<String, Set<String>> entry : dependencies.entrySet()) {
+				if (entry.getValue().remove(current)) {
+					String dependent = entry.getKey();
+					int newDegree = inDegree.get(dependent) - 1;
+					inDegree.put(dependent, newDegree);
+					if (newDegree == 0) {
+						queue.add(dependent);
+					}
+				}
+			}
+		}
+		
+		if (sorted.size() != modules.size()) {
+			// Find modules involved in cycle for error message
+			Set<String> inCycle = new HashSet<>();
+			for (Map.Entry<String, Integer> entry : inDegree.entrySet()) {
+				if (entry.getValue() > 0) {
+					inCycle.add(entry.getKey());
+				}
+			}
+			WinVMJConsole.println("ERROR: Circular dependency detected among modules: " + inCycle);
+			throw new RuntimeException("Circular dependency detected among modules: " + inCycle);
+		}
+		
+		return sorted;
 	}
 
 	private static List<String> constructJARCommand(IFolder binFolder, IFolder destFolder, String jarName)

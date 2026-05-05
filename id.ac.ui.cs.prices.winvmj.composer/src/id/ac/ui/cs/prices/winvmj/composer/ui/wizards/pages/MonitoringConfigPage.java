@@ -14,6 +14,7 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.custom.ScrolledComposite;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import id.ac.ui.cs.prices.winvmj.composer.monitoring.FeatureConfigParser;
@@ -49,7 +50,11 @@ public class MonitoringConfigPage extends WizardPage {
 
     @Override
     public void createControl(Composite parent) {
-        Composite container = new Composite(parent, SWT.NONE);
+        ScrolledComposite scrolled = new ScrolledComposite(parent, SWT.V_SCROLL);
+        scrolled.setExpandHorizontal(true);
+        scrolled.setExpandVertical(true);
+
+        Composite container = new Composite(scrolled, SWT.NONE);
         container.setLayout(new GridLayout(1, false));
 
         // Parse active features from config XML
@@ -57,14 +62,16 @@ public class MonitoringConfigPage extends WizardPage {
             activeFeatures = FeatureConfigParser.getActiveFunctionalFeatures(configFile);
         } catch (Exception e) {
             setErrorMessage("Failed to parse config: " + e.getMessage());
-            setControl(container);
+            setControl(scrolled);
             return;
         }
 
         if (activeFeatures.isEmpty()) {
             Label noFeatures = new Label(container, SWT.NONE);
             noFeatures.setText("No active functional features found in this configuration.");
-            setControl(container);
+            scrolled.setContent(container);
+            scrolled.setMinSize(container.computeSize(SWT.DEFAULT, SWT.DEFAULT));
+            setControl(scrolled);
             return;
         }
 
@@ -92,7 +99,9 @@ public class MonitoringConfigPage extends WizardPage {
             featureCheckboxes.put(feature, checkboxes);
         }
 
-        setControl(container);
+        scrolled.setContent(container);
+        scrolled.setMinSize(container.computeSize(SWT.DEFAULT, SWT.DEFAULT));
+        setControl(scrolled);
     }
 
     public boolean isJvmMetrics() {

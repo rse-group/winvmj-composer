@@ -44,6 +44,7 @@ public class RepositoryInjector {
             }
             String componentClassFQN = repoInfo[0];
             String repoFieldName = repoInfo[1];
+            String genericType = repoInfo[2];
 
             String packageName = resolveImplPackageName(moduleDir);
             if (packageName == null) {
@@ -59,7 +60,7 @@ public class RepositoryInjector {
             WinVMJConsole.println("[RepositoryInjector] table=" + tableName + ", entity=" + entityName + ", field=" + repoFieldName);
 
             generateRepositoryImpl(moduleDir, packageName, featureName, tableName, entityName);
-            injectConstructorReplacement(moduleDir, componentClassFQN, repoFieldName, entityName);
+            injectConstructorReplacement(moduleDir, componentClassFQN, repoFieldName, entityName, genericType);
         } catch (CoreException e) {
             WinVMJConsole.println("[RepositoryInjector] Error: " + e.getMessage());
         }
@@ -108,10 +109,22 @@ public class RepositoryInjector {
     // ========== Repository Info Resolution ==========
 
     private static String[] resolveRepositoryInfo(IFolder moduleDir) throws CoreException {
+        // First: scan the module itself
+        String[] result = scanForRepositoryInfo(moduleDir);
+        if (result != null) return result;
+
+        // Second: scan sibling modules that share the same SPL prefix
+        // e.g. koperasi.simpanan.pokok → look in koperasi.simpanan.* siblings only
+        String moduleName = moduleDir.getName();
+        String[] parts = moduleName.split("\\.");
+        String splPrefix = parts.length >= 2 ? parts[0] + "." + parts[1] : parts[0];
+
         IFolder buildFolder = (IFolder) moduleDir.getParent();
         for (IResource sibling : buildFolder.members()) {
-            if (sibling instanceof IFolder siblingDir) {
-                String[] result = scanForRepositoryInfo(siblingDir);
+            if (sibling instanceof IFolder siblingDir
+                    && !siblingDir.getName().equals(moduleName)
+                    && siblingDir.getName().startsWith(splPrefix + ".")) {
+                result = scanForRepositoryInfo(siblingDir);
                 if (result != null) return result;
             }
         }
@@ -143,7 +156,13 @@ public class RepositoryInjector {
                     String fieldName = target.startsWith("this.") ? target.substring(5) : target;
                     String arg = newExpr.getArgument(0).toString();
                     if (arg.endsWith(".class")) {
-                        return new String[] { arg.substring(0, arg.length() - 6), fieldName };
+                        // Extract generic type argument e.g. RepositoryUtil<Simpanan> → "Simpanan"
+                        String genericType = "";
+                        if (newExpr.getType().getTypeArguments().isPresent()
+                                && !newExpr.getType().getTypeArguments().get().isEmpty()) {
+                            genericType = newExpr.getType().getTypeArguments().get().get(0).toString();
+                        }
+                        return new String[] { arg.substring(0, arg.length() - 6), fieldName, genericType };
                     }
                 }
             }
@@ -352,13 +371,64 @@ public class RepositoryInjector {
 
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(packageName).append(";\n\n");
-        sb.append("import id.ac.ui.cs.prices.winvmj.hibernate.RepositoryUtil;\n\n");
+        sb.append("import id.ac.ui.cs.prices.winvmj.hibernate.RepositoryUtil;\n");
+        sb.append("import java.util.List;\n");
+        sb.append("import java.util.UUID;\n");
+        sb.append("import java.util.function.Consumer;\n");
+        sb.append("import javax.persistence.PersistenceException;\n");
+        sb.append("import org.hibernate.Session;\n\n");
         sb.append("public class ").append(className).append("<Y> extends RepositoryUtil<Y> {\n\n");
         sb.append("    private static final String FEATURE_NAME = \"").append(featureName).append("\";\n\n");
         sb.append("    private static final String TABLE_NAME = \"").append(tableName).append("\";\n\n");
         sb.append("    public ").append(className).append("(Class<? extends Y> componentClass) {\n");
         sb.append("        super(componentClass);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public void saveObject(Y object) throws PersistenceException {\n");
+        sb.append("        super.saveObject(object);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public void updateObject(Y object) {\n");
+        sb.append("        super.updateObject(object);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public Y getObject(int id) {\n");
+        sb.append("        return super.getObject(id);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public Y getObject(UUID id) {\n");
+        sb.append("        return super.getObject(id);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public List<Y> getAllObject(String tableName) {\n");
+        sb.append("        return super.getAllObject(tableName);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public List<Y> getAllObject(String tableName, String objectName) {\n");
+        sb.append("        return super.getAllObject(tableName, objectName);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public void deleteObject(int id) {\n");
+        sb.append("        super.deleteObject(id);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public void deleteObject(UUID id) {\n");
+        sb.append("        super.deleteObject(id);\n");
+        sb.append("    }\n\n");
+
+        sb.append("    @Override\n");
+        sb.append("    public void executeQuery(Consumer<Session> action) throws PersistenceException {\n");
+        sb.append("        super.executeQuery(action);\n");
         sb.append("    }\n");
+
         sb.append("}\n");
         return sb.toString();
     }
@@ -366,17 +436,17 @@ public class RepositoryInjector {
     // ========== Constructor Injection ==========
 
     private static void injectConstructorReplacement(IFolder moduleDir,
-            String componentClassFQN, String repoFieldName, String entityName) throws CoreException {
+            String componentClassFQN, String repoFieldName, String entityName, String genericType) throws CoreException {
         for (IFile file : AstUtils.findServiceImplFiles(moduleDir)) {
-            injectIntoImpl(file, componentClassFQN, repoFieldName, entityName);
+            injectIntoImpl(file, componentClassFQN, repoFieldName, entityName, genericType);
         }
         for (IFile file : AstUtils.findResourceImplFiles(moduleDir)) {
-            injectIntoImpl(file, componentClassFQN, repoFieldName, entityName);
+            injectIntoImpl(file, componentClassFQN, repoFieldName, entityName, genericType);
         }
     }
 
     private static void injectIntoImpl(IFile file,
-            String componentClassFQN, String repoFieldName, String entityName) {
+            String componentClassFQN, String repoFieldName, String entityName, String genericType) {
         CompilationUnit cu = JavaParserUtil.parse(file);
 
         String source = cu.toString();
@@ -386,8 +456,16 @@ public class RepositoryInjector {
         }
 
         String className = entityName + "RepositoryImpl";
-        String stmt = "this." + repoFieldName + " = new " + className + "<>("
+        String typeArg = (genericType != null && !genericType.isEmpty()) ? "<" + genericType + ">" : "<>";
+        String stmt = "this." + repoFieldName + " = new " + className + typeArg + "("
             + componentClassFQN + ".class);";
+
+        // Add import for the generic type (e.g. Simpanan) if it's not fully qualified
+        if (genericType != null && !genericType.isEmpty() && !genericType.contains(".")) {
+            String componentPackage = componentClassFQN.substring(0, componentClassFQN.lastIndexOf('.'));
+            String genericTypeFQN = componentPackage + "." + genericType;
+            AstUtils.addImports(cu, List.of(genericTypeFQN));
+        }
 
         AstUtils.addConstructorInit(cu, new String[] { stmt }, className);
         AstUtils.overwriteFile(file, cu);
