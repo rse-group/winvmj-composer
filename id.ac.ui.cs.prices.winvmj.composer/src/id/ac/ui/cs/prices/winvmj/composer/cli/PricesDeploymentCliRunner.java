@@ -36,7 +36,7 @@ public class PricesDeploymentCliRunner {
     }
     
     /**
-     * Locate the CLI JAR file from the plugin's libs folder.
+     * Locate the CLI JAR file from the plugin's resources/winvmj-libraries folder.
      */
     private String locateCliJar() throws Exception {
         Bundle bundle = Platform.getBundle(BUNDLE_ID);
@@ -44,9 +44,9 @@ public class PricesDeploymentCliRunner {
             throw new RuntimeException("Bundle not found: " + BUNDLE_ID);
         }
         
-        URL jarURL = FileLocator.toFileURL(bundle.getEntry("libs/" + CLI_JAR_NAME));
+        URL jarURL = FileLocator.toFileURL(bundle.getEntry("resources/winvmj-libraries/" + CLI_JAR_NAME));
         if (jarURL == null) {
-            throw new RuntimeException("CLI JAR not found: libs/" + CLI_JAR_NAME);
+            throw new RuntimeException("CLI JAR not found: resources/winvmj-libraries/" + CLI_JAR_NAME);
         }
         
         File jarFile = new File(jarURL.toURI());
