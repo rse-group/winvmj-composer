@@ -35,7 +35,7 @@ public class PricesDeploymentCliRunner {
 
     private static final String CLI_JAR_NAME = "prices-cli.jar";
     private static final String BUNDLE_ID = "id.ac.ui.cs.prices.winvmj.composer";
-    private static final String CLI_JAR_PATH_IN_BUNDLE = "resources/winvmj-libraries/" + CLI_JAR_NAME;
+    private static final String CLI_JAR_PATH_IN_BUNDLE = "libs/" + CLI_JAR_NAME;
     
     public PricesDeploymentCliRunner() {
     }
@@ -61,7 +61,7 @@ public class PricesDeploymentCliRunner {
             throw new RuntimeException("[CLI-NOT-BUNDLED] '" + CLI_JAR_PATH_IN_BUNDLE
                 + "' is not present inside bundle " + BUNDLE_ID + " (version "
                 + bundle.getVersion() + "). The prices-cli.jar was not packaged with this plugin -"
-                + " check build.properties 'bin.includes' and make sure resources/winvmj-libraries/"
+                + " check build.properties 'bin.includes' and make sure libs/"
                 + CLI_JAR_NAME + " exists in the installed plugin.");
         }
 
@@ -451,9 +451,8 @@ public class PricesDeploymentCliRunner {
                 sb.append("X Composer plugin itself is not loaded. Reinstall the plugin/feature.\n");
             } else if (!cliJarEntryFound) {
                 sb.append("X prices-cli.jar is NOT bundled with the installed plugin.\n");
-                sb.append("  -> Check build.properties 'bin.includes' contains resources/,\n");
-                sb.append("     and that resources/winvmj-libraries/").append(CLI_JAR_NAME)
-                  .append(" exists in the source before packaging.\n");
+                sb.append("  -> Check build.properties 'bin.includes' contains libs/").append(CLI_JAR_NAME)
+                  .append(",\n");
             } else if (!cliJarExtracted) {
                 sb.append("X CLI jar entry exists but could not be extracted from the bundle.\n");
             } else if (cliJarSizeBytes == 0) {
