@@ -78,7 +78,12 @@ public class PricesDeploymentCliRunner {
                 + CLI_JAR_PATH_IN_BUNDLE);
         }
 
-        File jarFile = new File(jarURL.toURI());
+        // Convert URL -> File safely. Using jarURL.toURI() blows up when the
+        // Eclipse install path contains spaces or other characters that are
+        // illegal in a URI (e.g. "...\eclipse paling paling baru\..."), because
+        // FileLocator may return a raw file: URL without %-encoding.
+        // Instead, take the path component and URL-decode it ourselves.
+        File jarFile = urlToFile(jarURL);
         if (!jarFile.exists()) {
             throw new RuntimeException("[CLI-NOT-ON-DISK] Extracted CLI path does not exist: "
                 + jarFile.getAbsolutePath());
@@ -89,6 +94,29 @@ public class PricesDeploymentCliRunner {
         }
 
         return jarFile.getAbsolutePath();
+    }
+
+    /**
+     * Convert a file: {@link URL} (as returned by {@link FileLocator#toFileURL})
+     * into a {@link File}, decoding percent-encoded characters if any.
+     *
+     * We do NOT go through {@code url.toURI()} because {@code FileLocator} may
+     * return URLs whose path is not percent-encoded (e.g. contains literal
+     * spaces when Eclipse is installed under "C:\...\eclipse paling baru\..."),
+     * which makes {@code toURI()} throw {@code URISyntaxException}.
+     */
+    private static File urlToFile(URL url) {
+        String path = url.getPath();
+        try {
+            path = java.net.URLDecoder.decode(path, StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+            // use the raw path
+        }
+        // On Windows, URL paths look like "/C:/Users/..." - drop the leading slash.
+        if (path.length() > 2 && path.charAt(0) == '/' && path.charAt(2) == ':') {
+            path = path.substring(1);
+        }
+        return new File(path);
     }
     
     /**
@@ -459,7 +487,7 @@ public class PricesDeploymentCliRunner {
                     try {
                         URL fileURL = FileLocator.toFileURL(entry);
                         if (fileURL != null) {
-                            File f = new File(fileURL.toURI());
+                            File f = urlToFile(fileURL);
                             r.cliJarExtracted = f.exists();
                             r.cliJarPath = f.getAbsolutePath();
                             r.cliJarSizeBytes = f.exists() ? f.length() : -1;
