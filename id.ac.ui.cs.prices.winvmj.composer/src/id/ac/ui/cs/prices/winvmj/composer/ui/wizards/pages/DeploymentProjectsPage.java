@@ -37,10 +37,11 @@ import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.program.Program;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner;
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner.CliResult;
@@ -256,8 +257,11 @@ public class DeploymentProjectsPage extends WizardPage {
         }
         
         try {
-            Gson gson = new Gson();
-            JsonArray array = gson.fromJson(arrayJson, JsonArray.class);
+            JsonArray array = parseJsonArraySafe(arrayJson);
+            if (array == null) {
+                WinVMJConsole.println("[PROJECTS] Empty or invalid projects payload");
+                return;
+            }
             
             for (JsonElement element : array) {
                 JsonObject obj = element.getAsJsonObject();
@@ -323,6 +327,31 @@ public class DeploymentProjectsPage extends WizardPage {
             }
         } catch (Exception e) {
             WinVMJConsole.println("[PROJECTS] Failed to parse projects: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Lenient parser for JSON arrays coming back from the CLI.
+     *
+     * The CLI output is already sanitized upstream by
+     * {@link PricesDeploymentCliRunner.CliResult#parse} (BOM / ANSI / JVM banners
+     * are stripped there), but we use a lenient {@link JsonReader} here as a
+     * second line of defense so a single malformed byte on an unusual device
+     * never breaks the whole UI with "malformed JSON".
+     */
+    private static JsonArray parseJsonArraySafe(String json) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            JsonReader reader = new JsonReader(new java.io.StringReader(json));
+            reader.setLenient(true);
+            JsonElement element = JsonParser.parseReader(reader);
+            if (element == null || !element.isJsonArray()) {
+                return null;
+            }
+            return element.getAsJsonArray();
+        } catch (Exception e) {
+            WinVMJConsole.println("[PROJECTS] parseJsonArraySafe failed: " + e.getMessage());
+            return null;
         }
     }
     
@@ -899,8 +928,8 @@ public class DeploymentProjectsPage extends WizardPage {
                             String arrayJson = result.getDataFieldAsString("_array");
                             if (arrayJson != null && !arrayJson.isEmpty()) {
                                 try {
-                                    JsonArray array = new Gson().fromJson(arrayJson, JsonArray.class);
-                                    if (array.size() == 0) {
+                                    JsonArray array = parseJsonArraySafe(arrayJson);
+                                    if (array == null || array.size() == 0) {
                                         infoLabel.setText("No deployments found for " + project.slug);
                                     } else {
                                         infoLabel.setText("Deployment history for " + project.slug + " (" + array.size() + ")");
@@ -1295,8 +1324,8 @@ public class DeploymentProjectsPage extends WizardPage {
                     String arrayJson = historyResult.getDataFieldAsString("_array");
                     if (arrayJson != null && !arrayJson.isEmpty()) {
                         try {
-                            JsonArray array = new Gson().fromJson(arrayJson, JsonArray.class);
-                            hasDeployments = array.size() > 0;
+                            JsonArray array = parseJsonArraySafe(arrayJson);
+                            hasDeployments = array != null && array.size() > 0;
                         } catch (Exception e) {
                             // parse error, assume no deployments
                         }

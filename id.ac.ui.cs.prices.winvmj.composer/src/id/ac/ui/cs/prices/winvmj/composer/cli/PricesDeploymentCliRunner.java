@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -14,11 +15,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import org.eclipse.core.runtime.FileLocator;
 
-import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 import org.eclipse.core.runtime.Platform;
 import org.osgi.framework.Bundle;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
@@ -31,29 +35,59 @@ public class PricesDeploymentCliRunner {
 
     private static final String CLI_JAR_NAME = "prices-cli.jar";
     private static final String BUNDLE_ID = "id.ac.ui.cs.prices.winvmj.composer";
+    private static final String CLI_JAR_PATH_IN_BUNDLE = "resources/winvmj-libraries/" + CLI_JAR_NAME;
     
     public PricesDeploymentCliRunner() {
     }
     
     /**
      * Locate the CLI JAR file from the plugin's resources/winvmj-libraries folder.
+     *
+     * Fails fast with a human-readable message that pinpoints which step broke:
+     *  (1) plugin bundle missing      -> host Eclipse didn't load our plugin
+     *  (2) bundle entry missing       -> CLI jar wasn't packaged into the plugin (build.properties)
+     *  (3) FileLocator unpack failed  -> OSGi couldn't extract the jar from the bundle
+     *  (4) file doesn't exist on disk -> unpack returned a path but the file is gone
      */
     private String locateCliJar() throws Exception {
         Bundle bundle = Platform.getBundle(BUNDLE_ID);
         if (bundle == null) {
-            throw new RuntimeException("Bundle not found: " + BUNDLE_ID);
+            throw new RuntimeException("[CLI-NOT-BUNDLED] Plugin bundle not found: " + BUNDLE_ID
+                + ". The composer plugin itself is not loaded in this Eclipse instance.");
         }
-        
-        URL jarURL = FileLocator.toFileURL(bundle.getEntry("resources/winvmj-libraries/" + CLI_JAR_NAME));
+
+        URL entry = bundle.getEntry(CLI_JAR_PATH_IN_BUNDLE);
+        if (entry == null) {
+            throw new RuntimeException("[CLI-NOT-BUNDLED] '" + CLI_JAR_PATH_IN_BUNDLE
+                + "' is not present inside bundle " + BUNDLE_ID + " (version "
+                + bundle.getVersion() + "). The prices-cli.jar was not packaged with this plugin -"
+                + " check build.properties 'bin.includes' and make sure resources/winvmj-libraries/"
+                + CLI_JAR_NAME + " exists in the installed plugin.");
+        }
+
+        URL jarURL;
+        try {
+            jarURL = FileLocator.toFileURL(entry);
+        } catch (IOException ioe) {
+            throw new RuntimeException("[CLI-UNPACK-FAILED] Could not extract "
+                + CLI_JAR_PATH_IN_BUNDLE + " from bundle " + BUNDLE_ID
+                + ": " + ioe.getMessage(), ioe);
+        }
         if (jarURL == null) {
-            throw new RuntimeException("CLI JAR not found: resources/winvmj-libraries/" + CLI_JAR_NAME);
+            throw new RuntimeException("[CLI-UNPACK-FAILED] FileLocator.toFileURL returned null for "
+                + CLI_JAR_PATH_IN_BUNDLE);
         }
-        
+
         File jarFile = new File(jarURL.toURI());
         if (!jarFile.exists()) {
-            throw new RuntimeException("CLI JAR file does not exist: " + jarFile.getAbsolutePath());
+            throw new RuntimeException("[CLI-NOT-ON-DISK] Extracted CLI path does not exist: "
+                + jarFile.getAbsolutePath());
         }
-        
+        if (jarFile.length() == 0) {
+            throw new RuntimeException("[CLI-EMPTY] CLI jar is 0 bytes at "
+                + jarFile.getAbsolutePath() + ". Re-install the plugin.");
+        }
+
         return jarFile.getAbsolutePath();
     }
     
@@ -240,23 +274,240 @@ public class PricesDeploymentCliRunner {
     
     /**
      * Run a CLI command with --json flag and parse the result.
+     *
+     * This implementation intentionally does NOT use {@code redirectErrorStream(true)}
+     * so that JVM startup noise printed to stderr
+     * (e.g. "Picked up JAVA_TOOL_OPTIONS", "Picked up _JAVA_OPTIONS",
+     *  "WARNING: ...", unnamed-module warnings, etc.) doesn't pollute the JSON on stdout.
+     * Any line that is clearly not JSON is also filtered before parsing, so the
+     * CLI output is robust across different user environments.
      */
     public CliResult runJsonCommand(String... args) {
-        StringBuilder output = new StringBuilder();
-        
         // Build args with --json flag
         String[] jsonArgs = new String[args.length + 1];
         System.arraycopy(args, 0, jsonArgs, 0, args.length);
         jsonArgs[args.length] = "--json";
-        
-        int exitCode = runCommand(line -> {
-            // Filter out our own logging lines
-            if (!line.startsWith("[PRICES CLI]")) {
-                output.append(line).append("\n");
+
+        StringBuilder stdout = new StringBuilder();
+        StringBuilder stderr = new StringBuilder();
+        int exitCode;
+
+        try {
+            List<String> cmd = buildBaseCommand();
+            for (String arg : jsonArgs) {
+                cmd.add(arg);
             }
-        }, jsonArgs);
-        
-        return CliResult.parse(output.toString().trim(), exitCode);
+
+            WinVMJConsole.println("[PRICES CLI] Running: " + String.join(" ", cmd));
+
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            // Keep stderr separate so JVM banners don't pollute the JSON body
+            pb.redirectErrorStream(false);
+            Process process = pb.start();
+
+            Thread outThread = new Thread(() -> readStreamInto(process.getInputStream(), stdout));
+            Thread errThread = new Thread(() -> readStreamInto(process.getErrorStream(), stderr));
+            outThread.setDaemon(true);
+            errThread.setDaemon(true);
+            outThread.start();
+            errThread.start();
+
+            exitCode = process.waitFor();
+            outThread.join();
+            errThread.join();
+
+            if (stderr.length() > 0) {
+                // Surface stderr to the console for debugging, but never feed it to the parser
+                for (String line : stderr.toString().split("\\r?\\n")) {
+                    if (!line.isEmpty()) {
+                        WinVMJConsole.println("[PRICES CLI][stderr] " + line);
+                    }
+                }
+            }
+            WinVMJConsole.println("[PRICES CLI] Exit code: " + exitCode);
+        } catch (Exception e) {
+            // Could not even start the java process - print full diagnostics so the user
+            // immediately knows whether the CLI jar is bundled and whether `java` is on PATH.
+            WinVMJConsole.println("[PRICES CLI ERROR] " + e.getMessage());
+            printEnvironmentDiagnostics("could not launch CLI");
+            return new CliResult(false, e.getMessage(), -1, null);
+        }
+
+        CliResult result = CliResult.parse(stdout.toString(), exitCode);
+
+        // If parsing failed OR the CLI itself errored, print a full diagnosis so
+        // we can tell whether the CLI was bundled, java exists, etc.
+        if (!result.isSuccess() && (exitCode != 0 || stdout.length() == 0
+                || (result.getMessage() != null && (
+                        result.getMessage().startsWith("CLI did not return JSON")
+                     || result.getMessage().startsWith("Failed to parse CLI JSON")
+                     || result.getMessage().startsWith("Unexpected CLI response shape"))))) {
+            printEnvironmentDiagnostics("exitCode=" + exitCode
+                + ", stdoutLen=" + stdout.length()
+                + ", stderrLen=" + stderr.length());
+        }
+
+        return result;
+    }
+
+    private static void readStreamInto(java.io.InputStream in, StringBuilder sink) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sink.append(line).append('\n');
+            }
+        } catch (IOException ignored) {
+            // stream closed / process ended
+        }
+    }
+
+    // ==================== Diagnostics ====================
+
+    /**
+     * Holds a snapshot of everything we need to tell the user *why* the CLI
+     * didn't run on their machine: was the jar bundled, is java on PATH, what version, etc.
+     */
+    public static class DiagnosticsReport {
+        public boolean bundleFound;
+        public String bundleVersion;
+        public boolean cliJarEntryFound;      // entry exists inside the bundle
+        public boolean cliJarExtracted;       // FileLocator managed to extract it
+        public String cliJarPath;
+        public long cliJarSizeBytes = -1;
+        public String cliLocateError;         // null if CLI was located successfully
+
+        public boolean javaOnPath;
+        public String javaVersion;            // first line of `java -version`
+        public String javaLocateError;
+
+        public String osName = System.getProperty("os.name");
+        public String osArch = System.getProperty("os.arch");
+        public String embeddedJavaVersion = System.getProperty("java.version");
+        public String embeddedJavaHome = System.getProperty("java.home");
+        public String pathEnv = System.getenv("PATH");
+
+        /** Human-readable, one-conclusion-per-line summary. */
+        public String summary() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== Prices CLI Diagnostics ===\n");
+            sb.append("OS: ").append(osName).append(" / ").append(osArch).append("\n");
+            sb.append("Eclipse JVM: ").append(embeddedJavaVersion)
+              .append(" (").append(embeddedJavaHome).append(")\n");
+
+            sb.append("Bundle '").append(BUNDLE_ID).append("': ")
+              .append(bundleFound ? "FOUND (v" + bundleVersion + ")" : "MISSING").append("\n");
+            sb.append("CLI jar entry '").append(CLI_JAR_PATH_IN_BUNDLE).append("' in bundle: ")
+              .append(cliJarEntryFound ? "PRESENT" : "MISSING").append("\n");
+            sb.append("CLI jar extracted to disk: ")
+              .append(cliJarExtracted ? "YES" : "NO").append("\n");
+            if (cliJarPath != null) {
+                sb.append("CLI jar path: ").append(cliJarPath).append("\n");
+                sb.append("CLI jar size: ").append(cliJarSizeBytes).append(" bytes\n");
+            }
+            if (cliLocateError != null) {
+                sb.append("CLI locate error: ").append(cliLocateError).append("\n");
+            }
+
+            sb.append("`java` on system PATH: ")
+              .append(javaOnPath ? "YES" : "NO").append("\n");
+            if (javaVersion != null) {
+                sb.append("System java -version: ").append(javaVersion).append("\n");
+            }
+            if (javaLocateError != null) {
+                sb.append("java probe error: ").append(javaLocateError).append("\n");
+            }
+
+            sb.append("--- Verdict ---\n");
+            if (!bundleFound) {
+                sb.append("X Composer plugin itself is not loaded. Reinstall the plugin/feature.\n");
+            } else if (!cliJarEntryFound) {
+                sb.append("X prices-cli.jar is NOT bundled with the installed plugin.\n");
+                sb.append("  -> Check build.properties 'bin.includes' contains resources/,\n");
+                sb.append("     and that resources/winvmj-libraries/").append(CLI_JAR_NAME)
+                  .append(" exists in the source before packaging.\n");
+            } else if (!cliJarExtracted) {
+                sb.append("X CLI jar entry exists but could not be extracted from the bundle.\n");
+            } else if (cliJarSizeBytes == 0) {
+                sb.append("X CLI jar is 0 bytes - reinstall the plugin.\n");
+            } else if (!javaOnPath) {
+                sb.append("X `java` is not on the user's PATH. Install a JDK 17+ or add it to PATH.\n");
+            } else {
+                sb.append("OK - CLI jar is bundled and java is available.\n");
+                sb.append("  If commands still fail, inspect [PRICES CLI][stderr] lines above.\n");
+            }
+            sb.append("==============================");
+            return sb.toString();
+        }
+    }
+
+    /**
+     * Collect a {@link DiagnosticsReport}. Safe to call any time - never throws.
+     */
+    public DiagnosticsReport diagnose() {
+        DiagnosticsReport r = new DiagnosticsReport();
+
+        // --- Bundle / CLI jar checks ---
+        try {
+            Bundle bundle = Platform.getBundle(BUNDLE_ID);
+            r.bundleFound = bundle != null;
+            if (bundle != null) {
+                r.bundleVersion = String.valueOf(bundle.getVersion());
+                URL entry = bundle.getEntry(CLI_JAR_PATH_IN_BUNDLE);
+                r.cliJarEntryFound = entry != null;
+                if (entry != null) {
+                    try {
+                        URL fileURL = FileLocator.toFileURL(entry);
+                        if (fileURL != null) {
+                            File f = new File(fileURL.toURI());
+                            r.cliJarExtracted = f.exists();
+                            r.cliJarPath = f.getAbsolutePath();
+                            r.cliJarSizeBytes = f.exists() ? f.length() : -1;
+                        }
+                    } catch (Exception ex) {
+                        r.cliLocateError = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            r.cliLocateError = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+        }
+
+        // --- `java` availability ---
+        try {
+            ProcessBuilder pb = new ProcessBuilder("java", "-version");
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            StringBuilder out = new StringBuilder();
+            readStreamInto(p.getInputStream(), out);
+            boolean exited = p.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            if (!exited) {
+                p.destroyForcibly();
+                r.javaLocateError = "java -version timed out after 5s";
+            } else {
+                r.javaOnPath = (p.exitValue() == 0);
+                String full = out.toString().trim();
+                int nl = full.indexOf('\n');
+                r.javaVersion = nl > 0 ? full.substring(0, nl).trim() : full;
+            }
+        } catch (Exception ex) {
+            r.javaOnPath = false;
+            r.javaLocateError = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+        }
+
+        return r;
+    }
+
+    /**
+     * Print a diagnostic block to WinVMJConsole. Called automatically whenever
+     * {@link #runJsonCommand} fails in a way that suggests an environment problem.
+     */
+    private void printEnvironmentDiagnostics(String reason) {
+        WinVMJConsole.println("[PRICES CLI] Running environment diagnostics (" + reason + ")...");
+        DiagnosticsReport report = diagnose();
+        for (String line : report.summary().split("\n")) {
+            WinVMJConsole.println("[PRICES CLI] " + line);
+        }
     }
     
     // ==================== Convenience Methods ====================
@@ -714,8 +965,6 @@ public class PricesDeploymentCliRunner {
      */
     public static class CliResult {
         
-        private static final Gson GSON = new Gson();
-        
         private final boolean success;
         private final String message;
         private final int exitCode;
@@ -765,44 +1014,166 @@ public class PricesDeploymentCliRunner {
             return sb.toString();
         }
         
-        @SuppressWarnings("unchecked")
-        public static CliResult parse(String json, int exitCode) {
-            if (json == null || json.trim().isEmpty()) {
+        public static CliResult parse(String rawOutput, int exitCode) {
+            if (rawOutput == null || rawOutput.trim().isEmpty()) {
                 return new CliResult(false, "Empty response", exitCode, null);
             }
-            
+
+            String json = sanitizeJsonOutput(rawOutput);
+            if (json == null || json.isEmpty()) {
+                // Surface the raw output so the user can see what actually came back
+                String snippet = rawOutput.length() > 400
+                        ? rawOutput.substring(0, 400) + "..."
+                        : rawOutput;
+                return new CliResult(false,
+                        "CLI did not return JSON. Raw output: " + snippet,
+                        exitCode, null);
+            }
+
             try {
-                JsonObject root = GSON.fromJson(json, JsonObject.class);
-                
-                boolean success = root.has("success") && root.get("success").getAsBoolean();
-                String message = root.has("message") && !root.get("message").isJsonNull() 
-                    ? root.get("message").getAsString() : null;
-                
+                // Use a lenient reader so trailing whitespace / non-strict JSON
+                // (e.g. from some JVM distributions that re-wrap output) still parse
+                JsonReader reader = new JsonReader(new StringReader(json));
+                reader.setLenient(true);
+                JsonElement root = JsonParser.parseReader(reader);
+
+                if (root == null || !root.isJsonObject()) {
+                    return new CliResult(false,
+                            "Unexpected CLI response shape: " + json,
+                            exitCode, null);
+                }
+
+                JsonObject obj = root.getAsJsonObject();
+
+                boolean success = obj.has("success")
+                        && !obj.get("success").isJsonNull()
+                        && obj.get("success").getAsBoolean();
+                String message = obj.has("message") && !obj.get("message").isJsonNull()
+                        ? obj.get("message").getAsString()
+                        : null;
+
                 Map<String, Object> data = new HashMap<>();
-                if (root.has("data") && !root.get("data").isJsonNull()) {
-                    com.google.gson.JsonElement dataElement = root.get("data");
+                if (obj.has("data") && !obj.get("data").isJsonNull()) {
+                    JsonElement dataElement = obj.get("data");
                     if (dataElement.isJsonArray()) {
-                        // Handle array data (e.g., projects list)
                         data.put("_array", dataElement.toString());
-                        data.put("_count", String.valueOf(dataElement.getAsJsonArray().size()));
+                        data.put("_count",
+                                String.valueOf(dataElement.getAsJsonArray().size()));
                     } else if (dataElement.isJsonObject()) {
                         JsonObject dataObj = dataElement.getAsJsonObject();
                         for (String key : dataObj.keySet()) {
-                            if (dataObj.get(key).isJsonNull()) {
+                            JsonElement v = dataObj.get(key);
+                            if (v == null || v.isJsonNull()) {
                                 data.put(key, null);
-                            } else if (dataObj.get(key).isJsonPrimitive()) {
-                                data.put(key, dataObj.get(key).getAsString());
+                            } else if (v.isJsonPrimitive()) {
+                                data.put(key, v.getAsString());
                             } else {
-                                data.put(key, dataObj.get(key).toString());
+                                data.put(key, v.toString());
                             }
                         }
                     }
                 }
-                
+
                 return new CliResult(success, message, exitCode, data);
             } catch (Exception e) {
-                return new CliResult(false, "Failed to parse JSON: " + e.getMessage(), exitCode, null);
+                String snippet = json.length() > 400
+                        ? json.substring(0, 400) + "..."
+                        : json;
+                return new CliResult(false,
+                        "Failed to parse CLI JSON (" + e.getMessage() + "). Output: " + snippet,
+                        exitCode, null);
             }
+        }
+
+        // ---- JSON sanitization helpers ---------------------------------------
+
+        /** ANSI color / escape sequences. */
+        private static final Pattern ANSI_ESCAPE =
+                Pattern.compile("\u001B\\[[;\\d]*[ -/]*[@-~]");
+
+        /**
+         * Normalize arbitrary CLI stdout into a parseable JSON document.
+         *
+         * Handles:
+         *  - UTF-8 BOM at start of stream
+         *  - ANSI color escape codes
+         *  - JVM banners printed to stdout on some distributions
+         *    (e.g. "Picked up JAVA_TOOL_OPTIONS: ...", "Picked up _JAVA_OPTIONS: ...",
+         *     "WARNING: ...", "Unrecognized option: ...")
+         *  - Our own "[PRICES CLI]" prefixed log lines
+         *  - Any leading / trailing non-JSON text around the real payload
+         *
+         * Returns the first balanced top-level JSON object or array found,
+         * or {@code null} if nothing JSON-like is present.
+         */
+        static String sanitizeJsonOutput(String raw) {
+            if (raw == null) return null;
+
+            // Strip UTF-8 BOM if present
+            if (!raw.isEmpty() && raw.charAt(0) == '\uFEFF') {
+                raw = raw.substring(1);
+            }
+
+            // Strip ANSI escape sequences
+            raw = ANSI_ESCAPE.matcher(raw).replaceAll("");
+
+            // Drop obvious JVM / tooling banner lines that some environments
+            // print to stdout. This is conservative: we keep any line that
+            // looks JSON-related.
+            StringBuilder filtered = new StringBuilder(raw.length());
+            for (String line : raw.split("\\r?\\n")) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) continue;
+                if (trimmed.startsWith("[PRICES CLI]")) continue;
+                if (trimmed.startsWith("Picked up ")) continue;             // JAVA_TOOL_OPTIONS / _JAVA_OPTIONS
+                if (trimmed.startsWith("WARNING:")) continue;                // illegal reflective access etc.
+                if (trimmed.startsWith("OpenJDK ")) continue;
+                if (trimmed.startsWith("Java HotSpot")) continue;
+                if (trimmed.startsWith("Unrecognized option")) continue;
+                if (trimmed.startsWith("Error occurred during initialization")) continue;
+                filtered.append(line).append('\n');
+            }
+            String cleaned = filtered.toString();
+
+            // Find the first balanced JSON object/array. This is defensive
+            // against any progress output that happens to sneak through before
+            // the real JSON payload.
+            int startObj = cleaned.indexOf('{');
+            int startArr = cleaned.indexOf('[');
+            int start;
+            char open, close;
+            if (startObj < 0 && startArr < 0) {
+                return null;
+            } else if (startObj < 0) {
+                start = startArr; open = '['; close = ']';
+            } else if (startArr < 0) {
+                start = startObj; open = '{'; close = '}';
+            } else if (startObj < startArr) {
+                start = startObj; open = '{'; close = '}';
+            } else {
+                start = startArr; open = '['; close = ']';
+            }
+
+            int depth = 0;
+            boolean inString = false;
+            boolean escape = false;
+            for (int i = start; i < cleaned.length(); i++) {
+                char c = cleaned.charAt(i);
+                if (escape) { escape = false; continue; }
+                if (c == '\\' && inString) { escape = true; continue; }
+                if (c == '"') { inString = !inString; continue; }
+                if (inString) continue;
+                if (c == open) depth++;
+                else if (c == close) {
+                    depth--;
+                    if (depth == 0) {
+                        return cleaned.substring(start, i + 1).trim();
+                    }
+                }
+            }
+
+            // Unbalanced - return best effort (everything from the first brace/bracket)
+            return cleaned.substring(start).trim();
         }
     }
     

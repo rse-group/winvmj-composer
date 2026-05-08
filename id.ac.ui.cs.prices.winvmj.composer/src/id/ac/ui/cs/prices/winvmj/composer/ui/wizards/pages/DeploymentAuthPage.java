@@ -282,6 +282,14 @@ public class DeploymentAuthPage extends WizardPage {
     
     private void checkAuthStatus() {
         new Thread(() -> {
+            // One-shot environment check so the user can immediately see whether
+            // the CLI jar was bundled and whether `java` is reachable on this machine.
+            PricesDeploymentCliRunner.DiagnosticsReport diag = cliRunner.diagnose();
+            WinVMJConsole.println("[AUTH] Pre-flight diagnostics:");
+            for (String line : diag.summary().split("\n")) {
+                WinVMJConsole.println("[AUTH] " + line);
+            }
+
             WinVMJConsole.println("[AUTH] Checking authentication status...");
             CliResult result = cliRunner.getAuthenticatedUser();
             
