@@ -28,7 +28,6 @@ import java.util.List;
 public class LoggingInjector {
 
     private static final List<String> IMPORTS = List.of(
-        "org.slf4j.Logger",
         "org.slf4j.LoggerFactory",
         "org.slf4j.MDC"
     );
@@ -150,7 +149,7 @@ public class LoggingInjector {
 
             classDecl.getMembers().add(0,
                 StaticJavaParser.parseBodyDeclaration(
-                    "private static final Logger " + FIELD_SENTINEL
+                    "private static final org.slf4j.Logger " + FIELD_SENTINEL
                         + " = LoggerFactory.getLogger(" + className + ".class);")
                     .asFieldDeclaration());
         });

@@ -47,6 +47,9 @@ import de.ovgu.featureide.fm.core.io.EclipseFileSystem;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 
 public class Utils {
+	public static final String DEPLOYMENT_PARENT_DOMAIN = "prices.cs.ui.ac.id";
+	public static final String DEPLOYMENT_PARENT_DOMAIN_SUFFIX = "." + DEPLOYMENT_PARENT_DOMAIN;
+
 	public static List<String> getRelatedProducts(IFeatureProject project, 
 			String externalSplName, String productName) throws CoreException {
 		IFile interSplProductMapper = project.getProject()

@@ -74,10 +74,20 @@ public class MonitoringUtils {
 	}
 
 	/**
-	 * Check if monitoring is enabled (properties file exists).
+	 * Check if monitoring is enabled.
 	 */
 	public static boolean isMonitoringEnabled(IFeatureProject project) {
-		return loadMonitoringProps(project) != null;
+		Properties props = loadMonitoringProps(project);
+		if (props == null) return false;
+		if (Boolean.parseBoolean(props.getProperty("jvmMetrics", "false"))) return true;
+
+		for (String key : props.stringPropertyNames()) {
+			if (key.equals("jvmMetrics")) continue;
+			if (Boolean.parseBoolean(props.getProperty(key, "false"))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

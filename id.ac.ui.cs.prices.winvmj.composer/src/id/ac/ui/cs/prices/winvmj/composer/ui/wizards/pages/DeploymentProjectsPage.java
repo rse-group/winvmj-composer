@@ -45,6 +45,7 @@ import com.google.gson.stream.JsonReader;
 
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner;
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner.CliResult;
+import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.runtime.WinVMJConsole;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentWizard;
 
@@ -421,13 +422,13 @@ public class DeploymentProjectsPage extends WizardPage {
         @Override
         protected Control createDialogArea(Composite parent) {
             Composite container = (Composite) super.createDialogArea(parent);
-            container.setLayout(new GridLayout(2, false));
+            container.setLayout(new GridLayout(3, false));
             
             // Project name
             Label nameLabel = new Label(container, SWT.NONE);
             nameLabel.setText("Project Name:*");
             nameText = new Text(container, SWT.BORDER);
-            nameText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            nameText.setLayoutData(spanTwoColumns());
             if (defaultName != null) {
                 nameText.setText(defaultName);
             }
@@ -436,68 +437,60 @@ public class DeploymentProjectsPage extends WizardPage {
             Label descLabel = new Label(container, SWT.NONE);
             descLabel.setText("Description:");
             descriptionText = new Text(container, SWT.BORDER);
-            descriptionText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            descriptionText.setLayoutData(spanTwoColumns());
             descriptionText.setText("Deployed from WinVMJ Composer");
             
             // Product Line
             Label plLabel = new Label(container, SWT.NONE);
             plLabel.setText("Product Line:*");
             productLineText = new Text(container, SWT.BORDER);
-            productLineText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            productLineText.setLayoutData(spanTwoColumns());
             productLineText.setMessage("e.g., BankAccount");
             
             // Separator
             Label separator = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
             GridData sepGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            sepGd.horizontalSpan = 2;
+            sepGd.horizontalSpan = 3;
             separator.setLayoutData(sepGd);
             
             // Custom URLs section label
             Label urlLabel = new Label(container, SWT.NONE);
-            urlLabel.setText("Custom URLs (optional):");
+            urlLabel.setText("Custom URL slugs (optional):");
             GridData urlLabelGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            urlLabelGd.horizontalSpan = 2;
+            urlLabelGd.horizontalSpan = 3;
             urlLabel.setLayoutData(urlLabelGd);
             
             // Custom frontend URL
-            Label frontendLabel = new Label(container, SWT.NONE);
-            frontendLabel.setText("Frontend URL:");
-            customFrontendText = new Text(container, SWT.BORDER);
-            customFrontendText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-            customFrontendText.setMessage("e.g., myapp.example.com");
+            customFrontendText = createCustomDomainField(container, "Frontend slug/domain:", "e.g., myapp");
             
             // Custom backend URL
-            Label backendLabel = new Label(container, SWT.NONE);
-            backendLabel.setText("Backend URL:");
-            customBackendText = new Text(container, SWT.BORDER);
-            customBackendText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-            customBackendText.setMessage("e.g., api.example.com");
+            customBackendText = createCustomDomainField(container, "Backend slug/domain:", "e.g., api-myapp");
             
             // Separator for ports
             Label portSep = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
             GridData portSepGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            portSepGd.horizontalSpan = 2;
+            portSepGd.horizontalSpan = 3;
             portSep.setLayoutData(portSepGd);
             
             // Internal Listening Ports section label
             Label portLabel = new Label(container, SWT.NONE);
             portLabel.setText("Internal Listening Ports (optional):");
             GridData portLabelGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            portLabelGd.horizontalSpan = 2;
+            portLabelGd.horizontalSpan = 3;
             portLabel.setLayoutData(portLabelGd);
             
             // Frontend listening port
             Label fePortLabel = new Label(container, SWT.NONE);
             fePortLabel.setText("Frontend Port:");
             frontendPortText = new Text(container, SWT.BORDER);
-            frontendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            frontendPortText.setLayoutData(spanTwoColumns());
             frontendPortText.setMessage("default: 80");
             
             // Backend listening port
             Label bePortLabel = new Label(container, SWT.NONE);
             bePortLabel.setText("Backend Port:");
             backendPortText = new Text(container, SWT.BORDER);
-            backendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            backendPortText.setLayoutData(spanTwoColumns());
             backendPortText.setMessage("default: 7776");
             
             return container;
@@ -505,7 +498,27 @@ public class DeploymentProjectsPage extends WizardPage {
         
         @Override
         protected Point getInitialSize() {
-            return new Point(500, 450);
+            return new Point(560, 450);
+        }
+
+        private Text createCustomDomainField(Composite container, String labelText, String message) {
+            new Label(container, SWT.NONE).setText(labelText);
+
+            Text text = new Text(container, SWT.BORDER);
+            text.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            text.setMessage(message);
+
+            Label suffixLabel = new Label(container, SWT.NONE);
+            suffixLabel.setText(Utils.DEPLOYMENT_PARENT_DOMAIN_SUFFIX);
+            suffixLabel.setToolTipText("Leave the field empty to skip custom URL, or enter a full domain to use another host.");
+
+            return text;
+        }
+
+        private GridData spanTwoColumns() {
+            GridData gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+            gd.horizontalSpan = 2;
+            return gd;
         }
         
         @Override
@@ -1429,59 +1442,55 @@ public class DeploymentProjectsPage extends WizardPage {
         @Override
         protected Control createDialogArea(Composite parent) {
             Composite container = (Composite) super.createDialogArea(parent);
-            container.setLayout(new GridLayout(2, false));
+            container.setLayout(new GridLayout(3, false));
             
             // Name
             new Label(container, SWT.NONE).setText("Name:");
             nameText = new Text(container, SWT.BORDER);
-            nameText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            nameText.setLayoutData(spanTwoColumns());
             nameText.setText(project.name != null ? project.name : "");
             
             // Description
             new Label(container, SWT.NONE).setText("Description:");
             descText = new Text(container, SWT.BORDER);
-            descText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            descText.setLayoutData(spanTwoColumns());
             descText.setText(project.description != null ? project.description : "");
             
             // Separator
             Label sep = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
             GridData sepGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            sepGd.horizontalSpan = 2;
+            sepGd.horizontalSpan = 3;
             sep.setLayoutData(sepGd);
             
             // Custom Frontend URL
-            new Label(container, SWT.NONE).setText("Custom Frontend URL:");
-            frontendUrlText = new Text(container, SWT.BORDER);
-            frontendUrlText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            frontendUrlText = createCustomDomainField(container, "Custom frontend slug/domain:", "e.g., myapp");
             if (project.customFrontendUrl != null) {
-                frontendUrlText.setText(project.customFrontendUrl);
+                frontendUrlText.setText(toDomainInput(project.customFrontendUrl));
             }
             
             // Custom Backend URL
-            new Label(container, SWT.NONE).setText("Custom Backend URL:");
-            backendUrlText = new Text(container, SWT.BORDER);
-            backendUrlText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            backendUrlText = createCustomDomainField(container, "Custom backend slug/domain:", "e.g., api-myapp");
             if (project.customBackendUrl != null) {
-                backendUrlText.setText(project.customBackendUrl);
+                backendUrlText.setText(toDomainInput(project.customBackendUrl));
             }
             
             // Separator for ports
             Label portSep = new Label(container, SWT.SEPARATOR | SWT.HORIZONTAL);
             GridData portSepGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            portSepGd.horizontalSpan = 2;
+            portSepGd.horizontalSpan = 3;
             portSep.setLayoutData(portSepGd);
             
             // Internal Listening Ports section label
             Label portSectionLabel = new Label(container, SWT.NONE);
             portSectionLabel.setText("Internal Listening Ports:");
             GridData portSectionGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            portSectionGd.horizontalSpan = 2;
+            portSectionGd.horizontalSpan = 3;
             portSectionLabel.setLayoutData(portSectionGd);
             
             // Frontend listening port
             new Label(container, SWT.NONE).setText("Frontend Port:");
             frontendPortText = new Text(container, SWT.BORDER);
-            frontendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            frontendPortText.setLayoutData(spanTwoColumns());
             frontendPortText.setMessage("default: 80");
             if (project.frontendListeningPort != null) {
                 frontendPortText.setText(String.valueOf(project.frontendListeningPort));
@@ -1490,7 +1499,7 @@ public class DeploymentProjectsPage extends WizardPage {
             // Backend listening port
             new Label(container, SWT.NONE).setText("Backend Port:");
             backendPortText = new Text(container, SWT.BORDER);
-            backendPortText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            backendPortText.setLayoutData(spanTwoColumns());
             backendPortText.setMessage("default: 7776");
             if (project.backendListeningPort != null) {
                 backendPortText.setText(String.valueOf(project.backendListeningPort));
@@ -1500,7 +1509,7 @@ public class DeploymentProjectsPage extends WizardPage {
             statusLabel = new Label(container, SWT.NONE);
             statusLabel.setText("");
             GridData statusGd = new GridData(SWT.FILL, SWT.CENTER, true, false);
-            statusGd.horizontalSpan = 2;
+            statusGd.horizontalSpan = 3;
             statusLabel.setLayoutData(statusGd);
             
             return container;
@@ -1555,7 +1564,35 @@ public class DeploymentProjectsPage extends WizardPage {
         
         @Override
         protected Point getInitialSize() {
-            return new Point(450, 400);
+            return new Point(560, 400);
+        }
+
+        private Text createCustomDomainField(Composite container, String labelText, String message) {
+            new Label(container, SWT.NONE).setText(labelText);
+
+            Text text = new Text(container, SWT.BORDER);
+            text.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+            text.setMessage(message);
+
+            Label suffixLabel = new Label(container, SWT.NONE);
+            suffixLabel.setText(Utils.DEPLOYMENT_PARENT_DOMAIN_SUFFIX);
+            suffixLabel.setToolTipText("Leave the field empty to keep custom URL unset, or enter a full domain to use another host.");
+
+            return text;
+        }
+
+        private GridData spanTwoColumns() {
+            GridData gd = new GridData(SWT.FILL, SWT.CENTER, true, false);
+            gd.horizontalSpan = 2;
+            return gd;
+        }
+
+        private String toDomainInput(String domain) {
+            String suffix = Utils.DEPLOYMENT_PARENT_DOMAIN_SUFFIX;
+            if (domain != null && domain.endsWith(suffix)) {
+                return domain.substring(0, domain.length() - suffix.length());
+            }
+            return domain;
         }
     }
 }

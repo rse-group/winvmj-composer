@@ -336,7 +336,14 @@ public class SourceCompiler {
 		new UnixRunAllScriptRenderer(project, dbUsername, dbPassword).render(product);
 		new EndpointsConfigRenderer(project).render(product);
 		new LogbackXmlRenderer(project).render(product);
-		new MonitoringPropertiesRenderer(project).render(product);
+		IFile monitoringProperties = project.getProject().getFolder(OUTPUT_FOLDER)
+				.getFolder(product.getProductName())
+				.getFile("monitoring.properties");
+		if (MonitoringUtils.isMonitoringEnabled(project)) {
+			new MonitoringPropertiesRenderer(project).render(product);
+		} else if (monitoringProperties.exists()) {
+			monitoringProperties.delete(true, null);
+		}
 		
 		// Generate Docker files for non-microservice (monolith) only
 		// Microservice Docker files are handled by deployment scripts

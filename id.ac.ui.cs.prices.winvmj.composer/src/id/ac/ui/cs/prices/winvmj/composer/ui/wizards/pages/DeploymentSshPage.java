@@ -17,6 +17,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 
 import de.ovgu.featureide.core.IFeatureProject;
+import id.ac.ui.cs.prices.winvmj.composer.Utils;
 import id.ac.ui.cs.prices.winvmj.composer.cli.PricesDeploymentCliRunner;
 import id.ac.ui.cs.prices.winvmj.composer.ui.wizards.DeploymentSshWizard;
 
@@ -147,19 +148,13 @@ public class DeploymentSshPage extends WizardPage {
         
         // Custom URLs group
         Group urlGroup = new Group(container, SWT.NONE);
-        urlGroup.setText("Custom URLs (Optional)");
-        urlGroup.setLayout(new GridLayout(2, false));
+        urlGroup.setText("Custom URL Slugs (Optional)");
+        urlGroup.setLayout(new GridLayout(3, false));
         urlGroup.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
         
-        new Label(urlGroup, SWT.NONE).setText("Frontend URL:");
-        frontendUrlText = new Text(urlGroup, SWT.BORDER);
-        frontendUrlText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-        frontendUrlText.setMessage("e.g., https://myapp.example.com");
+        frontendUrlText = createCustomDomainField(urlGroup, "Frontend slug/domain:", "e.g., myapp");
         
-        new Label(urlGroup, SWT.NONE).setText("Backend URL:");
-        backendUrlText = new Text(urlGroup, SWT.BORDER);
-        backendUrlText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-        backendUrlText.setMessage("e.g., https://api.myapp.example.com");
+        backendUrlText = createCustomDomainField(urlGroup, "Backend slug/domain:", "e.g., api-myapp");
         
         // Ports group
         Group portGroup = new Group(container, SWT.NONE);
@@ -298,6 +293,20 @@ public class DeploymentSshPage extends WizardPage {
             outputText.append(text);
             outputText.setTopIndex(outputText.getLineCount() - 1);
         }
+    }
+
+    private Text createCustomDomainField(Composite parent, String labelText, String message) {
+        new Label(parent, SWT.NONE).setText(labelText);
+
+        Text text = new Text(parent, SWT.BORDER);
+        text.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        text.setMessage(message);
+
+        Label suffixLabel = new Label(parent, SWT.NONE);
+        suffixLabel.setText(Utils.DEPLOYMENT_PARENT_DOMAIN_SUFFIX);
+        suffixLabel.setToolTipText("Leave the field empty to skip custom URL, or enter a full domain to use another host.");
+
+        return text;
     }
     
     public boolean isDeploying() {
