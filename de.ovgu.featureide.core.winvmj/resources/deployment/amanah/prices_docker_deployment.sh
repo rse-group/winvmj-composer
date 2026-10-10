@@ -93,6 +93,8 @@ generate_nginx_config() {
   BE_PORT=$product_gateway_port
   OUT=$product_name.conf
   cat <<EOF | sudo tee "$OUT" >/dev/null
+limit_req_zone \$binary_remote_addr zone=${product_name}_login:1m rate=20r/m;
+
 server {
   server_name ${PRODUCT}.amanah-staging.cs.ui.ac.id;
   listen 80;
@@ -135,6 +137,12 @@ server {
   }
 
   location /call {
+    proxy_pass http://localhost:${BE_PORT};
+  }
+
+  location = /auth/login/pwd {
+    limit_req zone=${product_name}_login burst=10 nodelay;
+    limit_req_status 429;
     proxy_pass http://localhost:${BE_PORT};
   }
 

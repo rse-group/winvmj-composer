@@ -96,6 +96,8 @@ generate_nginx_config() {
   OUT=$NGINX_CERTIFICATE_NAME_OUT
 
   cat <<EOF | sudo tee $OUT >/dev/null
+limit_req_zone \$binary_remote_addr zone=${product_name}_login:1m rate=20r/m;
+
 server {
   listen 443 ssl;
   server_name ${CERTIFICATE_NAME};
@@ -136,6 +138,16 @@ server {
   }
 
   location /call {
+    proxy_pass http://localhost:${BE_PORT};
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header Authorization \$http_authorization;
+  }
+
+  location = /auth/login/pwd {
+    limit_req zone=${product_name}_login burst=10 nodelay;
+    limit_req_status 429;
     proxy_pass http://localhost:${BE_PORT};
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
