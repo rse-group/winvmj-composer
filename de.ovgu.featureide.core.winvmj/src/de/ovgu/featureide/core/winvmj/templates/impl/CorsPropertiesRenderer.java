@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.CoreException;
 
 import de.ovgu.featureide.core.IFeatureProject;
 import de.ovgu.featureide.core.winvmj.core.WinVMJProduct;
@@ -14,6 +15,19 @@ public class CorsPropertiesRenderer extends TemplateRenderer {
 	
 	public CorsPropertiesRenderer(IFeatureProject project) {
 		super(project);
+	}
+	
+	@Override
+	public void render(WinVMJProduct product) {
+		IFile outputFile = getOutputFile(product);
+		try {
+			outputFile.refreshLocal(IFile.DEPTH_ZERO, null);
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+		if (!outputFile.exists()) {
+			super.render(product);
+		}
 	}
 	
 	protected Map<String, Object> extractDataModel(WinVMJProduct product) {
